@@ -4,6 +4,8 @@ from dash import dcc, html
 from dash.dependencies import Input, Output
 from dash.long_callback import DiskcacheLongCallbackManager
 
+import queries
+
 import diskcache
 cache = diskcache.Cache("./cache")
 long_callback_manager = DiskcacheLongCallbackManager(cache)
@@ -22,18 +24,19 @@ SIDEBAR_STYLE = {
     "top": 0,
     "left": 0,
     "bottom": 0,
-    "width": "10rem",
+    "width": "14rem",
     "padding": "2rem 1rem",
 }
 
 CONTENT_STYLE = {
-    "marginLeft": "10rem",
+    "marginLeft": "14rem",
     "marginRight": "2rem",
     "padding": "2rem 1rem",
 }
 
 def get_relative_path(page_name):
     return dash.page_registry[f'pages.{page_name}']['relative_path']
+
 
 sidebar = html.Div(
     [
@@ -44,6 +47,11 @@ sidebar = html.Div(
             ),
         ]),
 
+        html.Hr(),
+        dbc.Select(
+            id="country-select",
+            size="sm",
+        ),
         html.Hr(),
         dbc.Nav(
             [
@@ -65,10 +73,13 @@ content = html.Div(dash.page_container,
 
 dummy_div = html.Div(id="div-for-redirect")
 
-app.layout = html.Div([dcc.Location(id='url', refresh=False),
-                       sidebar,
-                       content,
-                       dummy_div])
+app.layout = html.Div([
+    dcc.Location(id='url', refresh=False),
+    sidebar,
+    content,
+    dummy_div,
+    dcc.Store(id='stored-data'),
+])
 
 @app.callback(
     Output('div-for-redirect', 'children'),
@@ -81,34 +92,35 @@ def redirect_default(url_pathname):
     else:
         return ""
 
-
-@app.long_callback(
-    Output('overview-content', 'children'),
-    Input('overview-tabs', 'active_tab'),
-    running=[
-        (
-            Output("overview-spinner", "style"),
-            {"display": "block"},
-            {"display": "none"},
-        ),
-        (
-            Output("overview-content", "style"),
-            {"display": "none"},
-            {"display": "block"},
-        ),
-    ],
+@app.callback(
+    Output('stored-data', 'data'),
+    Input('stored-data', 'data')
 )
-def render_overview_content(tab):
-    if tab == 'overview-tab-time':
-        return html.Div([
-            'Time series viz'
-            # dcc.Graph(id='edu-plot', figure=make_edu_plot(gdp, country))
-        ])
-    elif tab == 'overview-tab-space':
-        return html.Div([
-            'Geospatial viz'
-            # dcc.Graph(id='overview-plot', figure=make_overview_plot(gdp, country))
-        ])
+def fetch_data_once(data):
+    if data is None:
+        df = queries.get_expenditure_by_country_year()
+        countries = sorted(df['country_name'].unique())
+        return ({
+            'countries': countries,
+            'expenditure_by_country_year': df.to_dict('records')
+        })
+    return dash.no_update
+
+@app.callback(
+    Output('country-select', 'options'),
+    Output('country-select', 'value'),
+    Input('stored-data', 'data')
+)
+def display_data(data):
+    def get_country_select_options(countries):
+        options = list({"label": c, "value": c} for c in countries)
+        options[0]["selected"] = True
+        return options
+
+    if data is not None:
+        countries = data['countries']
+        return get_country_select_options(countries), countries[0]
+    return ["No data available"], ""
 
 
 @app.long_callback(

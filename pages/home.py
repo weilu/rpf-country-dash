@@ -37,8 +37,8 @@ def render_overview_content(tab):
             dbc.Row(
                 dbc.Col(
                     html.P(
-                        style={"font-size": "16px", "opacity": "70%"},
-                        children="TODO: narrative about total & per capita exp",
+                        id="overview-narrative",
+                        children="loading...",
                     )
                 )
             ),
@@ -106,6 +106,17 @@ def total_figure(df):
         title="How has total expenditure changed over time?",
         plot_bgcolor="white",
         legend=dict(orientation="h", yanchor="bottom", y=1),
+        annotations=[
+            dict(
+                xref='paper',
+                yref='paper',
+                x=-0.14,
+                y=-0.2,
+                text="Source: BOOST & CPI: World Bank",
+                showarrow=False,
+                font=dict(size=12)
+            )
+        ]
     )
 
     return fig
@@ -139,13 +150,49 @@ def per_capita_figure(df):
         title="How has per capita expenditure changed over time?",
         plot_bgcolor="white",
         legend=dict(orientation="h", yanchor="bottom", y=1),
+        annotations=[
+            dict(
+                xref='paper',
+                yref='paper',
+                x=-0.14,
+                y=-0.2,
+                text="Source: BOOST & CPI: World Bank; Population: UN, Eurostat",
+                showarrow=False,
+                font=dict(size=12)
+            )
+        ]
     )
 
     return fig
 
+def overview_narrative(df):
+    country = df.country_name.iloc[0]
+    earliest = df[df.year == df.earliest_year].iloc[0].to_dict()
+    latest = df[df.year == df.latest_year].iloc[0].to_dict()
+    start_year = earliest['year']
+    end_year = latest['year']
+
+    total_percent_diff = 100 * (latest['real_expenditure'] - earliest['real_expenditure']) / earliest['real_expenditure']
+    total_trend = 'increased' if total_percent_diff > 0 else 'decreased'
+
+    per_capita_percent_diff = 100 * (latest['per_capita_real_expenditure'] - earliest['per_capita_real_expenditure']) / earliest['per_capita_real_expenditure']
+    per_capita_trend = 'increased' if per_capita_percent_diff > 0 else 'decreased'
+
+    text = f'After accounting for inflation, total public spending has {total_trend} by {total_percent_diff:.1f}% and per capita spending has {per_capita_trend} by {per_capita_percent_diff:.1f}% between {start_year} and {end_year}. '
+
+    decentral_mean = df.expenditure_decentralization.mean() * 100
+    decentral_latest = latest['expenditure_decentralization'] * 100
+    decentral_text = f'On average, {decentral_mean:.1f}% of total public spending is executed by local/regional government. '
+    if decentral_latest > 0:
+        decentral_text += f'In {end_year}, which is the latest year with data available, expenditure decentralization is {decentral_latest:.1f}%. ' 
+    text += decentral_text if decentral_mean > 0 else f'BOOST does not have any local/regional spending data for {country}. '
+
+    return text
+
 @callback(
     Output('overview-total', 'figure'),
     Output('overview-per-capita', 'figure'),
+    Output('overview-narrative', 'children'),
     Input('stored-data', 'data'),
     Input('country-select', 'value'),
 )
@@ -153,5 +200,5 @@ def render_overview_total_figure(data, country):
     all_countries = pd.DataFrame(data['expenditure_by_country_year'])
     df = all_countries[all_countries.country_name == country]
 
-    return total_figure(df), per_capita_figure(df)
+    return total_figure(df), per_capita_figure(df), overview_narrative(df)
 

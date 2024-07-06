@@ -223,12 +223,13 @@ def overview_narrative(df):
     return text
 
 
-COFOG_CATS = {'Social protection', 'Recreation, culture and religion', 'Public order and safety', 'Housing and community amenities', 'Health', 'General public services', 'Environmental protection', 'Education', 'Economic affairs', 'Defence'}
+COFOG_CATS = ['Social protection', 'Recreation, culture and religion', 'Public order and safety', 'Housing and community amenities', 'Health', 'General public services', 'Environmental protection', 'Education', 'Economic affairs', 'Defence']
+FUNC_PALETTE = px.colors.qualitative.T10
+FUNC_COLORS = {cat: FUNC_PALETTE[i % len(FUNC_PALETTE)] for i, cat in enumerate(COFOG_CATS)}
+
 def functional_figure(df):
     categories = sorted(df.func.unique(), reverse=True)
 
-    color_palette = px.colors.qualitative.T10
-    category_colors = {cat: color_palette[i % len(color_palette)] for i, cat in enumerate(categories)}
 
     fig = go.Figure()
 
@@ -239,7 +240,7 @@ def functional_figure(df):
                 name=cat,
                 x=cat_df.year,
                 y=cat_df.percentage,
-                marker_color=category_colors[cat],
+                marker_color=FUNC_COLORS[cat],
                 customdata=cat_df['expenditure'],
                 hovertemplate=(
                     '<b>Year</b>: %{x}<br>'
@@ -284,7 +285,7 @@ def functional_narrative(df):
     text = f'For {country}, BOOST provides functional spending data on {len(categories)} categories, based on Classification of the Functions of Government (COFOG). '
 
     if len(categories) < len(COFOG_CATS):
-        missing_cats = COFOG_CATS - set(categories)
+        missing_cats = set(COFOG_CATS) - set(categories)
         if len(missing_cats) == 1:
             text += f'The cartegory we do not have data on is {list(missing_cats)[0]}. '
         else:

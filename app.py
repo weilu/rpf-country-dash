@@ -100,9 +100,11 @@ def fetch_data_once(data):
     if data is None:
         df = queries.get_expenditure_by_country_year()
         countries = sorted(df['country_name'].unique())
+        func_df = queries.get_expenditure_by_country_func_year()
         return ({
             'countries': countries,
-            'expenditure_by_country_year': df.to_dict('records')
+            'expenditure_by_country_year': df.to_dict('records'),
+            'expenditure_by_country_func_year': func_df.to_dict('records'),
         })
     return dash.no_update
 

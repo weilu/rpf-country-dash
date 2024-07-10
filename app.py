@@ -78,7 +78,7 @@ app.layout = html.Div([
     sidebar,
     content,
     dummy_div,
-    dcc.Store(id='stored-data'),
+    dcc.Store(id='stored-data')
 ])
 
 @app.callback(
@@ -123,33 +123,53 @@ def display_data(data):
     return ["No data available"], ""
 
 
-@app.long_callback(
-    Output('education-content', 'children'),
-    Input('education-tabs', 'active_tab'),
-    running=[
-        (
-            Output("education-spinner", "style"),
-            {"display": "block"},
-            {"display": "none"},
-        ),
-        (
-            Output("education-content", "style"),
-            {"display": "none"},
-            {"display": "block"},
-        ),
-    ],
+@app.callback(
+    Output('stored-data-education', 'data'),
+    Input('stored-data-education', 'data')
 )
-def render_education_content(tab):
-    if tab == 'edu-tab-time':
-        return html.Div([
-            'Time series viz'
-            # dcc.Graph(id='edu-plot', figure=make_edu_plot(gdp, country))
-        ])
-    elif tab == 'edu-tab-space':
-        return html.Div([
-            'Geospatial viz'
-            # dcc.Graph(id='health-plot', figure=make_health_plot(gdp, country))
-        ])
+def fetch_edu_data_once(data):
+    if data is None:
+        df = queries.get_expenditure_by_func_country_year()
+        private_df = queries.get_edu_private_expenditure()
+        indicator = queries.get_education_indicator()
+        poverty_rate = queries.get_learning_poverty_rate()
+        countries = sorted(df['country_name'].unique())
+        return ({
+            'countries': countries,
+            'expenditure_by_func_country_year': df.to_dict('records'),
+            "private_expenditure_by_func_country_year": private_df.to_dict('records'),
+            "edu_indicator": indicator.to_dict('records'),
+            "poverty_rate": poverty_rate.to_dict('records')
+        })
+    return dash.no_update
+
+# @app.long_callback(
+#     Output('education-content', 'children'),
+#     Input('education-tabs', 'active_tab'),
+#     running=[
+#         (
+#             Output("education-spinner", "style"),
+#             {"display": "block"},
+#             {"display": "none"},
+#         ),
+#         (
+#             Output("education-content", "style"),
+#             {"display": "none"},
+#             {"display": "block"},
+#         ),
+#     ],
+# )
+# def render_education_content(tab):
+#     if tab == 'edu-tab-time':
+#         return html.Div([
+#             'Time series viz'
+#             # dcc.Graph(id='edu-plot', figure=make_edu_plot(gdp, country))
+#         ])
+#     elif tab == 'edu-tab-space':
+#         return html.Div([
+#             'Geospatial viz'
+#             # dcc.Graph(id='health-plot', figure=make_health_plot(gdp, country))
+#         ])
 
 
 @app.long_callback(
@@ -180,6 +200,7 @@ def render_health_content(tab):
             # dcc.Graph(id='health-plot', figure=make_health_plot(gdp, country))
         ])
 
+server = app.server
 
 if __name__ == '__main__':
     app.run_server(debug=True)

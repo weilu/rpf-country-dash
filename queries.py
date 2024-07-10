@@ -31,6 +31,37 @@ def execute_query(dbsql_query):
 def get_expenditure_by_country_year():
     df = execute_query("SELECT * FROM boost.expenditure_by_country_year ORDER BY country_name, year")
     df['decentralized_expenditure'].fillna(0, inplace=True)
-
+    ## just for testing (per capital is missing, underlying database changed?)
+    df["per_capita_real_expenditure"] = df.expenditure
+    df["per_capita_expenditure"] = df.expenditure
     return df
 
+def get_expenditure_by_func_country_year():
+    query = 'SELECT l.country_name, l.year, l.admin0, l.func, l.real_expenditure '\
+        'FROM boost.expenditure_by_country_admin_func_sub_econ_sub_year as l  '\
+        'WHERE l.func in ("Education", "Health") and l.year >= 2010'
+    df = execute_query(query)
+    return df
+
+def get_edu_private_expenditure():
+    query = 'SELECT country_name, year, real_expenditure, real_pub_expenditure '\
+            'FROM '\
+            'boost.edu_private_expenditure_by_country_year '\
+            'where year >= 2010'
+    df = execute_query(query)
+    return df
+
+def get_education_indicator():
+    query= 'SELECT * '\
+            'FROM '\
+            'indicator.global_data_lab_hd_index '\
+            'where year >= 2010'
+    df = execute_query(query)
+    return df
+
+def get_learning_poverty_rate():
+    query = 'SELECT * '\
+            'FROM '\
+            'indicator.learning_poverty_rate'
+    df = execute_query(query)
+    return df

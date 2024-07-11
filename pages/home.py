@@ -204,14 +204,16 @@ def overview_narrative(df):
     latest = df[df.year == df.latest_year].iloc[0].to_dict()
     start_year = earliest['year']
     end_year = latest['year']
+    latest_year_with_real_exp = df[df.real_expenditure.notnull()].year.max()
+    latest_real_exp = df[df.year == latest_year_with_real_exp].iloc[0].to_dict()
 
-    total_percent_diff = 100 * (latest['real_expenditure'] - earliest['real_expenditure']) / earliest['real_expenditure']
+    total_percent_diff = 100 * (latest_real_exp['real_expenditure'] - earliest['real_expenditure']) / earliest['real_expenditure']
     total_trend = 'increased' if total_percent_diff > 0 else 'decreased'
 
-    per_capita_percent_diff = 100 * (latest['per_capita_real_expenditure'] - earliest['per_capita_real_expenditure']) / earliest['per_capita_real_expenditure']
+    per_capita_percent_diff = 100 * (latest_real_exp['per_capita_real_expenditure'] - earliest['per_capita_real_expenditure']) / earliest['per_capita_real_expenditure']
     per_capita_trend = 'increased' if per_capita_percent_diff > 0 else 'decreased'
 
-    text = f'After accounting for inflation, total public spending has {total_trend} by {total_percent_diff:.1f}% and per capita spending has {per_capita_trend} by {per_capita_percent_diff:.1f}% between {start_year} and {end_year}. '
+    text = f'After accounting for inflation, total public spending has {total_trend} by {total_percent_diff:.1f}% and per capita spending has {per_capita_trend} by {per_capita_percent_diff:.1f}% between {start_year} and {latest_year_with_real_exp}. '
 
     decentral_mean = df.expenditure_decentralization.mean() * 100
     decentral_latest = latest['expenditure_decentralization'] * 100

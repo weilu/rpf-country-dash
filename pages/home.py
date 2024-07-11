@@ -167,7 +167,10 @@ def per_capita_figure(df):
             y=df.poor215,
             mode="lines+markers",
             line=dict(color='darkred', shape='spline', dash='dot'),
-            connectgaps=True
+            connectgaps=True,
+            hovertemplate=(
+                '%{x}: %{y:.2f}%'
+            ),
         ),
         secondary_y=True
     )

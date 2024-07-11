@@ -280,8 +280,6 @@ def functional_figure(df):
 def functional_narrative(df):
     country = df.country_name.iloc[0]
     categories = df.func.unique().tolist()
-    latest = df[df.year == df.latest_year].iloc[0].to_dict()
-    latest_year = latest['year']
     text = f'For {country}, BOOST provides functional spending data on {len(categories)} categories, based on Classification of the Functions of Government (COFOG). '
 
     if len(categories) < len(COFOG_CATS):
@@ -336,11 +334,12 @@ def render_overview_total_figure(data, country):
     Input('country-select', 'value'),
 )
 def render_overview_total_figure(data, country):
-    all_countries = pd.DataFrame(data['expenditure_by_country_func_year'])
+    all_countries = pd.DataFrame(data['expenditure_by_country_func_econ_year'])
     df = all_countries[all_countries.country_name == country]
+    func_df = df.groupby(['year', 'country_name', 'func'])['expenditure'].sum().reset_index()
 
-    total_per_year = df.groupby('year')['expenditure'].sum().reset_index()
-    df = df.merge(total_per_year, on='year', suffixes=('', '_total'))
-    df['percentage'] = (df['expenditure'] / df['expenditure_total']) * 100
+    total_per_year = func_df.groupby('year')['expenditure'].sum().reset_index()
+    func_df = func_df.merge(total_per_year, on='year', suffixes=('', '_total'))
+    func_df['percentage'] = (func_df['expenditure'] / func_df['expenditure_total']) * 100
 
-    return functional_figure(df), functional_narrative(df)
+    return functional_figure(func_df), functional_narrative(func_df)

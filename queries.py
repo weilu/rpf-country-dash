@@ -37,8 +37,8 @@ def get_expenditure_by_country_year():
 
     return df
 
-def get_expenditure_by_country_func_year():
+def get_expenditure_by_country_func_econ_year():
     return execute_query("""
-        SELECT * FROM boost.expenditure_by_country_func_year
-        ORDER BY country_name, func, year
+        SELECT * FROM boost.expenditure_by_country_func_econ_year
+        ORDER BY country_name, func, econ, year
     """)

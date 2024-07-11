@@ -4,6 +4,7 @@ import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
+from plotly.subplots import make_subplots
 
 
 dash.register_page(__name__)
@@ -139,7 +140,7 @@ def total_figure(df):
         barmode="stack",
         title="How has total expenditure changed over time?",
         plot_bgcolor="white",
-        legend=dict(orientation="h", yanchor="bottom", y=1),
+        legend=dict(orientation="h", yanchor="bottom", y=1.03),
         annotations=[
             dict(
                 xref='paper',
@@ -157,7 +158,20 @@ def total_figure(df):
 
 
 def per_capita_figure(df):
-    fig = go.Figure()
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    fig.add_trace(
+        go.Scatter(
+            name="Poverty Rate",
+            x=df.year,
+            y=df.poor215,
+            mode="lines+markers",
+            line=dict(color='darkred', shape='spline', dash='dot'),
+            connectgaps=True
+        ),
+        secondary_y=True
+    )
+
     fig.add_trace(
         go.Scatter(
             name="Inflation Adjusted",
@@ -165,24 +179,31 @@ def per_capita_figure(df):
             y=df.per_capita_real_expenditure,
             mode="lines+markers",
             marker_color="darkblue",
-        )
+        ),
+        secondary_y=False
     )
     fig.add_trace(
         go.Bar(
-            name="Per Capita Expenditure",
+            name="Per Capita",
             x=df.year,
             y=df.per_capita_expenditure,
-            marker_color="rgb(17, 141, 255)",
-        )
+            marker_color="#686dc3",
+        ),
+        secondary_y=False
     )
 
     fig.update_xaxes(tickformat="d")
-    fig.update_yaxes(fixedrange=True)
+    fig.update_yaxes(title_text="Per Capita Expenditure", secondary_y=False)
+    fig.update_yaxes(
+        title_text="Poverty Rate (%)",
+        secondary_y=True,
+        range=[0, 100],
+    )
     fig.update_layout(
         barmode="stack",
         title="How has per capita expenditure changed over time?",
         plot_bgcolor="white",
-        legend=dict(orientation="h", yanchor="bottom", y=1),
+        legend=dict(orientation="h", yanchor="bottom", y=1.03),
         annotations=[
             dict(
                 xref='paper',
@@ -323,7 +344,7 @@ def functional_narrative(df):
     Input('country-select', 'value'),
 )
 def render_overview_total_figure(data, country):
-    all_countries = pd.DataFrame(data['expenditure_by_country_year'])
+    all_countries = pd.DataFrame(data['expenditure_w_poverty_by_country_year'])
     df = all_countries[all_countries.country_name == country]
 
     return total_figure(df), per_capita_figure(df), overview_narrative(df)

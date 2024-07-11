@@ -28,10 +28,13 @@ def execute_query(dbsql_query):
     return df
 
 
-def get_expenditure_by_country_year():
+def get_expenditure_w_porverty_by_country_year():
     df = execute_query("""
-        SELECT * FROM boost.expenditure_by_country_year
-        ORDER BY country_name, year
+        SELECT e.*, p.poor215
+        FROM boost.expenditure_by_country_year e
+        LEFT JOIN indicator.poverty p
+          ON e.country_name = p.country_name AND e.year = p.year
+        ORDER BY e.country_name, e.year
     """)
     df['decentralized_expenditure'].fillna(0, inplace=True)
 

@@ -98,12 +98,12 @@ def redirect_default(url_pathname):
 )
 def fetch_data_once(data):
     if data is None:
-        df = queries.get_expenditure_by_country_year()
+        df = queries.get_expenditure_w_porverty_by_country_year()
         countries = sorted(df['country_name'].unique())
         func_econ_df = queries.get_expenditure_by_country_func_econ_year()
         return ({
             'countries': countries,
-            'expenditure_by_country_year': df.to_dict('records'),
+            'expenditure_w_poverty_by_country_year': df.to_dict('records'),
             'expenditure_by_country_func_econ_year': func_econ_df.to_dict('records'),
         })
     return dash.no_update

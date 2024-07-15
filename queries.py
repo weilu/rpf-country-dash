@@ -28,8 +28,14 @@ def execute_query(dbsql_query):
     return df
 
 
-def get_expenditure_by_country_year():
-    df = execute_query("SELECT * FROM boost.expenditure_by_country_year ORDER BY country_name, year")
+def get_expenditure_w_porverty_by_country_year():
+    df = execute_query("""
+        SELECT e.*, p.poor215
+        FROM boost.expenditure_by_country_year e
+        LEFT JOIN indicator.poverty p
+          ON e.country_name = p.country_name AND e.year = p.year
+        ORDER BY e.country_name, e.year
+    """)
     df['decentralized_expenditure'].fillna(0, inplace=True)
     ## just for testing (per capital is missing, underlying database changed?)
     df["per_capita_real_expenditure"] = df.expenditure
@@ -65,3 +71,9 @@ def get_learning_poverty_rate():
             'indicator.learning_poverty_rate'
     df = execute_query(query)
     return df
+
+def get_expenditure_by_country_func_econ_year():
+    return execute_query("""
+        SELECT * FROM boost.expenditure_by_country_func_econ_year
+        ORDER BY country_name, func, econ, year
+    """)

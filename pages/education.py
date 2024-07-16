@@ -4,6 +4,7 @@ import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import queries
 
 dash.register_page(__name__)
 
@@ -14,17 +15,32 @@ layout = html.Div(children=[
                 dbc.Tab(label='Over Time', tab_id='edu-tab-time'),
                 dbc.Tab(label='Across Space', tab_id='edu-tab-space'),
             ], style={"marginBottom": "2rem"}),
-            html.Div(id='education-spinner', children=[
-                dbc.Spinner(color="primary", spinner_style={
-                    "width": "3rem", "height": "3rem"
-                }),
-            ]),
             html.Div(id='education-content'),
         ]),
     ),
     dcc.Store(id='stored-data-education')
 ])
 
+
+@callback(
+    Output('stored-data-education', 'data'),
+    Input('stored-data-education', 'data')
+)
+def fetch_edu_data_once(data):
+    if data is None:
+        df = queries.get_expenditure_by_func_country_year()
+        private_df = queries.get_edu_private_expenditure()
+        indicator = queries.get_education_indicator()
+        poverty_rate = queries.get_learning_poverty_rate()
+        countries = sorted(df['country_name'].unique())
+        return ({
+            'countries': countries,
+            'expenditure_by_func_country_year': df.to_dict('records'),
+            "private_expenditure_by_func_country_year": private_df.to_dict('records'),
+            "edu_indicator": indicator.to_dict('records'),
+            "poverty_rate": poverty_rate.to_dict('records')
+        })
+    return dash.no_update
 
 @callback(
     Output('education-content', 'children'),
@@ -157,19 +173,20 @@ def total_edu_figure(df):
 
     return fig
 
-def education_narrative(country):
-    # TODO: make the text dynamic
+def education_narrative(data, country):
+    spending = pd.DataFrame(data['expenditure_by_func_country_year'])
+    spending = spending[(spending.country_name == country) & (spending.func == "Education")]
+    total_spending = spending.groupby('year').sum(numeric_only=True).reset_index()
     spending_growth_rate = 0
-    start_year = 2010
-    end_year = 2021
-    private_spending_growth_rate=10
-    correlation = 'moderately negatively correlated with real public expenditure (PCC=0.65)'
-    text = f'After accounting for inflation, real public spending in education has increased by {spending_growth_rate}% '\
-    f'between {start_year} and {end_year}. Meanwhile, real private spending on education has increased by {private_spending_growth_rate}%. '\
-    '\n'\
+    start_year = total_spending.year.min()
+    end_year = total_spending.year.max()
+    start_value = total_spending[total_spending.year == start_year].real_expenditure.values[0]
+    end_value = total_spending[total_spending.year == end_year].real_expenditure.values[0]
+    spending_growth_rate = ((end_value - start_value)/ start_value) * 100
+    text = f'After accounting for inflation, real public spending in education has increased by {spending_growth_rate:.2f}% '\
+    f'between {start_year} and {end_year}. \n'\
     f'Generally, while education outcomes related to access can be conceptually linked to the availability of public finance, results related to quality have a more complex chain of causality.'\
-    '\n'\
-    f'In the case of {country} at the national level, between {start_year} and {end_year}, access to education (measured by the years of schooling) is {correlation}.'
+    '\n'
     return text
     
 
@@ -240,7 +257,7 @@ def render_overview_total_figure(data, country):
     regional = df[df.admin0 == "Regional"].groupby('year').sum(numeric_only=True)
     merged = central.merge(regional, on = ["year"], suffixes=("_centralized", "_decentralized"))
     fig = total_edu_figure(merged.reset_index())
-    return fig, education_narrative(country)
+    return fig, education_narrative(data, country)
 
 
 @callback(

@@ -14,6 +14,8 @@ Export the obtained information to the following environment variables:
 export ACCESS_TOKEN="[access token]"
 export SERVER_HOSTNAME="[server hostname, e.g. adb-12345678.12.azuredatabricks.net"
 export HTTP_PATH="[http path, e.g. /sql/1.0/warehouses/abcdxxx123]"
+# For M2 Max Chip
+export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
 ```
 
 
@@ -29,7 +31,12 @@ You should see the data app.
 
 
 ## Development within docker container
-1. Edit .env to update your environment variables
+1. Edit .env to update your environment variables after copying the sample env file. (Do not use quotations around the values)
+
+```bash
+cp .env.example .env
+```
+
 2. Run the following commands
 
 ```bash

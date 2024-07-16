@@ -42,26 +42,27 @@ def get_expenditure_w_porverty_by_country_year():
     df["per_capita_expenditure"] = df.expenditure
     return df
 
+#TODO add the filter by the years
 def get_expenditure_by_func_country_year():
     query = 'SELECT l.country_name, l.year, l.admin0, l.func, l.real_expenditure '\
         'FROM boost.expenditure_by_country_admin_func_sub_econ_sub_year as l  '\
-        'WHERE l.func in ("Education", "Health") and l.year >= 2010'
+        'WHERE l.func in ("Education", "Health")'
     df = execute_query(query)
     return df
 
+#TODO add the filter by the years
 def get_edu_private_expenditure():
     query = 'SELECT country_name, year, real_expenditure '\
             'FROM '\
-            'boost.edu_private_expenditure_by_country_year '\
-            'where year >= 2010'
+            'boost.edu_private_expenditure_by_country_year '
     df = execute_query(query)
     return df
 
 def get_education_indicator():
     query= 'SELECT * '\
             'FROM '\
-            'indicator.global_data_lab_hd_index '\
-            'where year >= 2010'
+            'indicator.global_data_lab_hd_index '
+
     df = execute_query(query)
     return df
 

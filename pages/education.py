@@ -60,16 +60,17 @@ def render_education_content(tab):
                         style={"marginBottom": "3rem"}
 
                     ),
+                    ## The graph does not look right. Hiding for now
                     # How has private expenditure vs public expenditure changed over time?
-                    dbc.Col(
-                        dcc.Graph(id="education-public-private", config={"displayModeBar": False},  ),
-                        xs={"size": 12, "offset": 0},
-                        sm={"size": 12, "offset": 0},
-                        md={"size": 12, "offset": 0},
-                        lg={"size": 6, "offset": 0},
-                        style={"marginBottom": "3rem"}
+                    # dbc.Col(
+                    #     dcc.Graph(id="education-public-private", config={"displayModeBar": False},  ),
+                    #     xs={"size": 12, "offset": 0},
+                    #     sm={"size": 12, "offset": 0},
+                    #     md={"size": 12, "offset": 0},
+                    #     lg={"size": 6, "offset": 0},
+                    #     style={"marginBottom": "3rem"}
 
-                    ),
+                    # ),
                 ],
             ),
                 dbc.Row(
@@ -248,10 +249,12 @@ def render_overview_total_figure(data, country):
     Input('country-select', 'value'),
 )
 def render_public_private_figure(data, country):
+    if not data:
+        return None
     private = pd.DataFrame(data['private_expenditure_by_func_country_year'])
     private = private[private.country_name == country]
-    private['private_percentage'] = private['real_expenditure']/(private['real_expenditure'] + private['real_pub_expenditure'])
-    private['public_percentage'] = private['real_pub_expenditure']/(private['real_expenditure'] + private['real_pub_expenditure'])
+    private['private_percentage'] = private['real_expenditure']/(private['real_expenditure'] + private['real_expenditure'])
+    private['public_percentage'] = private['real_expenditure']/(private['real_expenditure'] + private['real_expenditure'])
     fig = go.Figure()
     fig.add_trace(go.Bar(
     name="Private Expenditure",
@@ -270,7 +273,7 @@ def render_public_private_figure(data, country):
         y=private['year'].astype(str),
         x=private.public_percentage,
         orientation='h',
-        customdata=private.real_pub_expenditure,
+        customdata=private.real_expenditure,
         hovertemplate = '%{customdata:$}',
         marker=dict(
             color='rgb(17, 141, 255)',
@@ -301,6 +304,8 @@ def render_public_private_figure(data, country):
     Input('country-select', 'value'),
 )
 def render_education_outcome(data, country):
+    if not data:
+        return None
     poverty_rate = pd.DataFrame(data['poverty_rate'])
     poverty_rate = poverty_rate[poverty_rate.country_name == country].sort_values('year')
 
@@ -352,6 +357,8 @@ def render_education_outcome(data, country):
     Input('country-select', 'value'),
 )
 def render_education_index(data, country):
+    if not data:
+        return None
     indicator = pd.DataFrame(data['edu_indicator'])
     indicator = indicator[(indicator.country_name == country) & (indicator.adm1_name == "Total")].sort_values('year')
 

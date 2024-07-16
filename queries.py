@@ -50,7 +50,7 @@ def get_expenditure_by_func_country_year():
     return df
 
 def get_edu_private_expenditure():
-    query = 'SELECT country_name, year, real_expenditure, real_pub_expenditure '\
+    query = 'SELECT country_name, year, real_expenditure '\
             'FROM '\
             'boost.edu_private_expenditure_by_country_year '\
             'where year >= 2010'

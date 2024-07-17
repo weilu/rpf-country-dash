@@ -78,7 +78,7 @@ app.layout = html.Div([
     sidebar,
     content,
     dummy_div,
-    dcc.Store(id='stored-data'),
+    dcc.Store(id='stored-data')
 ])
 
 @app.callback(
@@ -101,10 +101,12 @@ def fetch_data_once(data):
         df = queries.get_expenditure_w_porverty_by_country_year()
         countries = sorted(df['country_name'].unique())
         func_econ_df = queries.get_expenditure_by_country_func_econ_year()
+        func_df = queries.get_expenditure_by_country_func_year()
         return ({
             'countries': countries,
             'expenditure_w_poverty_by_country_year': df.to_dict('records'),
             'expenditure_by_country_func_econ_year': func_econ_df.to_dict('records'),
+            'expenditure_by_country_func_year': func_df.to_dict('records'),
         })
     return dash.no_update
 
@@ -124,34 +126,6 @@ def display_data(data):
         return get_country_select_options(countries), countries[0]
     return ["No data available"], ""
 
-
-@app.long_callback(
-    Output('education-content', 'children'),
-    Input('education-tabs', 'active_tab'),
-    running=[
-        (
-            Output("education-spinner", "style"),
-            {"display": "block"},
-            {"display": "none"},
-        ),
-        (
-            Output("education-content", "style"),
-            {"display": "none"},
-            {"display": "block"},
-        ),
-    ],
-)
-def render_education_content(tab):
-    if tab == 'edu-tab-time':
-        return html.Div([
-            'Time series viz'
-            # dcc.Graph(id='edu-plot', figure=make_edu_plot(gdp, country))
-        ])
-    elif tab == 'edu-tab-space':
-        return html.Div([
-            'Geospatial viz'
-            # dcc.Graph(id='health-plot', figure=make_health_plot(gdp, country))
-        ])
 
 
 @app.long_callback(
@@ -182,6 +156,7 @@ def render_health_content(tab):
             # dcc.Graph(id='health-plot', figure=make_health_plot(gdp, country))
         ])
 
+server = app.server
 
 if __name__ == '__main__':
     app.run_server(debug=True)

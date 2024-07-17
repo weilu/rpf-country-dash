@@ -37,8 +37,42 @@ def get_expenditure_w_porverty_by_country_year():
         ORDER BY e.country_name, e.year
     """)
     df['decentralized_expenditure'].fillna(0, inplace=True)
-
     return df
+
+#TODO add the filter by the years
+def get_expenditure_by_country_func_year():
+    query = '''
+        SELECT *
+        FROM boost.expenditure_by_country_func_year
+        ORDER BY country_name, func, year
+    '''
+    return execute_query(query)
+
+#TODO add the filter by the years
+def get_edu_private_expenditure():
+    query = '''
+        SELECT country_name, year, real_expenditure
+        FROM boost.edu_private_expenditure_by_country_year
+        ORDER BY country_name, year
+    '''
+    return execute_query(query)
+
+# The full dataset is big therefore requiring the list of countries for filtering
+def get_hd_index(countries):
+    query= '''
+        SELECT * FROM indicator.global_data_lab_hd_index
+    '''
+    country_list = "', '".join(countries)
+    query += f" WHERE country_name IN ('{country_list}')"
+    query += ' ORDER BY country_name, year'
+    return execute_query(query)
+
+def get_learning_poverty_rate():
+    query = '''
+        SELECT * FROM indicator.learning_poverty_rate
+        ORDER BY country_name, year
+    '''
+    return execute_query(query)
 
 def get_expenditure_by_country_func_econ_year():
     return execute_query("""

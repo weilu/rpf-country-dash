@@ -18,29 +18,41 @@ layout = html.Div(children=[
             html.Div(id='education-content'),
         ]),
     ),
-    dcc.Store(id='stored-data-education')
+    dcc.Store(id='stored-data-education-total'),
+    dcc.Store(id='stored-data-education-outcome')
 ])
 
 
 @callback(
-    Output('stored-data-education', 'data'),
-    Input('stored-data-education', 'data'),
-    Input('stored-data', 'data')
+    Output('stored-data-education-total', 'data'),
+    Input('stored-data-education-total', 'data'),
+    Input('stored-data-func', 'data')
 )
-def fetch_edu_data_once(edu_data, shared_data):
+def fetch_edu_total_data_once(edu_data, shared_data):
     if edu_data is None:
-        private_exp = queries.get_edu_private_expenditure()
-        learning_poverty = queries.get_learning_poverty_rate()
-
-        hd_index = queries.get_hd_index(shared_data['countries'])
 
         # filter shared data down to education specific
         exp_by_func = pd.DataFrame(shared_data['expenditure_by_country_func_year'])
         pub_exp = exp_by_func[exp_by_func.func == 'Education']
 
         return ({
-            "edu_private_expenditure": private_exp.to_dict('records'),
             "edu_public_expenditure": pub_exp.to_dict('records'),
+        })
+    return dash.no_update
+
+
+@callback(
+    Output('stored-data-education-outcome', 'data'),
+    Input('stored-data-education-outcome', 'data'),
+    Input('stored-data', 'data')
+)
+def fetch_edu_outcome_data_once(edu_data, shared_data):
+    if edu_data is None:
+        learning_poverty = queries.get_learning_poverty_rate()
+
+        hd_index = queries.get_hd_index(shared_data['countries'])
+
+        return ({
             "learning_poverty": learning_poverty.to_dict('records'),
             "hd_index": hd_index.to_dict('records'),
         })
@@ -237,7 +249,7 @@ def private_public_fig(public, private):
 @callback(
     Output('education-total', 'figure'),
     Output('education-narrative', 'children'),
-    Input('stored-data-education', 'data'),
+    Input('stored-data-education-total', 'data'),
     Input('country-select', 'value'),
 )
 def render_overview_total_figure(data, country):
@@ -251,7 +263,7 @@ def render_overview_total_figure(data, country):
 
 @callback(
     Output('education-public-private', 'figure'),
-    Input('stored-data-education', 'data'),
+    Input('stored-data-education-outcome', 'data'),
     Input('country-select', 'value'),
 )
 def render_public_private_figure(data, country):
@@ -302,17 +314,20 @@ def render_public_private_figure(data, country):
 
 @callback(
     Output('education-outcome', 'figure'),
-    Input('stored-data-education', 'data'),
+    Input('stored-data-education-outcome', 'data'),
+    Input('stored-data-education-total', 'data'),
     Input('country-select', 'value'),
 )
-def render_education_outcome(data, country):
-    indicator = pd.DataFrame(data['hd_index'])
+def render_education_outcome(outcome_data, total_data, country):
+    if not total_data or not outcome_data:
+        return 
+    indicator = pd.DataFrame(outcome_data['hd_index'])
     indicator = indicator[(indicator.country_name == country) & (indicator.adm1_name == "Total")]
 
-    learning_poverty = pd.DataFrame(data['learning_poverty'])
+    learning_poverty = pd.DataFrame(outcome_data['learning_poverty'])
     learning_poverty = learning_poverty[learning_poverty.country_name == country]
 
-    pub_exp = pd.DataFrame(data['edu_public_expenditure'])
+    pub_exp = pd.DataFrame(total_data['edu_public_expenditure'])
     pub_exp = pub_exp[pub_exp.country_name == country]
 
     fig = make_subplots(specs=[[{"secondary_y": True}]])

@@ -78,7 +78,8 @@ app.layout = html.Div([
     sidebar,
     content,
     dummy_div,
-    dcc.Store(id='stored-data')
+    dcc.Store(id='stored-data'),
+    dcc.Store(id='stored-data-func'),
 ])
 
 @app.callback(
@@ -100,11 +101,21 @@ def fetch_data_once(data):
     if data is None:
         df = queries.get_expenditure_w_porverty_by_country_year()
         countries = sorted(df['country_name'].unique())
-        func_econ_df = queries.get_expenditure_by_country_func_econ_year()
-        func_df = queries.get_expenditure_by_country_func_year()
         return ({
             'countries': countries,
             'expenditure_w_poverty_by_country_year': df.to_dict('records'),
+        })
+    return dash.no_update
+
+@app.callback(
+    Output('stored-data-func', 'data'),
+    Input('stored-data-func', 'data')
+)
+def fetch_func_data_once(data):
+    if data is None:
+        func_df = queries.get_expenditure_by_country_func_year()
+        func_econ_df = queries.get_expenditure_by_country_func_econ_year()
+        return ({
             'expenditure_by_country_func_econ_year': func_econ_df.to_dict('records'),
             'expenditure_by_country_func_year': func_df.to_dict('records'),
         })

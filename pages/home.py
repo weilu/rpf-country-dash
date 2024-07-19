@@ -6,7 +6,6 @@ import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
 
-
 dash.register_page(__name__)
 
 layout = html.Div(children=[
@@ -356,7 +355,7 @@ def render_overview_total_figure(data, country):
 @callback(
     Output('functional-breakdown', 'figure'),
     Output('functional-narrative', 'children'),
-    Input('stored-data', 'data'),
+    Input('stored-data-func', 'data'),
     Input('country-select', 'value'),
 )
 def render_overview_total_figure(data, country):

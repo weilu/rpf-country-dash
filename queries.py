@@ -49,7 +49,6 @@ def get_expenditure_by_country_func_year():
     query = '''
         SELECT *
         FROM boost.expenditure_by_country_func_year
-        ORDER BY country_name, func, year
     '''
     end = time.time()
     df = execute_query(query)
@@ -87,7 +86,6 @@ def get_learning_poverty_rate():
     start = time.time()
     query = '''
         SELECT * FROM indicator.learning_poverty_rate
-        ORDER BY country_name, year
     '''
     df = execute_query(query)
     end = time.time()
@@ -98,7 +96,6 @@ def get_expenditure_by_country_func_econ_year():
     start = time.time()
     query = """
         SELECT * FROM boost.expenditure_by_country_func_econ_year
-        ORDER BY country_name, func, econ, year
     """
     df = execute_query(query)
     end = time.time()

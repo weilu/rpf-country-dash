@@ -361,6 +361,7 @@ def render_overview_total_figure(data, country):
 def render_overview_total_figure(data, country):
     all_countries = pd.DataFrame(data['expenditure_by_country_func_econ_year'])
     df = all_countries[all_countries.country_name == country]
+    df.sort_values(['year'], inplace=True)
     func_df = df.groupby(['year', 'country_name', 'func'])['expenditure'].sum().reset_index()
 
     total_per_year = func_df.groupby('year')['expenditure'].sum().reset_index()

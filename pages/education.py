@@ -182,6 +182,7 @@ def total_edu_figure(df):
 def education_narrative(data, country):
     spending = pd.DataFrame(data['edu_public_expenditure'])
     spending = spending[spending.country_name == country]
+    spending.sort_values(['year'], inplace=True)
 
     start_year = spending.year.min()
     end_year = spending.year.max()
@@ -257,6 +258,7 @@ def render_overview_total_figure(data, country):
         return None
     all_countries = pd.DataFrame(data['edu_public_expenditure'])
     df = all_countries[all_countries.country_name == country]
+    df.sort_values(['year'], inplace=True)
     fig = total_edu_figure(df)
     return fig, education_narrative(data, country)
 
@@ -323,12 +325,15 @@ def render_education_outcome(outcome_data, total_data, country):
         return 
     indicator = pd.DataFrame(outcome_data['hd_index'])
     indicator = indicator[(indicator.country_name == country) & (indicator.adm1_name == "Total")]
+    indicator.sort_values(['year'],inplace=True)
 
     learning_poverty = pd.DataFrame(outcome_data['learning_poverty'])
     learning_poverty = learning_poverty[learning_poverty.country_name == country]
+    learning_poverty.sort_values(['year'], inplace=True)
 
     pub_exp = pd.DataFrame(total_data['edu_public_expenditure'])
     pub_exp = pub_exp[pub_exp.country_name == country]
+    pub_exp.sort_values(['year'], inplace=True)
 
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 

@@ -19,8 +19,6 @@ layout = html.Div(children=[
             html.Div(id='education-content'),
         ]),
     ),
-    dcc.Store(id='stored-data-education-total'),
-    dcc.Store(id='stored-data-education-outcome')
 ])
 
 

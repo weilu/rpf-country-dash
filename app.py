@@ -7,6 +7,7 @@ from dash.long_callback import DiskcacheLongCallbackManager
 import queries
 
 import diskcache
+
 cache = diskcache.Cache("./cache")
 long_callback_manager = DiskcacheLongCallbackManager(cache)
 
@@ -34,19 +35,20 @@ CONTENT_STYLE = {
     "padding": "2rem 1rem",
 }
 
+
 def get_relative_path(page_name):
-    return dash.page_registry[f'pages.{page_name}']['relative_path']
+    return dash.page_registry[f"pages.{page_name}"]["relative_path"]
 
 
 sidebar = html.Div(
     [
-        dbc.Row([
-            html.Img(
-                src=app.get_asset_url('rpf_logo.png'),
-                style={'height': '100'}
-            ),
-        ]),
-
+        dbc.Row(
+            [
+                html.Img(
+                    src=app.get_asset_url("rpf_logo.png"), style={"height": "100"}
+                ),
+            ]
+        ),
         html.Hr(),
         dbc.Select(
             id="country-select",
@@ -55,10 +57,12 @@ sidebar = html.Div(
         html.Hr(),
         dbc.Nav(
             [
-                dbc.NavLink("Overview", href=get_relative_path('home'), active="exact"),
-                dbc.NavLink("Education", href=get_relative_path('education'), active="exact"),
-                dbc.NavLink("Health", href=get_relative_path('health'), active="exact"),
-                dbc.NavLink("About", href=get_relative_path('about'), active="exact"),
+                dbc.NavLink("Overview", href=get_relative_path("home"), active="exact"),
+                dbc.NavLink(
+                    "Education", href=get_relative_path("education"), active="exact"
+                ),
+                dbc.NavLink("Health", href=get_relative_path("health"), active="exact"),
+                dbc.NavLink("About", href=get_relative_path("about"), active="exact"),
             ],
             vertical=True,
             pills=True,
@@ -67,53 +71,59 @@ sidebar = html.Div(
     style=SIDEBAR_STYLE,
 )
 
-content = html.Div(dash.page_container,
-    id="page-content", style=CONTENT_STYLE
-)
+content = html.Div(dash.page_container, id="page-content", style=CONTENT_STYLE)
 
 dummy_div = html.Div(id="div-for-redirect")
 
-app.layout = html.Div([
-    dcc.Location(id='url', refresh=False),
-    sidebar,
-    content,
-    dummy_div,
-    dcc.Store(id='stored-data')
-])
-
-@app.callback(
-    Output('div-for-redirect', 'children'),
-    Input('url', 'pathname')
+app.layout = html.Div(
+    [
+        dcc.Location(id="url", refresh=False),
+        sidebar,
+        content,
+        dummy_div,
+        dcc.Store(id="stored-data"),
+        dcc.Store(id="stored-data-func"),
+    ]
 )
+
+
+@app.callback(Output("div-for-redirect", "children"), Input("url", "pathname"))
 def redirect_default(url_pathname):
-    known_paths = list(p['relative_path'] for p in dash.page_registry.values())
+    known_paths = list(p["relative_path"] for p in dash.page_registry.values())
     if url_pathname not in known_paths:
-        return dcc.Location(pathname=get_relative_path('home'), id="redirect-me")
+        return dcc.Location(pathname=get_relative_path("home"), id="redirect-me")
     else:
         return ""
 
-@app.callback(
-    Output('stored-data', 'data'),
-    Input('stored-data', 'data')
-)
+
+@app.callback(Output("stored-data", "data"), Input("stored-data", "data"))
 def fetch_data_once(data):
     if data is None:
         df = queries.get_expenditure_w_porverty_by_country_year()
-        countries = sorted(df['country_name'].unique())
-        func_econ_df = queries.get_expenditure_by_country_func_econ_year()
-        func_df = queries.get_expenditure_by_country_func_year()
-        return ({
-            'countries': countries,
-            'expenditure_w_poverty_by_country_year': df.to_dict('records'),
-            'expenditure_by_country_func_econ_year': func_econ_df.to_dict('records'),
-            'expenditure_by_country_func_year': func_df.to_dict('records'),
-        })
+        countries = sorted(df["country_name"].unique())
+        return {
+            "countries": countries,
+            "expenditure_w_poverty_by_country_year": df.to_dict("records"),
+        }
     return dash.no_update
 
+
+@app.callback(Output("stored-data-func", "data"), Input("stored-data-func", "data"))
+def fetch_func_data_once(data):
+    if data is None:
+        func_df = queries.get_expenditure_by_country_func_year()
+        func_econ_df = queries.get_expenditure_by_country_func_econ_year()
+        return {
+            "expenditure_by_country_func_econ_year": func_econ_df.to_dict("records"),
+            "expenditure_by_country_func_year": func_df.to_dict("records"),
+        }
+    return dash.no_update
+
+
 @app.callback(
-    Output('country-select', 'options'),
-    Output('country-select', 'value'),
-    Input('stored-data', 'data')
+    Output("country-select", "options"),
+    Output("country-select", "value"),
+    Input("stored-data", "data"),
 )
 def display_data(data):
     def get_country_select_options(countries):
@@ -122,15 +132,14 @@ def display_data(data):
         return options
 
     if data is not None:
-        countries = data['countries']
+        countries = data["countries"]
         return get_country_select_options(countries), countries[0]
     return ["No data available"], ""
 
 
-
 @app.long_callback(
-    Output('health-content', 'children'),
-    Input('health-tabs', 'active_tab'),
+    Output("health-content", "children"),
+    Input("health-tabs", "active_tab"),
     running=[
         (
             Output("health-spinner", "style"),
@@ -145,19 +154,23 @@ def display_data(data):
     ],
 )
 def render_health_content(tab):
-    if tab == 'health-tab-time':
-        return html.Div([
-            'Time series viz'
-            # dcc.Graph(id='edu-plot', figure=make_edu_plot(gdp, country))
-        ])
-    elif tab == 'health-tab-space':
-        return html.Div([
-            'Geospatial viz'
-            # dcc.Graph(id='health-plot', figure=make_health_plot(gdp, country))
-        ])
+    if tab == "health-tab-time":
+        return html.Div(
+            [
+                "Time series viz"
+                # dcc.Graph(id='edu-plot', figure=make_edu_plot(gdp, country))
+            ]
+        )
+    elif tab == "health-tab-space":
+        return html.Div(
+            [
+                "Geospatial viz"
+                # dcc.Graph(id='health-plot', figure=make_health_plot(gdp, country))
+            ]
+        )
+
 
 server = app.server
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run_server(debug=True)
-

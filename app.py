@@ -80,8 +80,6 @@ app.layout = html.Div([
     dummy_div,
     dcc.Store(id='stored-data'),
     dcc.Store(id='stored-data-func'),
-    dcc.Store(id='stored-data-education-total'),
-    dcc.Store(id='stored-data-education-outcome')
 ])
 
 @app.callback(

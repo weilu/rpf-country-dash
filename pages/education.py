@@ -5,7 +5,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import queries
-from utils import preprocess_df
+from utils import filter_country_sort_year
 
 dash.register_page(__name__)
 
@@ -180,7 +180,7 @@ def total_edu_figure(df):
 
 def education_narrative(data, country):
     spending = pd.DataFrame(data['edu_public_expenditure'])
-    spending = preprocess_df(spending, country)
+    spending = filter_country_sort_year(spending, country)
 
     start_year = spending.year.min()
     end_year = spending.year.max()
@@ -255,7 +255,7 @@ def render_overview_total_figure(data, country):
     if data is None:
         return None
     all_countries = pd.DataFrame(data['edu_public_expenditure'])
-    df = preprocess_df(all_countries, country)
+    df = filter_country_sort_year(all_countries, country)
     fig = total_edu_figure(df)
     return fig, education_narrative(data, country)
 
@@ -321,15 +321,15 @@ def render_education_outcome(outcome_data, total_data, country):
     if not total_data or not outcome_data:
         return 
     indicator = pd.DataFrame(outcome_data['hd_index'])
-    indicator = preprocess_df(indicator, country)
+    indicator = filter_country_sort_year(indicator, country)
     indicator = indicator[indicator.adm1_name == "Total"]
 
     learning_poverty = pd.DataFrame(outcome_data['learning_poverty'])
-    learning_poverty = preprocess_df(learning_poverty, country)
+    learning_poverty = filter_country_sort_year(learning_poverty, country)
 
 
     pub_exp = pd.DataFrame(total_data['edu_public_expenditure'])
-    pub_exp = preprocess_df(pub_exp, country)
+    pub_exp = filter_country_sort_year(pub_exp, country)
 
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 

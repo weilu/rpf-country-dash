@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
 
-from utils import preprocess_df
+from utils import filter_country_sort_year
 
 
 dash.register_page(__name__)
@@ -350,7 +350,7 @@ def functional_narrative(df):
 )
 def render_overview_total_figure(data, country):
     all_countries = pd.DataFrame(data['expenditure_w_poverty_by_country_year'])
-    df = preprocess_df(all_countries, country)
+    df = filter_country_sort_year(all_countries, country)
 
     return total_figure(df), per_capita_figure(df), overview_narrative(df)
 
@@ -363,7 +363,7 @@ def render_overview_total_figure(data, country):
 )
 def render_overview_total_figure(data, country):
     all_countries = pd.DataFrame(data['expenditure_by_country_func_econ_year'])
-    df = preprocess_df(all_countries, country)
+    df = filter_country_sort_year(all_countries, country)
     func_df = df.groupby(['year', 'country_name', 'func'])['expenditure'].sum().reset_index()
 
     total_per_year = func_df.groupby('year')['expenditure'].sum().reset_index()

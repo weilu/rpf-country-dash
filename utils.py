@@ -1,4 +1,4 @@
-def preprocess_df(df, country):
+def filter_country_sort_year(df, country):
     """
     Preprocess the dataframe to filter by country and sort by year
     :param df: DataFrame

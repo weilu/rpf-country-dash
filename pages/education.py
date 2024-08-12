@@ -29,6 +29,7 @@ layout = html.Div(
         ),
         dcc.Store(id="stored-data-education-total"),
         dcc.Store(id="stored-data-education-outcome"),
+        dcc.Store(id='stored-data-education-private')
     ]
 )
 
@@ -68,6 +69,19 @@ def fetch_edu_outcome_data_once(edu_data, shared_data):
         }
     return dash.no_update
 
+@callback(
+    Output("stored-data-education-private", "data"),
+    Input("stored-data-education-private", "data"),
+)
+def fetch_edu_private_data_once(edu_data):
+    if edu_data is None:
+
+        # filter shared data down to education specific
+        priv_exp = queries.get_edu_private_expenditure()
+        return {
+            "edu_private_expenditure": priv_exp.to_dict("records"),
+        }
+    return dash.no_update
 
 @callback(
     Output("education-content", "children"),
@@ -121,16 +135,14 @@ def render_education_content(tab):
                 dbc.Row(
                     [
                         # How has private expenditure vs public expenditure changed over time?
-                        ## The graph does not look right. Hiding for now
-                        # How has private expenditure vs public expenditure changed over time?
-                        # dbc.Col(
-                        #     dcc.Graph(id="education-public-private", config={"displayModeBar": False},  ),
-                        #     xs={"size": 12, "offset": 0},
-                        #     sm={"size": 12, "offset": 0},
-                        #     md={"size": 12, "offset": 0},
-                        #     lg={"size": 6, "offset": 0},
-                        #     style={"marginBottom": "3rem"}
-                        # ),
+                        dbc.Col(
+                            dcc.Graph(id="education-public-private", config={"displayModeBar": False},  ),
+                            xs={"size": 12, "offset": 0},
+                            sm={"size": 12, "offset": 0},
+                            md={"size": 12, "offset": 0},
+                            lg={"size": 6, "offset": 0},
+                            style={"marginBottom": "3rem"}
+                        ),
                     ],
                 ),
             ]
@@ -287,27 +299,35 @@ def render_overview_total_figure(data, country):
 
 @callback(
     Output("education-public-private", "figure"),
-    Input("stored-data-education-outcome", "data"),
+    Input("stored-data-education-private", "data"),
+    Input("stored-data-education-total", "data"),
     Input("country-select", "value"),
 )
-def render_public_private_figure(data, country):
-    private = pd.DataFrame(data["edu_private_expenditure"])
-    private = private[private.country_name == country]
-    private["private_percentage"] = private["real_expenditure"] / (
-        private["real_expenditure"] + private["real_expenditure"]
+def render_public_private_figure(private_data, public_data, country):
+    if not private_data or not public_data:
+        return
+    private = pd.DataFrame(private_data["edu_private_expenditure"])
+    private = filter_country_sort_year(private, country)
+
+    public_data = pd.DataFrame(public_data["edu_public_expenditure"])
+    public = filter_country_sort_year(public_data, country)
+
+    merged = pd.merge(private, public, on=["year", "country_name"], how="inner", suffixes=["_private", "_public"])
+    merged["private_percentage"] = merged["real_expenditure_private"] / (
+        merged["real_expenditure_private"] + merged["real_expenditure_public"]
     )
-    private["public_percentage"] = private["real_expenditure"] / (
-        private["real_expenditure"] + private["real_expenditure"]
+    merged["public_percentage"] = merged["real_expenditure_public"] / (
+        merged["real_expenditure_private"] + merged["real_expenditure_public"]
     )
 
     fig = go.Figure()
     fig.add_trace(
         go.Bar(
             name="Private Expenditure",
-            y=private["year"].astype(str),
-            x=private.private_percentage,
+            y=merged["year"].astype(str),
+            x=merged.private_percentage,
             orientation="h",
-            customdata=private.real_expenditure,
+            customdata=merged.real_expenditure_private,
             hovertemplate="%{customdata:$}",
             marker=dict(
                 color="rgb(160, 209, 255)",
@@ -318,10 +338,10 @@ def render_public_private_figure(data, country):
     fig.add_trace(
         go.Bar(
             name="Public Expenditure",
-            y=private["year"].astype(str),
-            x=private.public_percentage,
+            y=merged["year"].astype(str),
+            x=merged.public_percentage,
             orientation="h",
-            customdata=private.real_expenditure,
+            customdata=merged.real_expenditure_public,
             hovertemplate="%{customdata:$}",
             marker=dict(
                 color="rgb(17, 141, 255)",

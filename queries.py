@@ -55,7 +55,6 @@ def get_edu_private_expenditure():
     query = """
         SELECT country_name, year, real_expenditure
         FROM boost.edu_private_expenditure_by_country_year
-        ORDER BY country_name, year
     """
     df = execute_query(query)
     return df

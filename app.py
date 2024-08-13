@@ -82,6 +82,7 @@ app.layout = html.Div(
         content,
         dummy_div,
         dcc.Store(id="stored-data"),
+        dcc.Store(id="stored-data-subnational"),
         dcc.Store(id="stored-data-func"),
     ]
 )
@@ -99,7 +100,7 @@ def redirect_default(url_pathname):
 @app.callback(Output("stored-data", "data"), Input("stored-data", "data"))
 def fetch_data_once(data):
     if data is None:
-        df = queries.get_expenditure_w_porverty_by_country_year()
+        df = queries.get_expenditure_w_poverty_by_country_year()
         countries = sorted(df["country_name"].unique())
         return {
             "countries": countries,
@@ -116,6 +117,25 @@ def fetch_func_data_once(data):
         return {
             "expenditure_by_country_func_econ_year": func_econ_df.to_dict("records"),
             "expenditure_by_country_func_year": func_df.to_dict("records"),
+        }
+    return dash.no_update
+
+
+@app.callback(
+    Output("stored-data-subnational", "data"),
+    Input("stored-data-subnational", "data"),
+    Input("stored-data", "data"),
+)
+def fetch_subnational_data_once(data, country_data):
+    countries = country_data["countries"]
+    if data is None:
+        boundaries_geojson = queries.get_adm_boundaries(countries)
+        subnational_poverty_df = queries.get_subnational_poverty_index()
+        geo1_year_df = queries.get_expenditure_by_country_geo1_year()
+        return {
+            "subnational_poverty_index": subnational_poverty_df.to_dict("records"),
+            "boundaries": boundaries_geojson,
+            "expenditure_by_country_geo1_year": geo1_year_df.to_dict("records"),
         }
     return dash.no_update
 

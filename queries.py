@@ -1,4 +1,5 @@
 import os
+import json
 import pandas as pd
 from databricks import sql
 
@@ -29,7 +30,7 @@ def execute_query(dbsql_query):
     return df
 
 
-def get_expenditure_w_porverty_by_country_year():
+def get_expenditure_w_poverty_by_country_year():
     df = execute_query(
         """
         SELECT *
@@ -84,6 +85,43 @@ def get_learning_poverty_rate():
 def get_expenditure_by_country_func_econ_year():
     query = """
         SELECT * FROM boost.expenditure_by_country_func_econ_year
+    """
+    df = execute_query(query)
+    return df
+
+
+def get_expenditure_by_country_geo1_year():
+    query = """
+        SELECT * FROM boost.expenditure_by_country_geo1_year
+    """
+    df = execute_query(query)
+    return df
+
+
+def get_adm_boundaries(countries):
+    query = """
+        SELECT * FROM indicator.admin1_boundaries
+    """
+    country_list = "', '".join(countries)
+    query += f" WHERE country_name IN ('{country_list}')"
+    query += " ORDER BY country_name"
+    df = execute_query(query)
+    geojson = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "properties": {"country": x[0], "region": x[1]},
+                "geometry": json.loads(x[2]),
+            }
+            for x in zip(df.country_name, df.admin1_region, df.boundary)
+        ],
+    }
+    return geojson
+
+
+def get_subnational_poverty_index():
+    query = """
+        SELECT * FROM indicator.subnational_poverty_index
     """
     df = execute_query(query)
     return df

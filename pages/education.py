@@ -5,7 +5,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import queries
-from utils import filter_country_sort_year, millify
+from utils import filter_country_sort_year, millify, handle_empty_plot
 import numpy as np
 
 dash.register_page(__name__)
@@ -233,6 +233,22 @@ def render_education_content(tab):
                             sm={"size": 12, "offset": 0},
                             md={"size": 12, "offset": 0},
                             lg={"size": 6, "offset": 0},
+                        ),
+                    ],
+                ),
+                dbc.Row(
+                    [
+                        # How has total expenditure changed over time?
+                        dbc.Col(
+                            dcc.Graph(
+                                id="education-geo-spending-scatter",
+                                config={"displayModeBar": False},
+                            ),
+                            xs={"size": 12, "offset": 0},
+                            sm={"size": 12, "offset": 0},
+                            md={"size": 12, "offset": 0},
+                            lg={"size": 6, "offset": 0},
+                            style={"marginBottom": "3rem"},
                         ),
                     ],
                 ),
@@ -633,6 +649,9 @@ def render_public_private_figure(geo_data, country):
     geo_data = geo_data.sort_values("per_capita_real_expenditure")
     fig = go.Figure()
 
+    if geo_data["per_capita_real_expenditure"].sum() == 0:
+        return handle_empty_plot(fig)
+
     fig.add_trace(
         go.Bar(
             name="Attendance",
@@ -658,6 +677,67 @@ def render_public_private_figure(geo_data, country):
                 x=-0,
                 y=-0.2,
                 text="Source: BOOST, per capital real expenditure. Average over available years",
+                showarrow=False,
+                font=dict(size=12),
+            )
+        ],
+    )
+    return fig
+
+
+@callback(
+    Output("education-geo-spending-scatter", "figure"),
+    Input("stored-data-education-outcome-expenditure-geo", "data"),
+    Input("country-select", "value"),
+)
+def render_public_private_figure(geo_data, country):
+    if not geo_data:
+        return
+    geo_data = pd.DataFrame(geo_data["education-outcome-expenditure-geo"])
+    geo_data = geo_data[geo_data.func == "Education"]
+    geo_data = filter_country_sort_year(geo_data, country)
+    geo_data = geo_data.groupby("adm1_name").mean(numeric_only=True).reset_index()
+    geo_data = geo_data.sort_values("per_capita_real_expenditure")
+    fig = go.Figure()
+
+    if geo_data["attendance"].sum() == 0:
+        return handle_empty_plot(fig)
+
+    customdata = np.stack(
+        (
+            geo_data["adm1_name"],
+            geo_data["per_capita_real_expenditure"].apply(millify),
+            geo_data["attendance"],
+        ),
+        axis=1,
+    )
+    fig.add_trace(
+        go.Scatter(
+            name="Attendance",
+            y=geo_data["attendance"],
+            x=geo_data["per_capita_real_expenditure"],
+            text=geo_data["adm1_name"],
+            customdata=customdata,
+            hovertemplate="<b>Region</b>: %{customdata[0]}<br>"
+            + "<b>Real expenditure</b>: $%{customdata[1]}<br>"
+            + "<b>Attendance</b>: %{customdata[2]:.2f}%<br>"
+            + "<extra></extra>",
+            mode="markers",
+        )
+    )
+    fig.update_traces(mode="markers", marker_line_width=2, marker_size=20)
+
+    fig.update_layout(
+        plot_bgcolor="white",
+        title="How is the relationship between the public spending and the education outcome?",
+        annotations=[
+            dict(
+                xref="paper",
+                yref="paper",
+                x=-0,
+                y=-0.2,
+                text="Source: BOOST Per capital real expenditure (Average over available years)<br>"
+                + "Source: GDL Attendance rate(average over available years)",
                 showarrow=False,
                 font=dict(size=12),
             )

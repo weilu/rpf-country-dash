@@ -86,3 +86,13 @@ def get_expenditure_by_country_func_econ_year():
     """
     df = execute_query(query)
     return df
+
+
+def get_expenditure_by_country_sub_func_year():
+
+    query = """
+        SELECT country_name, admin0, year, func, latest_year, func_sub, expenditure, real_expenditure 
+        FROM boost.expenditure_by_country_admin0_func_sub_year"""
+
+    df = execute_query(query)
+    return df

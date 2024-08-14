@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import queries
 from utils import filter_country_sort_year
+import numpy as np
 
 dash.register_page(__name__)
 
@@ -29,7 +30,8 @@ layout = html.Div(
         ),
         dcc.Store(id="stored-data-education-total"),
         dcc.Store(id="stored-data-education-outcome"),
-        dcc.Store(id='stored-data-education-private')
+        dcc.Store(id="stored-data-education-private"),
+        dcc.Store(id="stored-data-education-sub-func"),
     ]
 )
 
@@ -69,6 +71,7 @@ def fetch_edu_outcome_data_once(edu_data, shared_data):
         }
     return dash.no_update
 
+
 @callback(
     Output("stored-data-education-private", "data"),
     Input("stored-data-education-private", "data"),
@@ -82,6 +85,22 @@ def fetch_edu_private_data_once(edu_data):
             "edu_private_expenditure": priv_exp.to_dict("records"),
         }
     return dash.no_update
+
+
+@callback(
+    Output("stored-data-education-sub-func", "data"),
+    Input("stored-data-education-sub-func", "data"),
+)
+def fetch_edu_sub_func_data_once(edu_data):
+    if edu_data is None:
+        exp_by_sub_func = queries.get_expenditure_by_country_sub_func_year()
+        # filter shared data down to education specific
+
+        return {
+            "expenditure_by_country_sub_func_year": exp_by_sub_func.to_dict("records"),
+        }
+    return dash.no_update
+
 
 @callback(
     Output("education-content", "children"),
@@ -136,12 +155,31 @@ def render_education_content(tab):
                     [
                         # How has private expenditure vs public expenditure changed over time?
                         dbc.Col(
-                            dcc.Graph(id="education-public-private", config={"displayModeBar": False},  ),
+                            dcc.Graph(
+                                id="education-public-private",
+                                config={"displayModeBar": False},
+                            ),
                             xs={"size": 12, "offset": 0},
                             sm={"size": 12, "offset": 0},
                             md={"size": 12, "offset": 0},
                             lg={"size": 6, "offset": 0},
-                            style={"marginBottom": "3rem"}
+                            style={"marginBottom": "3rem"},
+                        ),
+                    ],
+                ),
+                dbc.Row(
+                    [
+                        # How much did the government spend on different levels of education
+                        dbc.Col(
+                            dcc.Graph(
+                                id="education-sub-func",
+                                config={"displayModeBar": False},
+                            ),
+                            xs={"size": 12, "offset": 0},
+                            sm={"size": 12, "offset": 0},
+                            md={"size": 12, "offset": 0},
+                            lg={"size": 6, "offset": 0},
+                            style={"marginBottom": "3rem"},
                         ),
                     ],
                 ),
@@ -200,7 +238,7 @@ def total_edu_figure(df):
             dict(
                 xref="paper",
                 yref="paper",
-                x=-0.14,
+                x=-0,
                 y=-0.2,
                 text="Source: BOOST & CPI: World Bank",
                 showarrow=False,
@@ -270,7 +308,7 @@ def private_public_fig(public, private):
             dict(
                 xref="paper",
                 yref="paper",
-                x=-0.14,
+                x=-0,
                 y=-0.2,
                 text="Source: BOOST & CPI: World Bank",
                 showarrow=False,
@@ -312,7 +350,13 @@ def render_public_private_figure(private_data, public_data, country):
     public_data = pd.DataFrame(public_data["edu_public_expenditure"])
     public = filter_country_sort_year(public_data, country)
 
-    merged = pd.merge(private, public, on=["year", "country_name"], how="inner", suffixes=["_private", "_public"])
+    merged = pd.merge(
+        private,
+        public,
+        on=["year", "country_name"],
+        how="inner",
+        suffixes=["_private", "_public"],
+    )
     merged["private_percentage"] = merged["real_expenditure_private"] / (
         merged["real_expenditure_private"] + merged["real_expenditure_public"]
     )
@@ -357,7 +401,7 @@ def render_public_private_figure(private_data, public_data, country):
             dict(
                 xref="paper",
                 yref="paper",
-                x=-0.14,
+                x=-0,
                 y=-0.2,
                 text="Source: BOOST & CPI: World Bank",
                 showarrow=False,
@@ -442,7 +486,7 @@ def render_education_outcome(outcome_data, total_data, country):
             dict(
                 xref="paper",
                 yref="paper",
-                x=-0.14,
+                x=-0,
                 y=-0.25,
                 text="Source: Education index measured by years of education: UNDP through GDL. <br>"
                 "BOOST, CPI, Learning Poverty: World Bank; Population: UN, Eurostat",
@@ -457,4 +501,66 @@ def render_education_outcome(outcome_data, total_data, country):
     )
     fig.update_yaxes(range=[0, 1], secondary_y=True)
 
+    return fig
+
+
+@callback(
+    Output("education-sub-func", "figure"),
+    Input("stored-data-education-sub-func", "data"),
+    Input("country-select", "value"),
+)
+def render_education_sub_func(sub_func_data, country):
+    if not sub_func_data or not country:
+        return
+
+    data = pd.DataFrame(sub_func_data["expenditure_by_country_sub_func_year"])
+    data = data.loc[(data.func == "Education") & (data.year == data.latest_year)]
+    data = filter_country_sort_year(data, country)
+
+    fig = go.Figure()
+    ids = ["total"]
+    parents = [""]
+    labels = ["Total"]
+    real_expenditures = [data["real_expenditure"].sum()]
+    data["func_sub"] = data["func_sub"].fillna(value="Others")
+    parents_values = data.groupby("func_sub").sum(numeric_only=True).reset_index()
+    for _, row in parents_values.iterrows():
+        parents.append("total")
+        ids.append(row["func_sub"] + "-" + "all")
+        labels.append(row["func_sub"])
+        real_expenditures.append(row["real_expenditure"])
+
+    for _, row in data.iterrows():
+        ids.append(row["admin0"] + "-" + row["func_sub"])
+        parents.append(row["func_sub"] + "-" + "all")
+        labels.append(row["admin0"])
+        real_expenditures.append(row["real_expenditure"])
+
+    fig.add_trace(
+        go.Icicle(
+            ids=ids,
+            labels=labels,
+            parents=parents,
+            values=real_expenditures,
+            branchvalues="total",
+            root_color="lightgrey",
+            hovertemplate="<b>Real expenditure</b>: $%{value}<br>" + "<extra></extra>",
+        )
+    )
+    source = f"Calculated from the latest available year: {data.year.values[0]}"
+    fig.update_layout(
+        plot_bgcolor="white",
+        title="How much did the gov spend on different levels of education?",
+        annotations=[
+            dict(
+                xref="paper",
+                yref="paper",
+                x=-0,
+                y=-0.25,
+                text=source,
+                showarrow=False,
+                font=dict(size=12),
+            )
+        ],
+    )
     return fig

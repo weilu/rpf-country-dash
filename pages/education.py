@@ -32,6 +32,7 @@ layout = html.Div(
         dcc.Store(id="stored-data-education-outcome"),
         dcc.Store(id="stored-data-education-private"),
         dcc.Store(id="stored-data-education-sub-func"),
+        dcc.Store(id="stored-data-education-outcome-expenditure-geo"),
     ]
 )
 
@@ -98,6 +99,20 @@ def fetch_edu_sub_func_data_once(edu_data):
 
         return {
             "expenditure_by_country_sub_func_year": exp_by_sub_func.to_dict("records"),
+        }
+    return dash.no_update
+
+
+@callback(
+    Output("stored-data-education-outcome-expenditure-geo", "data"),
+    Input("stored-data-education-outcome-expenditure-geo", "data"),
+)
+def fetch_edu_outcome_geo_data_once(edu_data):
+    if edu_data is None:
+        outcome_geo = queries.get_outcome_expenditure_by_country_geo1()
+
+        return {
+            "education-outcome-expenditure-geo": outcome_geo.to_dict("records"),
         }
     return dash.no_update
 
@@ -188,8 +203,39 @@ def render_education_content(tab):
     elif tab == "edu-tab-space":
         return html.Div(
             [
-                "Geospatial viz"
-                # dcc.Graph(id='overview-plot', figure=make_overview_plot(gdp, country))
+                dbc.Row(
+                    dbc.Col(
+                        html.H3(
+                            children="Public Spending & Education Outcome across different regions",
+                        )
+                    )
+                ),
+                dbc.Row(
+                    [
+                        # How has total expenditure changed over time?
+                        dbc.Col(
+                            dcc.Graph(
+                                id="education-geo-outcome",
+                                config={"displayModeBar": False},
+                            ),
+                            xs={"size": 12, "offset": 0},
+                            sm={"size": 12, "offset": 0},
+                            md={"size": 12, "offset": 0},
+                            lg={"size": 6, "offset": 0},
+                            style={"marginBottom": "3rem"},
+                        ),
+                        dbc.Col(
+                            dcc.Graph(
+                                id="education-geo-spending",
+                                config={"displayModeBar": False},
+                            ),
+                            xs={"size": 12, "offset": 0},
+                            sm={"size": 12, "offset": 0},
+                            md={"size": 12, "offset": 0},
+                            lg={"size": 6, "offset": 0},
+                        ),
+                    ],
+                ),
             ]
         )
 
@@ -563,4 +609,100 @@ def render_education_sub_func(sub_func_data, country):
             )
         ],
     )
+    return fig
+
+
+@callback(
+    Output("education-geo-outcome", "figure"),
+    Input("stored-data-education-outcome", "data"),
+    Input("country-select", "value"),
+)
+def render_public_private_figure(outcome_data, country):
+    if not outcome_data:
+        return
+    outcomes = pd.DataFrame(outcome_data["hd_index"])
+    outcomes = filter_country_sort_year(outcomes, country)
+    outcomes = outcomes.groupby("adm1_name").mean(numeric_only=True).reset_index()
+    outcomes = outcomes.sort_values("attendance")
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Bar(
+            name="Attendance",
+            y=outcomes["adm1_name"],
+            x=outcomes["attendance"],
+            orientation="h",
+            marker=dict(
+                color="rgb(17, 141, 255)",
+            ),
+            hovertemplate="<b>attendance</b>: %{value:.2f}%<br>" + "<extra></extra>",
+        )
+    )
+    fig.update_layout(
+        barmode="stack",
+        plot_bgcolor="white",
+        legend=dict(orientation="h", yanchor="bottom", y=1),
+        title="How does access to education vary across regions?",
+        annotations=[
+            dict(
+                xref="paper",
+                yref="paper",
+                x=-0,
+                y=-0.2,
+                text="Source: GDL, averages over available years",
+                showarrow=False,
+                font=dict(size=12),
+            )
+        ],
+    )
+
+    return fig
+
+
+@callback(
+    Output("education-geo-spending", "figure"),
+    Input("stored-data-education-outcome-expenditure-geo", "data"),
+    Input("country-select", "value"),
+)
+def render_public_private_figure(geo_data, country):
+    if not geo_data:
+        return
+    geo_data = pd.DataFrame(geo_data["education-outcome-expenditure-geo"])
+    geo_data = geo_data[geo_data.func == "Education"]
+    geo_data = filter_country_sort_year(geo_data, country)
+    geo_data = geo_data.groupby("adm1_name").mean(numeric_only=True).reset_index()
+    geo_data = geo_data.sort_values("per_capita_real_expenditure")
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Bar(
+            name="Attendance",
+            y=geo_data["adm1_name"],
+            x=geo_data["per_capita_real_expenditure"],
+            orientation="h",
+            marker=dict(
+                color="rgb(17, 141, 255)",
+            ),
+            hovertemplate="<b>Per Capita Real Expenditure</b>: $%{value:.2f}<br>"
+            + "<extra></extra>",
+        )
+    )
+    fig.update_layout(
+        barmode="stack",
+        plot_bgcolor="white",
+        legend=dict(orientation="h", yanchor="bottom", y=1),
+        title="How does public spending on education vary across regions?",
+        annotations=[
+            dict(
+                xref="paper",
+                yref="paper",
+                x=-0,
+                y=-0.2,
+                text="Source: BOOST, per capital real expenditure. Average over available years",
+                showarrow=False,
+                font=dict(size=12),
+            )
+        ],
+    )
+
     return fig

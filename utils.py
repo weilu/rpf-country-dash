@@ -27,12 +27,16 @@ def millify(n):
     return "{:.2f}{}".format(n / 10 ** (3 * millidx), millnames[millidx])
 
 
-def handle_empty_plot(fig):
+def handle_empty_plot(fig, text=None):
+    if not text:
+        text = "No Matching Data Found"
     fig.update_layout(
         annotations=[
             dict(
-                text="No Matching Data Found",
+                text=text,
                 showarrow=False,
+                x=None,
+                y=None,
             )
         ],
     )

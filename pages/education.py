@@ -649,22 +649,6 @@ def render_public_private_figure(geo_data, country):
     geo_data = geo_data.sort_values("per_capita_real_expenditure")
     fig = go.Figure()
 
-    if geo_data["per_capita_real_expenditure"].sum() == 0:
-        return handle_empty_plot(fig)
-
-    fig.add_trace(
-        go.Bar(
-            name="Attendance",
-            y=geo_data["adm1_name"],
-            x=geo_data["per_capita_real_expenditure"],
-            orientation="h",
-            marker=dict(
-                color="rgb(17, 141, 255)",
-            ),
-            hovertemplate="<b>Per Capita Real Expenditure</b>: $%{value:.2f}<br>"
-            + "<extra></extra>",
-        )
-    )
     fig.update_layout(
         barmode="stack",
         plot_bgcolor="white",
@@ -682,6 +666,28 @@ def render_public_private_figure(geo_data, country):
             )
         ],
     )
+
+    if geo_data["per_capita_real_expenditure"].sum() == 0:
+        empty_message = """
+        The data does not show any subnational government spending in education. <br>
+        This could be due to the lack of subnational data availability or may indicate 100% centralized spending.
+        """
+        return handle_empty_plot(fig, empty_message)
+
+    fig.add_trace(
+        go.Bar(
+            name="Attendance",
+            y=geo_data["adm1_name"],
+            x=geo_data["per_capita_real_expenditure"],
+            orientation="h",
+            marker=dict(
+                color="rgb(17, 141, 255)",
+            ),
+            hovertemplate="<b>Per Capita Real Expenditure</b>: $%{value:.2f}<br>"
+            + "<extra></extra>",
+        )
+    )
+
     return fig
 
 
@@ -699,6 +705,23 @@ def render_public_private_figure(geo_data, country):
     geo_data = geo_data.groupby("adm1_name").mean(numeric_only=True).reset_index()
     geo_data = geo_data.sort_values("per_capita_real_expenditure")
     fig = go.Figure()
+
+    fig.update_layout(
+        plot_bgcolor="white",
+        title="How is the relationship between the public spending and the education outcome?",
+        annotations=[
+            dict(
+                xref="paper",
+                yref="paper",
+                x=-0,
+                y=-0.2,
+                text="Source: BOOST Per capital real expenditure (Average over available years)<br>"
+                + "Source: GDL Attendance rate(average over available years)",
+                showarrow=False,
+                font=dict(size=12),
+            )
+        ],
+    )
 
     if geo_data["attendance"].sum() == 0:
         return handle_empty_plot(fig)
@@ -727,20 +750,4 @@ def render_public_private_figure(geo_data, country):
     )
     fig.update_traces(mode="markers", marker_line_width=2, marker_size=20)
 
-    fig.update_layout(
-        plot_bgcolor="white",
-        title="How is the relationship between the public spending and the education outcome?",
-        annotations=[
-            dict(
-                xref="paper",
-                yref="paper",
-                x=-0,
-                y=-0.2,
-                text="Source: BOOST Per capital real expenditure (Average over available years)<br>"
-                + "Source: GDL Attendance rate(average over available years)",
-                showarrow=False,
-                font=dict(size=12),
-            )
-        ],
-    )
     return fig

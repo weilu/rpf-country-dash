@@ -5,7 +5,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import queries
-from utils import filter_country_sort_year
+from utils import filter_country_sort_year, millify
 import numpy as np
 
 dash.register_page(__name__)
@@ -314,58 +314,6 @@ def education_narrative(data, country):
     return text
 
 
-def private_public_fig(public, private):
-    fig = go.Figure()
-    fig.add_trace(
-        go.Scatter(
-            name="Inflation Adjusted",
-            x=df.year,
-            y=df.real_expenditure_centralized + df.real_expenditure_decentralized,
-            mode="lines+markers",
-            marker_color="darkblue",
-        ),
-    )
-    fig.add_trace(
-        go.Bar(
-            name="Central",
-            x=df.year,
-            y=df.real_expenditure_centralized,
-            marker_color="rgb(17, 141, 255)",
-        ),
-    )
-    fig.add_trace(
-        go.Bar(
-            name="Regional",
-            x=df.year,
-            y=df.real_expenditure_decentralized,
-            marker_color="rgb(160, 209, 255)",
-        ),
-    )
-
-    fig.update_xaxes(tickformat="d")
-    fig.update_yaxes(fixedrange=True)
-    fig.update_layout(
-        barmode="stack",
-        hovermode="x",
-        title="How has total expenditure changed over time?",
-        plot_bgcolor="white",
-        legend=dict(orientation="h", yanchor="bottom", y=1),
-        annotations=[
-            dict(
-                xref="paper",
-                yref="paper",
-                x=-0,
-                y=-0.2,
-                text="Source: BOOST & CPI: World Bank",
-                showarrow=False,
-                font=dict(size=12),
-            )
-        ],
-    )
-
-    return fig
-
-
 @callback(
     Output("education-total", "figure"),
     Output("education-narrative", "children"),
@@ -410,6 +358,10 @@ def render_public_private_figure(private_data, public_data, country):
         merged["real_expenditure_private"] + merged["real_expenditure_public"]
     )
 
+    merged["real_expenditure_private_formatted"] = merged[
+        "real_expenditure_private"
+    ].apply(millify)
+
     fig = go.Figure()
     fig.add_trace(
         go.Bar(
@@ -417,22 +369,25 @@ def render_public_private_figure(private_data, public_data, country):
             y=merged["year"].astype(str),
             x=merged.private_percentage,
             orientation="h",
-            customdata=merged.real_expenditure_private,
-            hovertemplate="%{customdata:$}",
+            customdata=merged.real_expenditure_private_formatted,
+            hovertemplate="%{customdata}",
             marker=dict(
                 color="rgb(160, 209, 255)",
             ),
         )
     )
 
+    merged["real_expenditure_public_formatted"] = merged[
+        "real_expenditure_public"
+    ].apply(millify)
     fig.add_trace(
         go.Bar(
             name="Public Expenditure",
             y=merged["year"].astype(str),
             x=merged.public_percentage,
             orientation="h",
-            customdata=merged.real_expenditure_public,
-            hovertemplate="%{customdata:$}",
+            customdata=merged.real_expenditure_public_formatted,
+            hovertemplate="$%{customdata}",
             marker=dict(
                 color="rgb(17, 141, 255)",
             ),
@@ -455,7 +410,6 @@ def render_public_private_figure(private_data, public_data, country):
             )
         ],
     )
-    fig.update_xaxes(tickformat=",.0%")
 
     return fig
 
@@ -570,17 +524,20 @@ def render_education_sub_func(sub_func_data, country):
     real_expenditures = [data["real_expenditure"].sum()]
     data["func_sub"] = data["func_sub"].fillna(value="Others")
     parents_values = data.groupby("func_sub").sum(numeric_only=True).reset_index()
+    customData = [millify(real_expenditures[0])]
     for _, row in parents_values.iterrows():
         parents.append("total")
         ids.append(row["func_sub"] + "-" + "all")
         labels.append(row["func_sub"])
         real_expenditures.append(row["real_expenditure"])
+        customData.append(millify(row["real_expenditure"]))
 
     for _, row in data.iterrows():
         ids.append(row["admin0"] + "-" + row["func_sub"])
         parents.append(row["func_sub"] + "-" + "all")
         labels.append(row["admin0"])
         real_expenditures.append(row["real_expenditure"])
+        customData.append(millify(row["real_expenditure"]))
 
     fig.add_trace(
         go.Icicle(
@@ -590,7 +547,9 @@ def render_education_sub_func(sub_func_data, country):
             values=real_expenditures,
             branchvalues="total",
             root_color="lightgrey",
-            hovertemplate="<b>Real expenditure</b>: $%{value}<br>" + "<extra></extra>",
+            customdata=np.stack(customData),
+            hovertemplate="<b>Real expenditure</b>: $%{customdata}<br>"
+            + "<extra></extra>",
         )
     )
     source = f"Calculated from the latest available year: {data.year.values[0]}"
@@ -704,5 +663,4 @@ def render_public_private_figure(geo_data, country):
             )
         ],
     )
-
     return fig

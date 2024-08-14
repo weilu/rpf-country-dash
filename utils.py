@@ -1,4 +1,5 @@
 from shapely.geometry import shape, MultiPolygon, Polygon
+import plotly.graph_objects as go
 
 
 def filter_country_sort_year(df, country):
@@ -48,6 +49,21 @@ def map_center(geojson):
     center_lat, center_lon = (centroid.y, centroid.x)
 
     return {"lat": center_lat, "lon": center_lon}
+
+
+def empty_plot(message):
+    fig = go.Figure()
+    fig.add_annotation(
+        text=message,
+        xref="paper",
+        yref="paper",
+        showarrow=False,
+        font=dict(size=14),
+    )
+    fig.update_layout(
+        xaxis={"visible": False}, yaxis={"visible": False}, plot_bgcolor="white"
+    )
+    return fig
 
 
 zoom = {

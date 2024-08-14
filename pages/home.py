@@ -5,7 +5,13 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
-from utils import filter_country_sort_year, map_center, filter_geojson_by_country, zoom
+from utils import (
+    filter_country_sort_year,
+    map_center,
+    filter_geojson_by_country,
+    zoom,
+    empty_plot,
+)
 
 dash.register_page(__name__)
 
@@ -484,7 +490,9 @@ def regional_spending_choropleth(geojson, df):
     regions_without_data = [r for r in all_regions if r not in df.adm1_name.values]
     df_no_data = pd.DataFrame({"region_name": regions_without_data})
     df_no_data["adm1_name"] = None
-
+    if df.empty:
+        return empty_plot("Sub-national expenditure data not available")
+    country_name = df.country_name.iloc[0]
     fig = px.choropleth_mapbox(
         df,
         geojson=geojson,
@@ -493,7 +501,7 @@ def regional_spending_choropleth(geojson, df):
         featureidkey="properties.region",
         center=map_center(geojson),
         mapbox_style="carto-positron",
-        zoom=zoom.get(df.country_name.iloc[0], 6),
+        zoom=zoom.get(country_name, 6),
     )
     fig.add_trace(
         px.choropleth_mapbox(
@@ -538,7 +546,9 @@ def regional_percapita_spending_choropleth(geojson, df):
     regions_without_data = [r for r in all_regions if r not in df.adm1_name.values]
     df_no_data = pd.DataFrame({"region_name": regions_without_data})
     df_no_data["adm1_name"] = None
-
+    if df.empty:
+        return empty_plot("Sub-national population data not available ")
+    country_name = df.country_name.iloc[0]
     fig = px.choropleth_mapbox(
         df,
         geojson=geojson,
@@ -547,7 +557,7 @@ def regional_percapita_spending_choropleth(geojson, df):
         featureidkey="properties.region",
         center=map_center(geojson),
         mapbox_style="carto-positron",
-        zoom=zoom.get(df.country_name.iloc[0], 6),
+        zoom=zoom.get(country_name, 6),
     )
     fig.add_trace(
         px.choropleth_mapbox(
@@ -571,7 +581,7 @@ def regional_percapita_spending_choropleth(geojson, df):
             dict(
                 xref="paper",
                 yref="paper",
-                x=-0.15,
+                x=-0.1,
                 y=-0.2,
                 text="Per capita regional spending. Source: BOOST",
                 showarrow=False,
@@ -590,6 +600,9 @@ def regional_percapita_spending_choropleth(geojson, df):
 
 def subnational_spending_heatmap(df):
     df = df[df.adm1_name != "Central Scope"]
+    if df.empty:
+        return empty_plot("Sub-national expenditure data not available")
+
     df_pivot = df.pivot(
         index="adm1_name", columns="year", values="per_capita_expenditure"
     )
@@ -626,6 +639,9 @@ def subnational_spending_heatmap(df):
 
 
 def subnational_poverty_choropleth(geojson, df):
+    if df[df.region_name != "National"].empty:
+        return empty_plot("Sub-national poverty data not available")
+
     poverty_col = "poor215"
     max_year = df.year.max()
     df = df[df.year == max_year]

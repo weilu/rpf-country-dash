@@ -11,6 +11,7 @@ from utils import (
     filter_geojson_by_country,
     zoom,
     empty_plot,
+    remove_accents,
 )
 
 dash.register_page(__name__)
@@ -549,6 +550,7 @@ def regional_percapita_spending_choropleth(geojson, df):
     if df.empty:
         return empty_plot("Sub-national population data not available ")
     country_name = df.country_name.iloc[0]
+    df = df[df.adm1_name != "Central Scope"]
     fig = px.choropleth_mapbox(
         df,
         geojson=geojson,
@@ -639,9 +641,11 @@ def subnational_spending_heatmap(df):
 
 
 def subnational_poverty_choropleth(geojson, df):
+
     if df[df.region_name != "National"].empty:
         return empty_plot("Sub-national poverty data not available")
-
+    # TODO align accents across all datasets
+    df["region_name"] = df.region_name.map(lambda x: remove_accents(x))
     poverty_col = "poor215"
     max_year = df.year.max()
     df = df[df.year == max_year]

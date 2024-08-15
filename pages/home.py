@@ -141,42 +141,29 @@ def render_overview_content(tab):
                     children=[
                         dbc.Row(
                             [
+                                dbc.RadioItems(
+                                    id="expenditure-plot-radio",
+                                    options=[
+                                        {
+                                            "label": "  Per capita expenditure",
+                                            "value": "percapita",
+                                        },
+                                        {
+                                            "label": "  Total expenditure",
+                                            "value": "total",
+                                        },
+                                    ],
+                                    value="percapita",
+                                    inline=True,
+                                    style={"padding": "10px"},
+                                    labelStyle={
+                                        "margin-right": "20px",
+                                    },
+                                ),
                                 # How much was spent in each region?
                                 dbc.Col(
                                     dcc.Graph(
                                         id="subnational-spending",
-                                        config={"displayModeBar": False},
-                                    ),
-                                    xs={"size": 12, "offset": 0},
-                                    sm={"size": 12, "offset": 0},
-                                    md={"size": 12, "offset": 0},
-                                    lg={"size": 6, "offset": 0},
-                                ),
-                                # How much was spent per person in each region?
-                                dbc.Col(
-                                    dcc.Graph(
-                                        id="subnational-percapita-spending",
-                                        config={"displayModeBar": False},
-                                    ),
-                                    xs={"size": 12, "offset": 0},
-                                    sm={"size": 12, "offset": 0},
-                                    md={"size": 12, "offset": 0},
-                                    lg={"size": 6, "offset": 0},
-                                ),
-                            ],
-                        ),
-                    ],
-                ),
-                html.Div(style={"height": "20px"}),
-                dcc.Loading(
-                    type="dot",
-                    children=[
-                        dbc.Row(
-                            [
-                                # How has percapita expenditure in each region changed oevr time?
-                                dbc.Col(
-                                    dcc.Graph(
-                                        id="subnational-percapita-time-change",
                                         config={"displayModeBar": False},
                                     ),
                                     xs={"size": 12, "offset": 0},
@@ -198,6 +185,7 @@ def render_overview_content(tab):
                         ),
                     ],
                 ),
+                html.Div(style={"height": "20px"}),
             ]
         )
 
@@ -600,46 +588,6 @@ def regional_percapita_spending_choropleth(geojson, df):
     return fig
 
 
-def subnational_spending_heatmap(df):
-    df = df[df.adm1_name != "Central Scope"]
-    if df.empty:
-        return empty_plot("Sub-national expenditure data not available")
-
-    df_pivot = df.pivot(
-        index="adm1_name", columns="year", values="per_capita_expenditure"
-    )
-    fig = px.imshow(df_pivot, x=df_pivot.columns, y=df_pivot.index)
-    fig.update_layout(
-        title="How has per capita regional expenditure changed over time?",
-        plot_bgcolor="white",
-        xaxis_title="",
-        yaxis_title="",
-        coloraxis_colorbar=dict(
-            title="", orientation="v", thickness=10, tickformat=".2~s"
-        ),
-        annotations=[
-            dict(
-                xref="paper",
-                yref="paper",
-                x=-0.17,
-                y=-0.2,
-                text="Per capita regional expenditure. Source: BOOST",
-                showarrow=False,
-                font=dict(size=12),
-            )
-        ],
-        # width=500,height=500
-    )
-    fig.update_traces(
-        hovertemplate="<b>Region:</b> %{y}<br>"
-        + "<b>Year:</b> %{x}<br>"
-        + "<b>Expenditure:</b> %{z:.2s}<br>"
-        + "<extra></extra>"
-    )
-
-    return fig
-
-
 def subnational_poverty_choropleth(geojson, df):
 
     if df[df.region_name != "National"].empty:
@@ -739,24 +687,21 @@ def render_overview_total_figure(data, country):
 
 @callback(
     Output("subnational-spending", "figure"),
-    Output("subnational-percapita-spending", "figure"),
-    Output("subnational-percapita-time-change", "figure"),
     Input("stored-data-subnational", "data"),
     Input("country-select", "value"),
+    Input("expenditure-plot-radio", "value"),
 )
-def render_subnational_spending_figures(data, country):
+def render_subnational_spending_figures(data, country, plot_type):
     geojson = data["boundaries"]
     filtered_geojson = filter_geojson_by_country(geojson, country)
     df = pd.DataFrame(data["expenditure_by_country_geo1_year"])
     df = filter_country_sort_year(df, country)
     max_year = df.year.max()
     ddf = df[(df.year == max_year) & (df.adm1_name != "Central Scope")]
-
-    return (
-        regional_spending_choropleth(filtered_geojson, ddf),
-        regional_percapita_spending_choropleth(filtered_geojson, ddf),
-        subnational_spending_heatmap(df),
-    )
+    if plot_type == "percapita":
+        return regional_percapita_spending_choropleth(filtered_geojson, ddf)
+    else:
+        return regional_spending_choropleth(filtered_geojson, ddf)
 
 
 @callback(

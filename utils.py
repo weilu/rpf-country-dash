@@ -1,5 +1,6 @@
 from shapely.geometry import shape, MultiPolygon, Polygon
 import plotly.graph_objects as go
+import unicodedata
 
 
 def filter_country_sort_year(df, country):
@@ -64,6 +65,12 @@ def empty_plot(message):
         xaxis={"visible": False}, yaxis={"visible": False}, plot_bgcolor="white"
     )
     return fig
+
+
+def remove_accents(input_str):
+    normalized_str = unicodedata.normalize("NFD", input_str)
+    stripped_str = "".join(c for c in normalized_str if not unicodedata.combining(c))
+    return stripped_str
 
 
 zoom = {

@@ -100,7 +100,7 @@ def get_expenditure_by_country_geo1_year():
 
 def get_adm_boundaries(countries):
     query = """
-        SELECT * FROM indicator.admin1_boundaries
+        SELECT * FROM indicator.admin1_boundaries_gold
     """
     country_list = "', '".join(countries)
     query += f" WHERE country_name IN ('{country_list}')"

@@ -90,6 +90,16 @@ def get_expenditure_by_country_func_econ_year():
     return df
 
 
+def get_basic_country_data(countries):
+    country_list = "', '".join(countries)
+    query = """
+        SELECT * FROM indicator.country
+    """
+    query += f" WHERE country_name IN ('{country_list}')"
+    df = execute_query(query)
+    return df
+
+
 def get_expenditure_by_country_geo1_year():
     query = """
         SELECT * FROM boost.expenditure_by_country_geo1_year
@@ -119,9 +129,11 @@ def get_adm_boundaries(countries):
     return geojson
 
 
-def get_subnational_poverty_index():
+def get_subnational_poverty_index(countries):
+    country_list = "', '".join(countries)
     query = """
         SELECT * FROM indicator.subnational_poverty_index
     """
+    query += f" WHERE country_name IN ('{country_list}')"
     df = execute_query(query)
     return df

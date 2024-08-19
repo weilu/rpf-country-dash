@@ -5,7 +5,12 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import queries
-from utils import filter_country_sort_year, millify, handle_empty_plot
+from utils import (
+    filter_country_sort_year,
+    get_percentage_change_text,
+    millify,
+    handle_empty_plot,
+)
 import numpy as np
 
 dash.register_page(__name__)
@@ -320,13 +325,38 @@ def education_narrative(data, country):
     end_year = spending.year.max()
     start_value = spending[spending.year == start_year].real_expenditure.values[0]
     end_value = spending[spending.year == end_year].real_expenditure.values[0]
+    start_value_central = spending[
+        spending.year == start_year
+    ].central_expenditure.values[0]
+    end_value_central = spending[spending.year == end_year].central_expenditure.values[
+        0
+    ]
+    start_value_decentralized = spending[
+        spending.year == start_year
+    ].decentralized_expenditure.values[0]
+    end_value_decentralized = spending[
+        spending.year == end_year
+    ].decentralized_expenditure.values[0]
+
     spending_growth_rate = ((end_value - start_value) / start_value) * 100
-    text = (
-        f"After accounting for inflation, real public spending in education has increased by {spending_growth_rate:.2f}% "
-        f"between {start_year} and {end_year}. \n"
-        f"Generally, while education outcomes related to access can be conceptually linked to the availability of public finance, results related to quality have a more complex chain of causality."
-        "\n"
-    )
+    spending_growth_rate_central = (
+        (end_value_central - start_value_central) / start_value_central
+    ) * 100
+    spending_growth_rate_decentralized = (
+        (end_value_decentralized - start_value_decentralized)
+        / start_value_decentralized
+    ) * 100
+
+    text = f"""Between {start_year} and {end_year}, the total real public spending on education in {country} has increased from ${millify(start_value)} to ${millify(end_value)} reflecting the growth rate of {spending_growth_rate:.2f}% after adjusting for the inflation rate. \n
+        During the same time period, the central government's spending has {get_percentage_change_text(spending_growth_rate_central)} """
+
+    if not np.isnan(spending_growth_rate_decentralized):
+        decentralized_spending_text = f"while the local gov't's spending has  {get_percentage_change_text(spending_growth_rate_decentralized)}."
+    else:
+        decentralized_spending_text = (
+            ". The local gov't's data is not available for this period."
+        )
+    text += decentralized_spending_text
     return text
 
 

@@ -96,12 +96,3 @@ def get_expenditure_by_country_sub_func_year():
 
     df = execute_query(query)
     return df
-
-
-def get_outcome_expenditure_by_country_geo1():
-    query = """
-        SELECT country_name, adm1_name, year, func, expenditure, real_expenditure, per_capita_real_expenditure, attendance
-        FROM boost.expenditure_and_outcome_by_country_geo1_func_year
-        """
-    df = execute_query(query)
-    return df

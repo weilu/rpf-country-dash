@@ -1,3 +1,7 @@
+from constants import START_YEAR, CORRELATION_THRESHOLDS, TREND_THRESHOLDS
+from scipy.stats import pearsonr
+
+
 def filter_country_sort_year(df, country):
     """
     Preprocess the dataframe to filter by country and sort by year
@@ -6,7 +10,9 @@ def filter_country_sort_year(df, country):
     :return: DataFrame
     """
     df = df.loc[df["country_name"] == country]
-    df = df.sort_values(["year"])
+
+    df = df[df.year >= START_YEAR]
+    df = df.sort_values(["year"], ascending=False)
     return df
 
 
@@ -41,3 +47,61 @@ def handle_empty_plot(fig, text=None):
         ],
     )
     return fig
+
+
+def get_percentage_change_text(percent):
+    if percent > 0:
+        return f"increased by {percent:.2f}%"
+    return f"decreased by {-1 * percent:.2f}%"
+
+
+def calculate_PCC(df, x_col, y_col):
+    """
+    Calculate the Pearson Correlation Coefficient between two columns
+    :param df: DataFrame
+    :param x_col: str
+    :param y_col: str
+    :return: float
+    """
+    df = df[[x_col, y_col]].dropna()
+    return pearsonr(df[x_col], df[y_col])[0]
+
+
+def get_correlation_text(df, x_col, y_col):
+    """
+    Get the correlation text based on the PCC value
+    :param df: DataFrame
+    :param x_col: str
+    :param y_col: str
+    :return: str
+    """
+    pcc = calculate_PCC(df, x_col, y_col)
+    if pcc > 0:
+        text = "positive and "
+    else:
+        text = "negative and "
+    abs_pcc = abs(pcc)
+
+    for threshold, pcc_text in CORRELATION_THRESHOLDS.items():
+        if abs_pcc < float(threshold):
+            text += pcc_text
+            break
+    return text + "(PCC={:.2f})".format(pcc)
+
+
+def detect_trend(df, x_col):
+    """
+    Detect the trend of the data based on the PCC value
+    :param df: DataFrame
+    :param x_col: str
+    :return: str
+    """
+    pcc = calculate_PCC(df, x_col, "year")
+    abs_pcc = abs(pcc)
+    if abs_pcc > TREND_THRESHOLDS:
+        if pcc > 0:
+            return "an increasing trend"
+        else:
+            return "a decreasing trend"
+
+    return ""

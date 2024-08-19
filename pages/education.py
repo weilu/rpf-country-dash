@@ -6,7 +6,9 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import queries
 from utils import (
+    detect_trend,
     filter_country_sort_year,
+    get_correlation_text,
     get_percentage_change_text,
     millify,
     handle_empty_plot,
@@ -138,21 +140,20 @@ def render_education_content(tab):
                     )
                 ),
                 dbc.Row(
-                    dbc.Col(
-                        html.P(
-                            id="education-narrative",
-                            children="loading...",
-                        )
-                    )
-                ),
-                dbc.Row(
                     [
                         # How has total expenditure changed over time?
                         dbc.Col(
-                            dcc.Graph(
-                                id="education-total",
-                                config={"displayModeBar": False},
-                            ),
+                            [
+                                html.P(
+                                    id="education-narrative",
+                                    children="loading...",
+                                    style={"height": "100px", "margin": "10px"},
+                                ),
+                                dcc.Graph(
+                                    id="education-total",
+                                    config={"displayModeBar": False},
+                                ),
+                            ],
                             xs={"size": 12, "offset": 0},
                             sm={"size": 12, "offset": 0},
                             md={"size": 12, "offset": 0},
@@ -160,10 +161,17 @@ def render_education_content(tab):
                             style={"marginBottom": "3rem"},
                         ),
                         dbc.Col(
-                            dcc.Graph(
-                                id="education-outcome",
-                                config={"displayModeBar": False},
-                            ),
+                            [
+                                html.P(
+                                    id="education-outcome-narrative",
+                                    children="loading...",
+                                    style={"height": "100px", "margin": "10px"},
+                                ),
+                                dcc.Graph(
+                                    id="education-outcome",
+                                    config={"displayModeBar": False},
+                                ),
+                            ],
                             xs={"size": 12, "offset": 0},
                             sm={"size": 12, "offset": 0},
                             md={"size": 12, "offset": 0},
@@ -172,20 +180,16 @@ def render_education_content(tab):
                     ],
                 ),
                 dbc.Row(
-                    [
-                        # How has private expenditure vs public expenditure changed over time?
-                        dbc.Col(
-                            dcc.Graph(
-                                id="education-public-private",
-                                config={"displayModeBar": False},
-                            ),
-                            xs={"size": 12, "offset": 0},
-                            sm={"size": 12, "offset": 0},
-                            md={"size": 12, "offset": 0},
-                            lg={"size": 6, "offset": 0},
-                            style={"marginBottom": "3rem"},
-                        ),
-                    ],
+                    dbc.Col(
+                        html.Hr(),
+                    )
+                ),
+                dbc.Row(
+                    dbc.Col(
+                        html.H3(
+                            children="Public Spending Breakdown by Education Sector",
+                        )
+                    )
                 ),
                 dbc.Row(
                     [
@@ -198,8 +202,57 @@ def render_education_content(tab):
                             xs={"size": 12, "offset": 0},
                             sm={"size": 12, "offset": 0},
                             md={"size": 12, "offset": 0},
-                            lg={"size": 6, "offset": 0},
+                            lg={"size": 8, "offset": 0},
                             style={"marginBottom": "3rem"},
+                        ),
+                        dbc.Col(
+                            html.P(
+                                id="education-sub-func-narrative",
+                                children="loading...",
+                                style={"height": "100px", "margin": "10px"},
+                            ),
+                            xs={"size": 12, "offset": 0},
+                            sm={"size": 12, "offset": 0},
+                            md={"size": 12, "offset": 0},
+                            lg={"size": 4, "offset": 0},
+                        ),
+                    ],
+                ),
+                dbc.Row(
+                    dbc.Col(
+                        html.Hr(),
+                    )
+                ),
+                dbc.Row(
+                    dbc.Col(
+                        html.H3(
+                            children="Public Spending VS Private Spending on Education",
+                        )
+                    )
+                ),
+                dbc.Row(
+                    [
+                        # How has private expenditure vs public expenditure changed over time?
+                        dbc.Col(
+                            dcc.Graph(
+                                id="education-public-private",
+                                config={"displayModeBar": False},
+                            ),
+                            xs={"size": 12, "offset": 0},
+                            sm={"size": 12, "offset": 0},
+                            md={"size": 12, "offset": 0},
+                            lg={"size": 8, "offset": 0},
+                        ),
+                        dbc.Col(
+                            html.P(
+                                id="education-public-private-narrative",
+                                children="loading...",
+                                style={"height": "100px", "margin": "10px"},
+                            ),
+                            xs={"size": 12, "offset": 0},
+                            sm={"size": 12, "offset": 0},
+                            md={"size": 12, "offset": 0},
+                            lg={"size": 4, "offset": 0},
                         ),
                     ],
                 ),
@@ -375,8 +428,31 @@ def render_overview_total_figure(data, country):
     return fig, education_narrative(data, country)
 
 
+def public_private_narrative(df):
+    latest_year = df.year.max()
+    text = ""
+    try:
+        units = (
+            df[df.year == latest_year].real_expenditure_private.values[0]
+            / df.real_expenditure_public.values[0]
+        )
+
+        text = f"""
+            In {latest_year}, for every unit of spending on education by government, household spent {units:.2f} units.\n
+        """
+        if len(df) > 2:
+            trend = detect_trend(df, "real_expenditure_private")
+            if trend:
+                text += f"There is {trend} in the private expenditure on education."
+
+    except:
+        return "Data not available for this period."
+    return text
+
+
 @callback(
     Output("education-public-private", "figure"),
+    Output("education-public-private-narrative", "children"),
     Input("stored-data-education-private", "data"),
     Input("stored-data-education-total", "data"),
     Input("country-select", "value"),
@@ -457,11 +533,25 @@ def render_public_private_figure(private_data, public_data, country):
         ],
     )
 
-    return fig
+    narrative = public_private_narrative(merged)
+    return fig, narrative
+
+
+def outcome_narrative(outcome_df, expenditure_df, country):
+    start_year = expenditure_df.year.min()
+    end_year = expenditure_df.year.max()
+    merged = pd.merge(outcome_df, expenditure_df, on=["year"], how="inner")
+    PCC = get_correlation_text(merged, "education_index", "real_expenditure")
+
+    text = f"""
+        In the case of {country}, at the national level from {start_year} to {end_year}, there is a {PCC} between education index and public expenditure.
+"""
+    return text
 
 
 @callback(
     Output("education-outcome", "figure"),
+    Output("education-outcome-narrative", "children"),
     Input("stored-data-education-outcome", "data"),
     Input("stored-data-education-total", "data"),
     Input("country-select", "value"),
@@ -547,11 +637,26 @@ def render_education_outcome(outcome_data, total_data, country):
     )
     fig.update_yaxes(range=[0, 1], secondary_y=True)
 
-    return fig
+    narrative = outcome_narrative(indicator, pub_exp, country)
+    return fig, narrative
+
+
+def education_sub_func_narrative(data, country):
+    max_row = data.loc[data["real_expenditure"].idxmax()]
+    max_sector = max_row.func_sub
+    max_amount = max_row.real_expenditure
+
+    percentage = (max_amount / data["real_expenditure"].sum()) * 100
+
+    text = f"""
+        In {country}, the gov't spent the most on {max_sector}, totalling {millify(max_amount)}. This is {percentage:.2f}% of the total education expenditure.
+"""
+    return text
 
 
 @callback(
     Output("education-sub-func", "figure"),
+    Output("education-sub-func-narrative", "children"),
     Input("stored-data-education-sub-func", "data"),
     Input("country-select", "value"),
 )
@@ -614,7 +719,9 @@ def render_education_sub_func(sub_func_data, country):
             )
         ],
     )
-    return fig
+
+    narrative = education_sub_func_narrative(parents_values, country)
+    return fig, narrative
 
 
 @callback(

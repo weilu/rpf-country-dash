@@ -4,6 +4,7 @@ import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from constants import NARRATIVE_TEMPLATE
 import queries
 from utils import (
     detect_trend,
@@ -378,8 +379,10 @@ def public_private_narrative(df):
             if trend:
                 text += f"There is {trend} in the private expenditure on education."
 
+    except IndexError:
+        return NARRATIVE_TEMPLATE.DATA_UNAVAILABLE.value
     except:
-        return "Data not available for this period."
+        return NARRATIVE_TEMPLATE.GENERIC_ERROR.value
     return text
 
 

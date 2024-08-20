@@ -1,3 +1,6 @@
+from enum import Enum
+
+
 START_YEAR = 2010
 
 CORRELATION_THRESHOLDS = {
@@ -10,3 +13,9 @@ CORRELATION_THRESHOLDS = {
 }
 
 TREND_THRESHOLDS = 0.4
+
+
+class NARRATIVE_TEMPLATE(Enum):
+
+    DATA_UNAVAILABLE = "Data not available for this period."
+    GENERIC_ERROR = "An error occurred while processing the data."

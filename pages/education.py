@@ -4,7 +4,7 @@ import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from constants import NARRATIVE_TEMPLATE
+from constants import NARRATIVE_ERROR_MESSAGE
 import queries
 from utils import (
     detect_trend,
@@ -12,7 +12,6 @@ from utils import (
     get_correlation_text,
     get_percentage_change_text,
     millify,
-    handle_empty_plot,
 )
 import numpy as np
 
@@ -86,8 +85,6 @@ def fetch_edu_outcome_data_once(edu_data, shared_data):
 )
 def fetch_edu_private_data_once(edu_data):
     if edu_data is None:
-
-        # filter shared data down to education specific
         priv_exp = queries.get_edu_private_expenditure()
         return {
             "edu_private_expenditure": priv_exp.to_dict("records"),
@@ -102,8 +99,6 @@ def fetch_edu_private_data_once(edu_data):
 def fetch_edu_sub_func_data_once(edu_data):
     if edu_data is None:
         exp_by_sub_func = queries.get_expenditure_by_country_sub_func_year()
-        # filter shared data down to education specific
-
         return {
             "expenditure_by_country_sub_func_year": exp_by_sub_func.to_dict("records"),
         }
@@ -305,45 +300,50 @@ def total_edu_figure(df):
 
 
 def education_narrative(data, country):
-    spending = pd.DataFrame(data["edu_public_expenditure"])
-    spending = filter_country_sort_year(spending, country)
+    try:
+        spending = pd.DataFrame(data["edu_public_expenditure"])
+        spending = filter_country_sort_year(spending, country)
 
-    start_year = spending.year.min()
-    end_year = spending.year.max()
-    start_value = spending[spending.year == start_year].real_expenditure.values[0]
-    end_value = spending[spending.year == end_year].real_expenditure.values[0]
-    start_value_central = spending[
-        spending.year == start_year
-    ].central_expenditure.values[0]
-    end_value_central = spending[spending.year == end_year].central_expenditure.values[
-        0
-    ]
-    start_value_decentralized = spending[
-        spending.year == start_year
-    ].decentralized_expenditure.values[0]
-    end_value_decentralized = spending[
-        spending.year == end_year
-    ].decentralized_expenditure.values[0]
+        start_year = spending.year.min()
+        end_year = spending.year.max()
+        start_value = spending[spending.year == start_year].real_expenditure.values[0]
+        end_value = spending[spending.year == end_year].real_expenditure.values[0]
+        start_value_central = spending[
+            spending.year == start_year
+        ].central_expenditure.values[0]
+        end_value_central = spending[
+            spending.year == end_year
+        ].central_expenditure.values[0]
+        start_value_decentralized = spending[
+            spending.year == start_year
+        ].decentralized_expenditure.values[0]
+        end_value_decentralized = spending[
+            spending.year == end_year
+        ].decentralized_expenditure.values[0]
 
-    spending_growth_rate = ((end_value - start_value) / start_value) * 100
-    spending_growth_rate_central = (
-        (end_value_central - start_value_central) / start_value_central
-    ) * 100
-    spending_growth_rate_decentralized = (
-        (end_value_decentralized - start_value_decentralized)
-        / start_value_decentralized
-    ) * 100
+        spending_growth_rate = ((end_value - start_value) / start_value) * 100
+        spending_growth_rate_central = (
+            (end_value_central - start_value_central) / start_value_central
+        ) * 100
+        spending_growth_rate_decentralized = (
+            (end_value_decentralized - start_value_decentralized)
+            / start_value_decentralized
+        ) * 100
 
-    text = f"""Between {start_year} and {end_year}, the total real public spending on education in {country} has increased from ${millify(start_value)} to ${millify(end_value)} reflecting the growth rate of {spending_growth_rate:.2f}% after adjusting for the inflation rate. \n
-        During the same time period, the central government's spending has {get_percentage_change_text(spending_growth_rate_central)} """
+        text = f"""Between {start_year} and {end_year}, the total real public spending on education in {country} has increased from ${millify(start_value)} to ${millify(end_value)} reflecting the growth rate of {spending_growth_rate:.2f}% after adjusting for the inflation rate. \n
+            During the same time period, the central government's spending has {get_percentage_change_text(spending_growth_rate_central)} """
 
-    if not np.isnan(spending_growth_rate_decentralized):
-        decentralized_spending_text = f"while the local gov't's spending has  {get_percentage_change_text(spending_growth_rate_decentralized)}."
-    else:
-        decentralized_spending_text = (
-            ". The local gov't's data is not available for this period."
-        )
-    text += decentralized_spending_text
+        if not np.isnan(spending_growth_rate_decentralized):
+            decentralized_spending_text = f"while the local gov't's spending has  {get_percentage_change_text(spending_growth_rate_decentralized)}."
+        else:
+            decentralized_spending_text = (
+                ". The local gov't's data is not available for this period."
+            )
+        text += decentralized_spending_text
+    except IndexError:
+        return NARRATIVE_ERROR_MESSAGE.DATA_UNAVAILABLE.value
+    except:
+        return NARRATIVE_ERROR_MESSAGE.GENERIC_ERROR.value
     return text
 
 
@@ -380,9 +380,9 @@ def public_private_narrative(df):
                 text += f"There is {trend} in the private expenditure on education."
 
     except IndexError:
-        return NARRATIVE_TEMPLATE.DATA_UNAVAILABLE.value
+        return NARRATIVE_ERROR_MESSAGE.DATA_UNAVAILABLE.value
     except:
-        return NARRATIVE_TEMPLATE.GENERIC_ERROR.value
+        return NARRATIVE_ERROR_MESSAGE.GENERIC_ERROR.value
     return text
 
 

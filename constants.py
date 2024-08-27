@@ -15,7 +15,8 @@ CORRELATION_THRESHOLDS = {
 TREND_THRESHOLDS = 0.4
 
 
-class NARRATIVE_ERROR_MESSAGE(Enum):
-
-    DATA_UNAVAILABLE = "Data not available for this period."
-    GENERIC_ERROR = "An error occurred while processing the data."
+NARRATIVE_ERROR_TEMPLATES = {
+    "DATA_UNAVAILABLE": "Data not available for this period.",
+    "DATA_UNAVAILABLE_DATASET_NAME": "Data not available for this period in {dataset_name}.",
+    "GENERIC_ERROR": "An error occurred while processing the data.",
+}

@@ -1,4 +1,9 @@
-from constants import START_YEAR, CORRELATION_THRESHOLDS, TREND_THRESHOLDS
+from constants import (
+    NARRATIVE_ERROR_TEMPLATES,
+    START_YEAR,
+    CORRELATION_THRESHOLDS,
+    TREND_THRESHOLDS,
+)
 from scipy.stats import pearsonr
 
 
@@ -105,3 +110,14 @@ def detect_trend(df, x_col):
             return "a decreasing trend"
 
     return ""
+
+
+def generate_error_prompt(template_key, **kwargs):
+    """
+    Generate a prompt message based on the template and the keyword arguments
+    :param template: str
+    :param kwargs: dict
+    :return: str
+    """
+    template = NARRATIVE_ERROR_TEMPLATES[template_key]
+    return template.format(**kwargs)

@@ -4,11 +4,11 @@ import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from constants import NARRATIVE_ERROR_MESSAGE
 import queries
 from utils import (
     detect_trend,
     filter_country_sort_year,
+    generate_error_prompt,
     get_correlation_text,
     get_percentage_change_text,
     millify,
@@ -341,9 +341,11 @@ def education_narrative(data, country):
             )
         text += decentralized_spending_text
     except IndexError:
-        return NARRATIVE_ERROR_MESSAGE.DATA_UNAVAILABLE.value
+        return generate_error_prompt(
+            "DATA_UNAVAILABLE",
+        )
     except:
-        return NARRATIVE_ERROR_MESSAGE.GENERIC_ERROR.value
+        return generate_error_prompt("GENERIC_ERROR")
     return text
 
 
@@ -380,9 +382,9 @@ def public_private_narrative(df):
                 text += f"There is {trend} in the private expenditure on education."
 
     except IndexError:
-        return NARRATIVE_ERROR_MESSAGE.DATA_UNAVAILABLE.value
+        return generate_error_prompt("DATA_UNAVAILABLE")
     except:
-        return NARRATIVE_ERROR_MESSAGE.GENERIC_ERROR.value
+        return generate_error_prompt("generic_error")
     return text
 
 

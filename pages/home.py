@@ -186,6 +186,7 @@ def render_overview_content(tab):
                             md={"size": 12, "offset": 0},
                             lg={"size": 6, "offset": 0},
                         ),
+                        # visualization of poverty by region
                         dbc.Col(
                             dcc.Graph(
                                 id="subnational-poverty",
@@ -197,6 +198,17 @@ def render_overview_content(tab):
                             lg={"size": 6, "offset": 0},
                         ),
                     ],
+                ),
+                dbc.Row(
+                    dbc.Col(
+                        [
+                            html.Br(),
+                            html.P(
+                                id="subnational-spending-narrative",
+                                children="loading ...",
+                            ),
+                        ]
+                    )
                 ),
                 html.Div(style={"height": "20px"}),
             ]
@@ -485,6 +497,59 @@ def functional_narrative(df):
     text += f" fluctuate the most over time. "
 
     return text
+
+
+def subnational_spending_narrative(
+    df_spending,
+    df_poverty,
+    top_n=3,
+    exp_thresh=0.5,
+    per_capita_thresh=1000,
+    corr_thresholds=(0.3, 0.7),
+):
+    total_expenditure = (
+        df_spending.groupby("adm1_name")["expenditure"]
+        .sum()
+        .sort_values(ascending=False)
+    )
+    top_n_total = total_expenditure.head(top_n)
+    total_expenditure_sum = total_expenditure.sum()
+    top_n_percentage = top_n_total.sum() / total_expenditure_sum
+    per_capita_expenditure = df_spending.groupby("adm1_name")[
+        "per_capita_expenditure"
+    ].mean()
+    per_capita_range = per_capita_expenditure.max() - per_capita_expenditure.min()
+    per_capita_median = per_capita_expenditure.median()
+    if not df_poverty.empty:
+        poverty_rates = df_poverty.groupby("region_name")["poor215"].mean()
+        correlation = per_capita_expenditure.corr(poverty_rates)
+
+    if top_n_percentage > exp_thresh:
+        exp_narrative = f"The top {top_n} regions—{', '.join(top_n_total.index)}—account for {top_n_percentage:.1%} of the total government expenditure,\
+            indicating a significant concentration in these areas."
+    else:
+        exp_narrative = f"The top {top_n} regions—{', '.join(top_n_total.index)}—account for {top_n_percentage:.1%} of the total government expenditure."
+
+    if per_capita_range > per_capita_thresh:
+        per_capita_narrative = f"Per capita spending varies widely across regions, ranging from {per_capita_expenditure.min():,.2f} \
+            to {per_capita_expenditure.max():,.2f}, with a median of {per_capita_median:,.2f}. This indicates substantial variation in resource allocation per person."
+    else:
+        per_capita_narrative = f"Per capita spending ranges from {per_capita_expenditure.min():,.2f} to {per_capita_expenditure.max():,.2f}, \
+            with a median of {per_capita_median:,.2f}. The distribution is relatively even across regions."
+    if not df_poverty.empty:
+        if abs(correlation) > corr_thresholds[1]:
+            corr_narrative = f"The correlation between per capita spending and poverty rates is {correlation:.2f} (Pearson correlation coefficient),\
+                indicating a strong inverse relationship. Higher per capita spending is generally associated with lower poverty rates."
+        elif abs(correlation) > corr_thresholds[0]:
+            corr_narrative = f"The correlation between per capita spending and poverty rates is {correlation:.2f} (Pearson correlation coefficient), \
+                suggesting a moderate inverse relationship. Generally, higher per capita spending is associated with lower poverty, though exceptions exist."
+        else:
+            corr_narrative = f"The correlation between per capita spending and poverty rates is {correlation:.2f} (Pearson correlation coefficient), \
+                indicating a weak inverse relationship. There is little consistent pattern between higher per capita spending and poverty rates."
+    else:
+        corr_narrative = ""
+
+    return f"{exp_narrative} {per_capita_narrative} {corr_narrative}"
 
 
 def regional_spending_choropleth(geojson, df, zmin, zmax, lat, lon):
@@ -819,3 +884,30 @@ def render_subnational_poverty_figure(subnational_data, country_data, country, y
         lat,
         lon,
     )
+
+
+@callback(
+    Output("subnational-spending-narrative", "children"),
+    Input("stored-data-subnational", "data"),
+    Input("stored-basic-country-data", "data"),
+    Input("country-select", "value"),
+    Input("year-slider", "value"),
+)
+def render_subnational_spending_narrative(
+    subnational_data, country_data, country, year
+):
+    df_poverty = pd.DataFrame(subnational_data["subnational_poverty_index"])
+    df_poverty = filter_country_sort_year(df_poverty, country)
+    available_years = country_data["basic_country_info"][country]["poverty_years"]
+    relevant_years = [x for x in available_years if x <= year]
+    if not relevant_years:
+        df_poverty = pd.DataFrame()
+    else:
+        df_poverty = df_poverty[df_poverty.year == relevant_years[-1]]
+
+    df_spending = pd.DataFrame(subnational_data["expenditure_by_country_geo1_year"])
+    df_spending = filter_country_sort_year(df_spending, country)
+    df_spending = df_spending[
+        (df_spending.adm1_name != "Central Scope") & (df_spending.year == year)
+    ]
+    return subnational_spending_narrative(df_spending, df_poverty)

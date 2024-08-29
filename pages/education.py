@@ -334,7 +334,7 @@ def education_narrative(data, country):
             During the same time period, the central government's spending has {get_percentage_change_text(spending_growth_rate_central)} """
 
         if not np.isnan(spending_growth_rate_decentralized):
-            decentralized_spending_text = f"while the local gov't's spending has  {get_percentage_change_text(spending_growth_rate_decentralized)}."
+            decentralized_spending_text = f"while the local government's spending has  {get_percentage_change_text(spending_growth_rate_decentralized)}."
         else:
             decentralized_spending_text = (
                 ". The local government's data is not available for this period."
@@ -587,7 +587,7 @@ def education_sub_func_narrative(data, country):
     percentage = (max_amount / data["real_expenditure"].sum()) * 100
 
     text = f"""
-        In {country}, the gov't spent the most on {max_sector}, totalling {millify(max_amount)}. This is {percentage:.2f}% of the total education expenditure.
+        In {country}, the government spent the most on {max_sector}, totalling {millify(max_amount)}. This is {percentage:.2f}% of the total education expenditure.
 """
     return text
 

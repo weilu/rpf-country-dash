@@ -302,6 +302,7 @@ def education_narrative(data, country):
     try:
         spending = pd.DataFrame(data["edu_public_expenditure"])
         spending = filter_country_sort_year(spending, country)
+        spending.dropna(inplace=True)
 
         start_year = spending.year.min()
         end_year = spending.year.max()
@@ -343,7 +344,7 @@ def education_narrative(data, country):
         return generate_error_prompt(
             "DATA_UNAVAILABLE",
         )
-    except:
+    except Exception as e:
         return generate_error_prompt("GENERIC_ERROR")
     return text
 

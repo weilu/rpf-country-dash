@@ -128,7 +128,6 @@ def render_education_content(tab):
                                 html.P(
                                     id="education-narrative",
                                     children="loading...",
-                                    style={"height": "100px", "margin": "10px"},
                                 ),
                                 dcc.Graph(
                                     id="education-total",
@@ -139,14 +138,12 @@ def render_education_content(tab):
                             sm={"size": 12, "offset": 0},
                             md={"size": 12, "offset": 0},
                             lg={"size": 6, "offset": 0},
-                            style={"marginBottom": "3rem"},
                         ),
                         dbc.Col(
                             [
                                 html.P(
                                     id="education-outcome-narrative",
                                     children="loading...",
-                                    style={"height": "100px", "margin": "10px"},
                                 ),
                                 dcc.Graph(
                                     id="education-outcome",
@@ -159,6 +156,11 @@ def render_education_content(tab):
                             lg={"size": 6, "offset": 0},
                         ),
                     ],
+                    style={
+                        "display": "flex",
+                        "flexDirection": "row",
+                        "alignItems": "flex-end",
+                    },
                 ),
                 dbc.Row(
                     dbc.Col(
@@ -184,13 +186,11 @@ def render_education_content(tab):
                             sm={"size": 12, "offset": 0},
                             md={"size": 12, "offset": 0},
                             lg={"size": 8, "offset": 0},
-                            style={"marginBottom": "3rem"},
                         ),
                         dbc.Col(
                             html.P(
                                 id="education-sub-func-narrative",
                                 children="loading...",
-                                style={"height": "100px", "margin": "10px"},
                             ),
                             xs={"size": 12, "offset": 0},
                             sm={"size": 12, "offset": 0},
@@ -228,7 +228,6 @@ def render_education_content(tab):
                             html.P(
                                 id="education-public-private-narrative",
                                 children="loading...",
-                                style={"height": "100px", "margin": "10px"},
                             ),
                             xs={"size": 12, "offset": 0},
                             sm={"size": 12, "offset": 0},

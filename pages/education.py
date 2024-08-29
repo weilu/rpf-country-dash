@@ -337,7 +337,7 @@ def education_narrative(data, country):
             decentralized_spending_text = f"while the local gov't's spending has  {get_percentage_change_text(spending_growth_rate_decentralized)}."
         else:
             decentralized_spending_text = (
-                ". The local gov't's data is not available for this period."
+                ". The local government's data is not available for this period."
             )
         text += decentralized_spending_text
     except IndexError:

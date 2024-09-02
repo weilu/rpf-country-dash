@@ -5,6 +5,7 @@ from dash.dependencies import Input, Output
 from dash.long_callback import DiskcacheLongCallbackManager
 import pandas as pd
 import queries
+import json
 
 import diskcache
 
@@ -130,7 +131,19 @@ def fetch_func_data_once(data):
 def fetch_subnational_data_once(data, country_data):
     countries = country_data["countries"]
     if data is None:
-        boundaries_geojson = queries.get_adm_boundaries(countries)
+        df = queries.get_adm_boundaries(countries)
+
+        boundaries_geojson = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "properties": {"country": x[0], "region": x[1]},
+                    "geometry": json.loads(x[2]),
+                }
+                for x in zip(df.country_name, df.admin1_region, df.boundary)
+            ],
+        }
+
         subnational_poverty_df = queries.get_subnational_poverty_index(countries)
         geo1_year_df = queries.get_expenditure_by_country_geo1_year()
         return {
@@ -199,7 +212,6 @@ def fetch_country_data_once(countries, subnational_data, country_data):
         poverty_level_stats = (
             poverty_level_stats.set_index("income_level").apply(tuple, axis=1).to_dict()
         )
-        print(poverty_level_stats)
 
         for country, years in expenditure_years.items():
             country_info[country]["expenditure_years"] = years

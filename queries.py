@@ -93,7 +93,7 @@ def get_expenditure_by_country_func_econ_year():
 def get_basic_country_data(countries):
     country_list = "', '".join(countries)
     query = """
-        SELECT * FROM indicator.country
+        SELECT country_name, longitude, latitude, income_level FROM indicator.country
     """
     query += f" WHERE country_name IN ('{country_list}')"
     df = execute_query(query)
@@ -102,7 +102,7 @@ def get_basic_country_data(countries):
 
 def get_expenditure_by_country_geo1_year():
     query = """
-        SELECT * FROM boost.expenditure_by_country_geo1_year
+        SELECT country_name, year, adm1_name, expenditure, per_capita_expenditure FROM boost.expenditure_by_country_geo1_year
     """
     df = execute_query(query)
     return df
@@ -110,23 +110,13 @@ def get_expenditure_by_country_geo1_year():
 
 def get_adm_boundaries(countries):
     query = """
-        SELECT * FROM indicator.admin1_boundaries_gold
+        SELECT country_name, admin1_region, boundary FROM indicator.admin1_boundaries_gold
     """
     country_list = "', '".join(countries)
     query += f" WHERE country_name IN ('{country_list}')"
     query += " ORDER BY country_name"
     df = execute_query(query)
-    geojson = {
-        "type": "FeatureCollection",
-        "features": [
-            {
-                "properties": {"country": x[0], "region": x[1]},
-                "geometry": json.loads(x[2]),
-            }
-            for x in zip(df.country_name, df.admin1_region, df.boundary)
-        ],
-    }
-    return geojson
+    return df
 
 
 def get_subnational_poverty_index(countries):

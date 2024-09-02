@@ -5,5 +5,4 @@ rsconnect-python
 databricks-sql-connector
 dash[diskcache]
 gunicorn
-python-dotenv
 shapely

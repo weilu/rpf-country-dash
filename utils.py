@@ -76,22 +76,35 @@ def get_correlation_text(df, x_col, y_col):
     """
     Get the correlation text based on the PCC value
     :param df: DataFrame
-    :param x_col: str
-    :param y_col: str
+    :param x_col: {"col_name": str, "display": str} // col_name is the column name in the DataFrame and display is the name to be displayed in the text
+    :param y_col: {"col_name": str, "display": str} // col_name is the column name in the DataFrame and display is the name to be displayed in the text
     :return: str
     """
-    pcc = calculate_PCC(df, x_col, y_col)
+
+    pcc = calculate_PCC(df, x_col["col_name"], y_col["col_name"])
     if pcc > 0:
-        text = "positive and "
+        direction = "positive "
+        association = "higher"
     else:
-        text = "negative and "
+        direction = "inverse"
+        association = "lower"
     abs_pcc = abs(pcc)
 
     for threshold, pcc_text in CORRELATION_THRESHOLDS.items():
         if abs_pcc < float(threshold):
-            text += pcc_text
+            intensity = pcc_text
             break
-    return text + "(PCC={:.2f})".format(pcc)
+
+    x_display_name = x_col["display"]
+    y_display_name = y_col["display"]
+
+    if intensity == "no":
+        return f"the correlation between {y_display_name} and {x_display_name} is {pcc:.2f},\
+                indicating there is no linear relationship."
+
+    text = f"the correlation between {y_display_name} and {x_display_name} is {pcc:.2f},\
+                indicating a {intensity} {direction} relationship. Higher {y_display_name} is generally associated with {association} {x_display_name}."
+    return text
 
 
 def detect_trend(df, x_col):

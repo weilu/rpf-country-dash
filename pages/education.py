@@ -479,10 +479,12 @@ def outcome_narrative(outcome_df, expenditure_df, country):
     start_year = expenditure_df.year.min()
     end_year = expenditure_df.year.max()
     merged = pd.merge(outcome_df, expenditure_df, on=["year"], how="inner")
-    PCC = get_correlation_text(merged, "education_index", "real_expenditure")
+    x_col = {"display": "education index", "col_name": "education_index"}
+    y_col = {"display": "real expenditure", "col_name": "real_expenditure"}
+    PCC = get_correlation_text(merged, x_col, y_col)
 
     text = f"""
-        In the case of {country}, at the national level from {start_year} to {end_year}, there is a {PCC} between education index and public expenditure.
+        In the case of {country}, at the national level from {start_year} to {end_year}; {PCC}
 """
     return text
 

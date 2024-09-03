@@ -128,6 +128,10 @@ def render_education_content(tab):
                                 html.P(
                                     id="education-narrative",
                                     children="loading...",
+                                    style={
+                                        "height": "120px",
+                                        "overflowY": "auto",
+                                    },
                                 ),
                                 dcc.Graph(
                                     id="education-total",
@@ -144,6 +148,10 @@ def render_education_content(tab):
                                 html.P(
                                     id="education-outcome-narrative",
                                     children="loading...",
+                                    style={
+                                        "height": "120px",
+                                        "overflowY": "auto",
+                                    },
                                 ),
                                 dcc.Graph(
                                     id="education-outcome",

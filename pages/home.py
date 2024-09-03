@@ -545,7 +545,7 @@ def subnational_spending_narrative(
             with a median of {per_capita_median:,.2f}. The distribution is relatively even across regions."
     if not df_poverty.empty:
         if abs(correlation) > corr_thresholds[1]:
-            corr_narrative = f"The correlation between per capita spending and poverty rates is {correlation:.2f} (Pearson correlation coefficient),\
+            corr_narrative = f"The correlation between per capita spending and poverty rates is {correlation:.2f},\
                 indicating a strong inverse relationship. Higher per capita spending is generally associated with lower poverty rates."
         elif abs(correlation) > corr_thresholds[0]:
             corr_narrative = f"The correlation between per capita spending and poverty rates is {correlation:.2f} (Pearson correlation coefficient), \
@@ -801,32 +801,36 @@ def render_overview_total_figure(data, country):
     Output("year-slider", "value"),
     Output("year-slider", "min"),
     Output("year-slider", "max"),
+    Output("year-slider", "disabled"),
     Input("stored-basic-country-data", "data"),
     Input("country-select", "value"),
 )
 def update_year_range(data, country):
-    data = data["basic_country_info"]
-    expenditure_years = data[country].get("expenditure_years", [])
-    poverty_years = data[country].get("poverty_years", [])
+    try:
+        data = data["basic_country_info"]
+        expenditure_years = data[country].get("expenditure_years", [])
+        poverty_years = data[country].get("poverty_years", [])
 
-    if not expenditure_years:
-        # Hide the slider if there are no expenditure years
-        return {"display": "none"}, {}, 0, 0, 0
+        if not expenditure_years:
+            return {"display": "none"}, {}, 0, 0, 0, True
 
-    common_years = set(poverty_years).intersection(set(expenditure_years))
-    min_year, max_year = expenditure_years[0], expenditure_years[-1]
+        common_years = set(poverty_years).intersection(set(expenditure_years))
+        min_year, max_year = expenditure_years[0], expenditure_years[-1]
 
-    marks = {
-        year: (
-            {"label": str(year), "style": {"color": "white"}}
-            if year in common_years
-            else {"label": str(year), "style": {"color": "black"}}
-        )
-        for year in expenditure_years
-    }
+        marks = {
+            year: (
+                {"label": str(year), "style": {"color": "white"}}
+                if year in common_years
+                else {"label": str(year), "style": {"color": "black"}}
+            )
+            for year in expenditure_years
+        }
 
-    selected_year = max_year
-    return {"display": "block"}, marks, selected_year, min_year, max_year
+        selected_year = max_year
+        return {"display": "block"}, marks, selected_year, min_year, max_year, False
+
+    except Exception as e:
+        return {"display": "block"}, {}, 0, 0, 0, True
 
 
 @callback(
@@ -838,50 +842,53 @@ def update_year_range(data, country):
     Input("year-slider", "value"),
 )
 def render_subnational_spending_figures(data, country_data, country, plot_type, year):
-    if year is None or not data or not country_data or not country:
-        return empty_plot("Data not available")
+    try:
+        if year is None or not data or not country_data or not country:
+            return empty_plot("Data not available")
 
-    geojson = data["boundaries"]
-    lat, lon = [
-        country_data["basic_country_info"][country].get(k)
-        for k in ["latitude", "longitude"]
-    ]
+        geojson = data["boundaries"]
+        lat, lon = [
+            country_data["basic_country_info"][country].get(k)
+            for k in ["latitude", "longitude"]
+        ]
 
-    filtered_geojson = filter_geojson_by_country(geojson, country)
-    df = pd.DataFrame(data["expenditure_by_country_geo1_year"])
-    df = filter_country_sort_year(df, country)
-    df = df[df.adm1_name != "Central Scope"]
+        filtered_geojson = filter_geojson_by_country(geojson, country)
+        df = pd.DataFrame(data["expenditure_by_country_geo1_year"])
+        df = filter_country_sort_year(df, country)
+        df = df[df.adm1_name != "Central Scope"]
 
-    if df.empty or year not in df.year.unique():
-        return empty_plot("No expenditure data available for the selected year")
+        if df.empty or year not in df.year.unique():
+            return empty_plot("No expenditure data available for the selected year")
 
-    legend_percapita_min, legend_percapita_max = (
-        df.per_capita_expenditure.min(),
-        df.per_capita_expenditure.max(),
-    )
-    legend_expenditure_min, legend_expenditure_max = (
-        df.expenditure.min(),
-        df.expenditure.max(),
-    )
-
-    if plot_type == "percapita":
-        return regional_percapita_spending_choropleth(
-            filtered_geojson,
-            df[df.year == year],
-            legend_percapita_min,
-            legend_percapita_max,
-            lat,
-            lon,
+        legend_percapita_min, legend_percapita_max = (
+            df.per_capita_expenditure.min(),
+            df.per_capita_expenditure.max(),
         )
-    else:
-        return regional_spending_choropleth(
-            filtered_geojson,
-            df[df.year == year],
-            legend_expenditure_min,
-            legend_expenditure_max,
-            lat,
-            lon,
+        legend_expenditure_min, legend_expenditure_max = (
+            df.expenditure.min(),
+            df.expenditure.max(),
         )
+
+        if plot_type == "percapita":
+            return regional_percapita_spending_choropleth(
+                filtered_geojson,
+                df[df.year == year],
+                legend_percapita_min,
+                legend_percapita_max,
+                lat,
+                lon,
+            )
+        else:
+            return regional_spending_choropleth(
+                filtered_geojson,
+                df[df.year == year],
+                legend_expenditure_min,
+                legend_expenditure_max,
+                lat,
+                lon,
+            )
+    except:
+        return empty_plot("An error was encountered when producing this figure")
 
 
 @callback(
@@ -892,38 +899,42 @@ def render_subnational_spending_figures(data, country_data, country, plot_type, 
     Input("year-slider", "value"),
 )
 def render_subnational_poverty_figure(subnational_data, country_data, country, year):
-    if year is None or not subnational_data or not country_data or not country:
-        return empty_plot("Data not available")
+    try:
 
-    geojson = subnational_data["boundaries"]
-    filtered_geojson = filter_geojson_by_country(geojson, country)
-    df = pd.DataFrame(subnational_data["subnational_poverty_index"])
-    df = filter_country_sort_year(df, country)
+        if year is None or not subnational_data or not country_data or not country:
+            return empty_plot("Data not available")
 
-    legend_min, legend_max = country_data["basic_country_info"][country].get(
-        "poverty_bounds", (None, None)
-    )
-    lat, lon = [
-        country_data["basic_country_info"][country].get(k)
-        for k in ["latitude", "longitude"]
-    ]
+        geojson = subnational_data["boundaries"]
+        filtered_geojson = filter_geojson_by_country(geojson, country)
+        df = pd.DataFrame(subnational_data["subnational_poverty_index"])
+        df = filter_country_sort_year(df, country)
 
-    available_years = country_data["basic_country_info"][country].get(
-        "poverty_years", []
-    )
-    relevant_years = [x for x in available_years if x <= year]
+        legend_min, legend_max = country_data["basic_country_info"][country].get(
+            "poverty_bounds", (None, None)
+        )
+        lat, lon = [
+            country_data["basic_country_info"][country].get(k)
+            for k in ["latitude", "longitude"]
+        ]
 
-    if not relevant_years or df.empty:
-        return empty_plot("Poverty data not available for this time period")
+        available_years = country_data["basic_country_info"][country].get(
+            "poverty_years", []
+        )
+        relevant_years = [x for x in available_years if x <= year]
 
-    return subnational_poverty_choropleth(
-        filtered_geojson,
-        df[df.year == relevant_years[-1]],
-        legend_min,
-        legend_max,
-        lat,
-        lon,
-    )
+        if not relevant_years or df.empty:
+            return empty_plot("Poverty data not available for this time period")
+
+        return subnational_poverty_choropleth(
+            filtered_geojson,
+            df[df.year == relevant_years[-1]],
+            legend_min,
+            legend_max,
+            lat,
+            lon,
+        )
+    except:
+        return empty_plot("An error was encountered when producing this figure")
 
 
 @callback(
@@ -936,27 +947,30 @@ def render_subnational_poverty_figure(subnational_data, country_data, country, y
 def render_subnational_spending_narrative(
     subnational_data, country_data, country, year
 ):
-    if year is None or not subnational_data or not country_data or not country:
-        return "Data not available"
+    try:
+        if year is None or not subnational_data or not country_data or not country:
+            return "Data not available"
 
-    df_poverty = pd.DataFrame(subnational_data["subnational_poverty_index"])
-    df_poverty = filter_country_sort_year(df_poverty, country)
+        df_poverty = pd.DataFrame(subnational_data["subnational_poverty_index"])
+        df_poverty = filter_country_sort_year(df_poverty, country)
 
-    available_years = country_data["basic_country_info"][country].get(
-        "poverty_years", []
-    )
-    relevant_years = [x for x in available_years if x <= year]
+        available_years = country_data["basic_country_info"][country].get(
+            "poverty_years", []
+        )
+        relevant_years = [x for x in available_years if x <= year]
 
-    if not relevant_years or df_poverty.empty:
-        df_poverty = pd.DataFrame()
+        if not relevant_years or df_poverty.empty:
+            df_poverty = pd.DataFrame()
 
-    df_spending = pd.DataFrame(subnational_data["expenditure_by_country_geo1_year"])
-    df_spending = filter_country_sort_year(df_spending, country)
-    df_spending = df_spending[
-        (df_spending.adm1_name != "Central Scope") & (df_spending.year == year)
-    ]
+        df_spending = pd.DataFrame(subnational_data["expenditure_by_country_geo1_year"])
+        df_spending = filter_country_sort_year(df_spending, country)
+        df_spending = df_spending[
+            (df_spending.adm1_name != "Central Scope") & (df_spending.year == year)
+        ]
 
-    if df_spending.empty:
-        return "No spending data available"
+        if df_spending.empty:
+            return "No spending data available"
 
-    return subnational_spending_narrative(df_spending, df_poverty)
+        return subnational_spending_narrative(df_spending, df_poverty)
+    except:
+        return empty_plot("An error was encountered when producing this figure")

@@ -5,9 +5,15 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
-
-from utils import filter_country_sort_year
-
+import numpy as np
+from utils import (
+    filter_country_sort_year,
+    map_center,
+    filter_geojson_by_country,
+    zoom,
+    empty_plot,
+    remove_accents,
+)
 
 dash.register_page(__name__)
 
@@ -123,8 +129,95 @@ def render_overview_content(tab):
     elif tab == "overview-tab-space":
         return html.Div(
             [
-                "Geospatial viz"
-                # dcc.Graph(id='overview-plot', figure=make_overview_plot(gdp, country))
+                dbc.Row(
+                    dbc.Col(
+                        html.H3(
+                            id="regional-expenditure-heading",
+                            children="Regional Expenditure",
+                        )
+                    )
+                ),
+                dbc.Row(style={"height": "20px"}),
+                # "Geospatial choropleths"
+                dbc.Row(
+                    [
+                        dbc.Col(width=1),
+                        dbc.Col(
+                            html.Div(
+                                id="year-slider-container",
+                                children=[
+                                    dcc.Slider(
+                                        id="year-slider",
+                                        min=0,
+                                        max=0,
+                                        value=None,
+                                        step=None,
+                                        included=False,
+                                    ),
+                                ],
+                            ),
+                            width=10,
+                        ),
+                    ]
+                ),
+                dbc.Row(style={"height": "20px"}),
+                dbc.Row(
+                    [
+                        dbc.RadioItems(
+                            id="expenditure-plot-radio",
+                            options=[
+                                {
+                                    "label": "  Per capita expenditure",
+                                    "value": "percapita",
+                                },
+                                {
+                                    "label": "  Total expenditure",
+                                    "value": "total",
+                                },
+                            ],
+                            value="percapita",
+                            inline=True,
+                            style={"padding": "10px"},
+                            labelStyle={
+                                "margin-right": "20px",
+                            },
+                        ),
+                        # How much was spent in each region?
+                        dbc.Col(
+                            dcc.Graph(
+                                id="subnational-spending",
+                                config={"displayModeBar": False},
+                            ),
+                            xs={"size": 12, "offset": 0},
+                            sm={"size": 12, "offset": 0},
+                            md={"size": 12, "offset": 0},
+                            lg={"size": 6, "offset": 0},
+                        ),
+                        # visualization of poverty by region
+                        dbc.Col(
+                            dcc.Graph(
+                                id="subnational-poverty",
+                                config={"displayModeBar": False},
+                            ),
+                            xs={"size": 12, "offset": 0},
+                            sm={"size": 12, "offset": 0},
+                            md={"size": 12, "offset": 0},
+                            lg={"size": 6, "offset": 0},
+                        ),
+                    ],
+                ),
+                dbc.Row(
+                    dbc.Col(
+                        [
+                            html.Br(),
+                            html.P(
+                                id="subnational-spending-narrative",
+                                children="loading ...",
+                            ),
+                        ]
+                    )
+                ),
+                html.Div(style={"height": "20px"}),
             ]
         )
 
@@ -413,6 +506,260 @@ def functional_narrative(df):
     return text
 
 
+def subnational_spending_narrative(
+    df_spending,
+    df_poverty,
+    top_n=3,
+    exp_thresh=0.5,
+    per_capita_thresh=1000,
+    corr_thresholds=(0.3, 0.7),
+):
+    total_expenditure = (
+        df_spending.groupby("adm1_name")["expenditure"]
+        .sum()
+        .sort_values(ascending=False)
+    )
+    top_n_total = total_expenditure.head(top_n)
+    total_expenditure_sum = total_expenditure.sum()
+    top_n_percentage = top_n_total.sum() / total_expenditure_sum
+    per_capita_expenditure = df_spending.groupby("adm1_name")[
+        "per_capita_expenditure"
+    ].mean()
+    per_capita_range = per_capita_expenditure.max() - per_capita_expenditure.min()
+    per_capita_median = per_capita_expenditure.median()
+    if not df_poverty.empty:
+        poverty_rates = df_poverty.groupby("region_name")["poor215"].mean()
+        correlation = per_capita_expenditure.corr(poverty_rates)
+
+    if top_n_percentage > exp_thresh:
+        exp_narrative = f"The top {top_n} regions—{', '.join(top_n_total.index)}—account for {top_n_percentage:.1%} of the total government expenditure,\
+            indicating a significant concentration in these areas."
+    else:
+        exp_narrative = f"The top {top_n} regions—{', '.join(top_n_total.index)}—account for {top_n_percentage:.1%} of the total government expenditure."
+
+    if per_capita_range > per_capita_thresh:
+        per_capita_narrative = f"Per capita spending varies widely across regions, ranging from {per_capita_expenditure.min():,.2f} \
+            to {per_capita_expenditure.max():,.2f}, with a median of {per_capita_median:,.2f}. This indicates substantial variation in resource allocation per person."
+    else:
+        per_capita_narrative = f"Per capita spending ranges from {per_capita_expenditure.min():,.2f} to {per_capita_expenditure.max():,.2f}, \
+            with a median of {per_capita_median:,.2f}. The distribution is relatively even across regions."
+    if not df_poverty.empty:
+        if abs(correlation) > corr_thresholds[1]:
+            corr_narrative = f"The correlation between per capita spending and poverty rates is {correlation:.2f},\
+                indicating a strong inverse relationship. Higher per capita spending is generally associated with lower poverty rates."
+        elif abs(correlation) > corr_thresholds[0]:
+            corr_narrative = f"The correlation between per capita spending and poverty rates is {correlation:.2f}, \
+                suggesting a moderate inverse relationship. Generally, higher per capita spending is associated with lower poverty, though exceptions exist."
+        else:
+            corr_narrative = f"The correlation between per capita spending and poverty rates is {correlation:.2f}, \
+                indicating a weak inverse relationship. There is little consistent pattern between higher per capita spending and poverty rates."
+    else:
+        corr_narrative = ""
+
+    return f"{exp_narrative} {per_capita_narrative} {corr_narrative}"
+
+
+def regional_spending_choropleth(geojson, df, zmin, zmax, lat, lon):
+    all_regions = [feature["properties"]["region"] for feature in geojson["features"]]
+    regions_without_data = [r for r in all_regions if r not in df.adm1_name.values]
+    df_no_data = pd.DataFrame({"region_name": regions_without_data})
+    df_no_data["adm1_name"] = None
+    if df.empty:
+        return empty_plot("Sub-national expenditure data not available")
+    country_name = df.country_name.iloc[0]
+    fig = px.choropleth_mapbox(
+        df,
+        geojson=geojson,
+        color="expenditure",
+        locations="adm1_name",
+        featureidkey="properties.region",
+        # center=map_center(geojson),
+        center={"lat": lat, "lon": lon},
+        mapbox_style="carto-positron",
+        zoom=zoom.get(country_name, 6),
+        range_color=[zmin, zmax],
+    )
+    fig.add_trace(
+        px.choropleth_mapbox(
+            df_no_data,
+            geojson=geojson,
+            color_discrete_sequence=["rgba(211, 211, 211, 0.3)"],
+            locations="region_name",
+            featureidkey="properties.region",
+            zoom=zoom.get(country_name, 6),
+        ).data[0]
+    )
+    fig.update_layout(
+        title="How much was spent in each region?",
+        plot_bgcolor="white",
+        coloraxis_colorbar=dict(
+            title="",
+            orientation="v",
+            thickness=10,
+        ),
+        legend=dict(orientation="h", x=1.02, y=1, xanchor="left", yanchor="top"),
+        annotations=[
+            dict(
+                xref="paper",
+                yref="paper",
+                x=-0.1,
+                y=-0.2,
+                text="Regional spending. Source: BOOST",
+                showarrow=False,
+                font=dict(size=12),
+            )
+        ],
+    )
+    fig.update_traces(
+        hovertemplate="<b>Region:</b> %{location}<br>" + "<b>Expenditure:</b> %{z}<br>"
+    )
+
+    return fig
+
+
+def regional_percapita_spending_choropleth(geojson, df, zmin, zmax, lat, lon):
+    all_regions = [feature["properties"]["region"] for feature in geojson["features"]]
+    regions_without_data = [r for r in all_regions if r not in df.adm1_name.values]
+    df_no_data = pd.DataFrame({"region_name": regions_without_data})
+    df_no_data["adm1_name"] = None
+    if df.empty:
+        return empty_plot("Sub-national population data not available ")
+    country_name = df.country_name.iloc[0]
+    df = df[df.adm1_name != "Central Scope"]
+    fig = px.choropleth_mapbox(
+        df,
+        geojson=geojson,
+        color="per_capita_expenditure",
+        locations="adm1_name",
+        featureidkey="properties.region",
+        center={"lat": lat, "lon": lon},
+        # center=map_center(geojson),
+        mapbox_style="carto-positron",
+        zoom=zoom.get(country_name, 6),
+        range_color=[zmin, zmax],
+    )
+    fig.add_trace(
+        px.choropleth_mapbox(
+            df_no_data,
+            geojson=geojson,
+            color_discrete_sequence=["rgba(211, 211, 211, 0.3)"],
+            locations="region_name",
+            featureidkey="properties.region",
+            zoom=zoom.get(df.country_name.iloc[0], 6),
+        ).data[0]
+    )
+    fig.update_layout(
+        title="How much was spent per person in each region?",
+        plot_bgcolor="white",
+        coloraxis_colorbar=dict(
+            title="",
+            orientation="v",
+            thickness=10,
+        ),
+        annotations=[
+            dict(
+                xref="paper",
+                yref="paper",
+                x=0,
+                y=-0.2,
+                text="Per capita regional spending. Source: BOOST",
+                showarrow=False,
+                font=dict(size=12),
+            )
+        ],
+    )
+    fig.update_traces(
+        hovertemplate="<b>Region:</b> %{location}<br>"
+        + "<b>Per capita expenditure:</b> %{z}<br>"
+        + "<extra></extra>"
+    )
+
+    return fig
+
+
+def subnational_poverty_choropleth(geojson, df, zmin, zmax, lat, lon):
+
+    if df[df.region_name != "National"].empty:
+        return empty_plot("Sub-national poverty data not available")
+    # TODO align accents across all datasets
+    df["region_name"] = df.region_name.map(lambda x: remove_accents(x))
+    poverty_col = "poor215"
+    country_name = df.country_name.iloc[0]
+    year = df.year.iloc[0]
+    all_regions = [feature["properties"]["region"] for feature in geojson["features"]]
+    regions_without_data = [r for r in all_regions if r not in df.region_name.values]
+    df_no_data = pd.DataFrame({"region_name": regions_without_data})
+    df_no_data[poverty_col] = None
+    fig = px.choropleth_mapbox(
+        df,
+        geojson=geojson,
+        color=poverty_col,
+        locations="region_name",
+        featureidkey="properties.region",
+        center={"lat": lat, "lon": lon},
+        zoom=zoom.get(country_name, 3),
+        range_color=[zmin, zmax],
+        mapbox_style="carto-positron",
+    )
+    fig.add_trace(
+        px.choropleth_mapbox(
+            df_no_data,
+            geojson=geojson,
+            color_discrete_sequence=["rgba(211, 211, 211, 0.3)"],
+            locations="region_name",
+            featureidkey="properties.region",
+            zoom=zoom.get(country_name, 3),
+        ).data[0]
+    )
+    fig.update_layout(
+        title="What percent of the population is living in poverty?",
+        plot_bgcolor="white",
+        coloraxis_colorbar=dict(
+            title="",
+            orientation="v",
+            thickness=10,
+        ),
+        annotations=[
+            dict(
+                xref="paper",
+                yref="paper",
+                x=0,
+                y=-0.13,
+                xanchor="left",
+                text=f"Displaying data from {year}",
+                showarrow=False,
+                font=dict(size=12),
+            ),
+            dict(
+                xref="paper",
+                yref="paper",
+                x=0,
+                y=-0.2,
+                xanchor="left",
+                text=f"Poverty rate at $2.15 (2017 PPP). Source: SPID and GSAP, World Bank",
+                showarrow=False,
+                font=dict(size=12),
+            ),
+        ],
+    )
+    fig.update_traces(
+        hovertemplate="<b>Region:</b> %{location}<br>"
+        + "<b>Poverty rate (2.15):</b> %{z}<br>"
+    )
+
+    return fig
+
+
+@callback(
+    Output("regional-expenditure-heading", "children"),
+    Input("country-select", "value"),
+)
+def update_heading(country):
+    if not country:
+        return "Regional Expenditure"
+    return f"{country} Regional Expenditure"
+
+
 @callback(
     Output("overview-total", "figure"),
     Output("overview-per-capita", "figure"),
@@ -423,7 +770,6 @@ def functional_narrative(df):
 def render_overview_total_figure(data, country):
     all_countries = pd.DataFrame(data["expenditure_w_poverty_by_country_year"])
     df = filter_country_sort_year(all_countries, country)
-
     return total_figure(df), per_capita_figure(df), overview_narrative(df)
 
 
@@ -447,3 +793,184 @@ def render_overview_total_figure(data, country):
     ) * 100
 
     return functional_figure(func_df), functional_narrative(func_df)
+
+
+@callback(
+    Output("year-slider-container", "style"),
+    Output("year-slider", "marks"),
+    Output("year-slider", "value"),
+    Output("year-slider", "min"),
+    Output("year-slider", "max"),
+    Output("year-slider", "disabled"),
+    Input("stored-basic-country-data", "data"),
+    Input("country-select", "value"),
+)
+def update_year_range(data, country):
+    try:
+        data = data["basic_country_info"]
+        expenditure_years = data[country].get("expenditure_years", [])
+        poverty_years = data[country].get("poverty_years", [])
+
+        if not expenditure_years:
+            return {"display": "none"}, {}, 0, 0, 0, True
+
+        common_years = set(poverty_years).intersection(set(expenditure_years))
+        min_year, max_year = expenditure_years[0], expenditure_years[-1]
+
+        marks = {
+            year: (
+                {"label": str(year), "style": {"color": "white"}}
+                if year in common_years
+                else {"label": str(year), "style": {"color": "black"}}
+            )
+            for year in expenditure_years
+        }
+
+        selected_year = max_year
+        return {"display": "block"}, marks, selected_year, min_year, max_year, False
+
+    except Exception as e:
+        return {"display": "block"}, {}, 0, 0, 0, True
+
+
+@callback(
+    Output("subnational-spending", "figure"),
+    Input("stored-data-subnational", "data"),
+    Input("stored-basic-country-data", "data"),
+    Input("country-select", "value"),
+    Input("expenditure-plot-radio", "value"),
+    Input("year-slider", "value"),
+)
+def render_subnational_spending_figures(data, country_data, country, plot_type, year):
+    try:
+        if year is None or not data or not country_data or not country:
+            return empty_plot("Data not available")
+
+        geojson = data["boundaries"]
+        lat, lon = [
+            country_data["basic_country_info"][country].get(k)
+            for k in ["latitude", "longitude"]
+        ]
+
+        filtered_geojson = filter_geojson_by_country(geojson, country)
+        df = pd.DataFrame(data["expenditure_by_country_geo1_year"])
+        df = filter_country_sort_year(df, country)
+        df = df[df.adm1_name != "Central Scope"]
+
+        if df.empty or year not in df.year.unique():
+            return empty_plot("No expenditure data available for the selected year")
+
+        legend_percapita_min, legend_percapita_max = (
+            df.per_capita_expenditure.min(),
+            df.per_capita_expenditure.max(),
+        )
+        legend_expenditure_min, legend_expenditure_max = (
+            df.expenditure.min(),
+            df.expenditure.max(),
+        )
+
+        if plot_type == "percapita":
+            return regional_percapita_spending_choropleth(
+                filtered_geojson,
+                df[df.year == year],
+                legend_percapita_min,
+                legend_percapita_max,
+                lat,
+                lon,
+            )
+        else:
+            return regional_spending_choropleth(
+                filtered_geojson,
+                df[df.year == year],
+                legend_expenditure_min,
+                legend_expenditure_max,
+                lat,
+                lon,
+            )
+    except:
+        return empty_plot("An error was encountered when producing this figure")
+
+
+@callback(
+    Output("subnational-poverty", "figure"),
+    Input("stored-data-subnational", "data"),
+    Input("stored-basic-country-data", "data"),
+    Input("country-select", "value"),
+    Input("year-slider", "value"),
+)
+def render_subnational_poverty_figure(subnational_data, country_data, country, year):
+    try:
+
+        if year is None or not subnational_data or not country_data or not country:
+            return empty_plot("Data not available")
+
+        geojson = subnational_data["boundaries"]
+        filtered_geojson = filter_geojson_by_country(geojson, country)
+        df = pd.DataFrame(subnational_data["subnational_poverty_index"])
+        df = filter_country_sort_year(df, country)
+
+        legend_min, legend_max = country_data["basic_country_info"][country].get(
+            "poverty_bounds", (None, None)
+        )
+        lat, lon = [
+            country_data["basic_country_info"][country].get(k)
+            for k in ["latitude", "longitude"]
+        ]
+
+        available_years = country_data["basic_country_info"][country].get(
+            "poverty_years", []
+        )
+        relevant_years = [x for x in available_years if x <= year]
+
+        if not relevant_years or df.empty:
+            return empty_plot("Poverty data not available for this time period")
+
+        return subnational_poverty_choropleth(
+            filtered_geojson,
+            df[df.year == relevant_years[-1]],
+            legend_min,
+            legend_max,
+            lat,
+            lon,
+        )
+    except:
+        return empty_plot("An error was encountered when producing this figure")
+
+
+@callback(
+    Output("subnational-spending-narrative", "children"),
+    Input("stored-data-subnational", "data"),
+    Input("stored-basic-country-data", "data"),
+    Input("country-select", "value"),
+    Input("year-slider", "value"),
+)
+def render_subnational_spending_narrative(
+    subnational_data, country_data, country, year
+):
+    try:
+        if year is None or not subnational_data or not country_data or not country:
+            return "Data not available"
+
+        df_poverty = pd.DataFrame(subnational_data["subnational_poverty_index"])
+        df_poverty = filter_country_sort_year(df_poverty, country)
+
+        available_years = country_data["basic_country_info"][country].get(
+            "poverty_years", []
+        )
+        relevant_years = [x for x in available_years if x <= year]
+
+        if not relevant_years or df_poverty.empty:
+            df_poverty = pd.DataFrame()
+
+        df_spending = pd.DataFrame(subnational_data["expenditure_by_country_geo1_year"])
+        df_spending = filter_country_sort_year(df_spending, country)
+        df_spending = df_spending[
+            (df_spending.adm1_name != "Central Scope") & (df_spending.year == year)
+        ]
+
+        if df_spending.empty:
+            return "No spending data available"
+
+        return subnational_spending_narrative(df_spending, df_poverty)
+    except:
+        return empty_plot("An error was encountered when producing this figure")

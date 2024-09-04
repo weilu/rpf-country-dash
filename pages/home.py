@@ -548,10 +548,10 @@ def subnational_spending_narrative(
             corr_narrative = f"The correlation between per capita spending and poverty rates is {correlation:.2f},\
                 indicating a strong inverse relationship. Higher per capita spending is generally associated with lower poverty rates."
         elif abs(correlation) > corr_thresholds[0]:
-            corr_narrative = f"The correlation between per capita spending and poverty rates is {correlation:.2f} (Pearson correlation coefficient), \
+            corr_narrative = f"The correlation between per capita spending and poverty rates is {correlation:.2f}, \
                 suggesting a moderate inverse relationship. Generally, higher per capita spending is associated with lower poverty, though exceptions exist."
         else:
-            corr_narrative = f"The correlation between per capita spending and poverty rates is {correlation:.2f} (Pearson correlation coefficient), \
+            corr_narrative = f"The correlation between per capita spending and poverty rates is {correlation:.2f}, \
                 indicating a weak inverse relationship. There is little consistent pattern between higher per capita spending and poverty rates."
     else:
         corr_narrative = ""

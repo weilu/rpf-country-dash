@@ -7,6 +7,7 @@ from plotly.subplots import make_subplots
 import queries
 from utils import (
     detect_trend,
+    empty_plot,
     filter_country_sort_year,
     generate_error_prompt,
     get_correlation_text,
@@ -310,7 +311,9 @@ def education_narrative(data, country):
     try:
         spending = pd.DataFrame(data["edu_public_expenditure"])
         spending = filter_country_sort_year(spending, country)
-        spending.dropna(inplace=True)
+        spending.dropna(
+            subset=["real_expenditure", "central_expenditure"], inplace=True
+        )
 
         start_year = spending.year.min()
         end_year = spending.year.max()
@@ -322,26 +325,27 @@ def education_narrative(data, country):
         end_value_central = spending[
             spending.year == end_year
         ].central_expenditure.values[0]
-        start_value_decentralized = spending[
-            spending.year == start_year
-        ].decentralized_expenditure.values[0]
-        end_value_decentralized = spending[
-            spending.year == end_year
-        ].decentralized_expenditure.values[0]
 
         spending_growth_rate = ((end_value - start_value) / start_value) * 100
         spending_growth_rate_central = (
             (end_value_central - start_value_central) / start_value_central
         ) * 100
-        spending_growth_rate_decentralized = (
-            (end_value_decentralized - start_value_decentralized)
-            / start_value_decentralized
-        ) * 100
-
         text = f"""Between {start_year} and {end_year}, the total real public spending on education in {country} has increased from ${millify(start_value)} to ${millify(end_value)} reflecting the growth rate of {spending_growth_rate:.2f}% after adjusting for the inflation rate. \n
             During the same time period, the central government's spending has {get_percentage_change_text(spending_growth_rate_central)} """
 
-        if not np.isnan(spending_growth_rate_decentralized):
+        if not np.isnan(
+            spending[spending.year == start_year].decentralized_expenditure.values[0]
+        ):
+            start_value_decentralized = spending[
+                spending.year == start_year
+            ].decentralized_expenditure.values[0]
+            end_value_decentralized = spending[
+                spending.year == end_year
+            ].decentralized_expenditure.values[0]
+            spending_growth_rate_decentralized = (
+                (end_value_decentralized - start_value_decentralized)
+                / start_value_decentralized
+            ) * 100
             decentralized_spending_text = f"while the local government's spending has  {get_percentage_change_text(spending_growth_rate_decentralized)}."
         else:
             decentralized_spending_text = (
@@ -364,11 +368,16 @@ def education_narrative(data, country):
     Input("country-select", "value"),
 )
 def render_overview_total_figure(data, country):
-    if data is None:
-        return None
-    all_countries = pd.DataFrame(data["edu_public_expenditure"])
-    df = filter_country_sort_year(all_countries, country)
-    fig = total_edu_figure(df)
+    try:
+        if data is None:
+            return None
+        all_countries = pd.DataFrame(data["edu_public_expenditure"])
+        df = filter_country_sort_year(all_countries, country)
+        fig = total_edu_figure(df)
+    except:
+        return empty_plot("No data available for this period"), generate_error_prompt(
+            "DATA_UNAVAILABLE"
+        )
     return fig, education_narrative(data, country)
 
 
@@ -392,7 +401,7 @@ def public_private_narrative(df):
     except IndexError:
         return generate_error_prompt("DATA_UNAVAILABLE")
     except:
-        return generate_error_prompt("generic_error")
+        return generate_error_prompt("GENERIC_ERROR")
     return text
 
 
@@ -404,96 +413,105 @@ def public_private_narrative(df):
     Input("country-select", "value"),
 )
 def render_public_private_figure(private_data, public_data, country):
-    if not private_data or not public_data:
-        return
-    private = pd.DataFrame(private_data["edu_private_expenditure"])
-    private = filter_country_sort_year(private, country)
+    try:
+        if not private_data or not public_data:
+            return
+        private = pd.DataFrame(private_data["edu_private_expenditure"])
+        private = filter_country_sort_year(private, country)
 
-    public_data = pd.DataFrame(public_data["edu_public_expenditure"])
-    public = filter_country_sort_year(public_data, country)
+        public_data = pd.DataFrame(public_data["edu_public_expenditure"])
+        public = filter_country_sort_year(public_data, country)
 
-    merged = pd.merge(
-        private,
-        public,
-        on=["year", "country_name"],
-        how="inner",
-        suffixes=["_private", "_public"],
-    )
-    merged["private_percentage"] = merged["real_expenditure_private"] / (
-        merged["real_expenditure_private"] + merged["real_expenditure_public"]
-    )
-    merged["public_percentage"] = merged["real_expenditure_public"] / (
-        merged["real_expenditure_private"] + merged["real_expenditure_public"]
-    )
-
-    merged["real_expenditure_private_formatted"] = merged[
-        "real_expenditure_private"
-    ].apply(millify)
-
-    fig = go.Figure()
-    fig.add_trace(
-        go.Bar(
-            name="Private Expenditure",
-            y=merged["year"].astype(str),
-            x=merged.private_percentage,
-            orientation="h",
-            customdata=merged.real_expenditure_private_formatted,
-            hovertemplate="%{customdata}",
-            marker=dict(
-                color="rgb(160, 209, 255)",
-            ),
+        merged = pd.merge(
+            private,
+            public,
+            on=["year", "country_name"],
+            how="inner",
+            suffixes=["_private", "_public"],
         )
-    )
-
-    merged["real_expenditure_public_formatted"] = merged[
-        "real_expenditure_public"
-    ].apply(millify)
-    fig.add_trace(
-        go.Bar(
-            name="Public Expenditure",
-            y=merged["year"].astype(str),
-            x=merged.public_percentage,
-            orientation="h",
-            customdata=merged.real_expenditure_public_formatted,
-            hovertemplate="$%{customdata}",
-            marker=dict(
-                color="rgb(17, 141, 255)",
-            ),
+        merged["private_percentage"] = merged["real_expenditure_private"] / (
+            merged["real_expenditure_private"] + merged["real_expenditure_public"]
         )
-    )
-    fig.update_layout(
-        barmode="stack",
-        plot_bgcolor="white",
-        legend=dict(orientation="h", yanchor="bottom", y=1),
-        title="What % was spent by the govt vs household?",
-        annotations=[
-            dict(
-                xref="paper",
-                yref="paper",
-                x=-0,
-                y=-0.2,
-                text="Source: BOOST & CPI: World Bank",
-                showarrow=False,
-                font=dict(size=12),
+        merged["public_percentage"] = merged["real_expenditure_public"] / (
+            merged["real_expenditure_private"] + merged["real_expenditure_public"]
+        )
+
+        merged["real_expenditure_private_formatted"] = merged[
+            "real_expenditure_private"
+        ].apply(millify)
+
+        fig = go.Figure()
+        fig.add_trace(
+            go.Bar(
+                name="Private Expenditure",
+                y=merged["year"].astype(str),
+                x=merged.private_percentage,
+                orientation="h",
+                customdata=merged.real_expenditure_private_formatted,
+                hovertemplate="%{customdata}",
+                marker=dict(
+                    color="rgb(160, 209, 255)",
+                ),
             )
-        ],
-    )
+        )
+
+        merged["real_expenditure_public_formatted"] = merged[
+            "real_expenditure_public"
+        ].apply(millify)
+        fig.add_trace(
+            go.Bar(
+                name="Public Expenditure",
+                y=merged["year"].astype(str),
+                x=merged.public_percentage,
+                orientation="h",
+                customdata=merged.real_expenditure_public_formatted,
+                hovertemplate="$%{customdata}",
+                marker=dict(
+                    color="rgb(17, 141, 255)",
+                ),
+            )
+        )
+        fig.update_layout(
+            barmode="stack",
+            plot_bgcolor="white",
+            legend=dict(orientation="h", yanchor="bottom", y=1),
+            title="What % was spent by the govt vs household?",
+            annotations=[
+                dict(
+                    xref="paper",
+                    yref="paper",
+                    x=-0,
+                    y=-0.2,
+                    text="Source: BOOST & CPI: World Bank",
+                    showarrow=False,
+                    font=dict(size=12),
+                )
+            ],
+        )
+
+    except:
+        return empty_plot("No data available for this period"), generate_error_prompt(
+            "DATA_UNAVAILABLE"
+        )
 
     narrative = public_private_narrative(merged)
     return fig, narrative
 
 
 def outcome_narrative(outcome_df, expenditure_df, country):
-    start_year = expenditure_df.year.min()
-    end_year = expenditure_df.year.max()
-    merged = pd.merge(outcome_df, expenditure_df, on=["year"], how="inner")
-    x_col = {"display": "education index", "col_name": "education_index"}
-    y_col = {"display": "real expenditure", "col_name": "real_expenditure"}
-    PCC = get_correlation_text(merged, x_col, y_col)
+    try:
+        start_year = expenditure_df.year.min()
+        end_year = expenditure_df.year.max()
+        merged = pd.merge(outcome_df, expenditure_df, on=["year"], how="inner")
+        x_col = {"display": "education index", "col_name": "education_index"}
+        y_col = {"display": "real expenditure", "col_name": "real_expenditure"}
+        PCC = get_correlation_text(merged, x_col, y_col)
 
-    text = f"""
-        In the case of {country}, at the national level from {start_year} to {end_year}; {PCC}
-"""
+        text = f"""
+            In the case of {country}, at the national level from {start_year} to {end_year}; {PCC}
+    """
+    except:
+        return generate_error_prompt("GENERIC_ERROR")
     return text
 
 
@@ -505,100 +523,109 @@ def outcome_narrative(outcome_df, expenditure_df, country):
     Input("country-select", "value"),
 )
 def render_education_outcome(outcome_data, total_data, country):
-    if not total_data or not outcome_data:
-        return
-    indicator = pd.DataFrame(outcome_data["hd_index"])
-    indicator = filter_country_sort_year(indicator, country)
-    indicator = indicator[indicator.adm1_name == "Total"]
+    try:
+        if not total_data or not outcome_data:
+            return
+        indicator = pd.DataFrame(outcome_data["hd_index"])
+        indicator = filter_country_sort_year(indicator, country)
+        indicator = indicator[indicator.adm1_name == "Total"]
 
-    learning_poverty = pd.DataFrame(outcome_data["learning_poverty"])
-    learning_poverty = filter_country_sort_year(learning_poverty, country)
+        learning_poverty = pd.DataFrame(outcome_data["learning_poverty"])
+        learning_poverty = filter_country_sort_year(learning_poverty, country)
 
-    pub_exp = pd.DataFrame(total_data["edu_public_expenditure"])
-    pub_exp = filter_country_sort_year(pub_exp, country)
+        pub_exp = pd.DataFrame(total_data["edu_public_expenditure"])
+        pub_exp = filter_country_sort_year(pub_exp, country)
 
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-    fig.add_trace(
-        go.Scatter(
-            name="education index",
-            x=indicator.year,
-            y=indicator.education_index,
-            mode="lines+markers",
-            line=dict(color="MediumPurple", shape="spline", dash="dot"),
-            connectgaps=True,
-        ),
-        secondary_y=True,
-    )
+        fig.add_trace(
+            go.Scatter(
+                name="education index",
+                x=indicator.year,
+                y=indicator.education_index,
+                mode="lines+markers",
+                line=dict(color="MediumPurple", shape="spline", dash="dot"),
+                connectgaps=True,
+            ),
+            secondary_y=True,
+        )
 
-    fig.add_trace(
-        go.Scatter(
-            name="learning poverty rate",
-            x=learning_poverty.year,
-            y=learning_poverty.learning_poverty_rate,
-            mode="lines+markers",
-            line=dict(color="deeppink", shape="spline", dash="dot"),
-            connectgaps=True,
-        ),
-        secondary_y=True,
-    )
+        fig.add_trace(
+            go.Scatter(
+                name="learning poverty rate",
+                x=learning_poverty.year,
+                y=learning_poverty.learning_poverty_rate,
+                mode="lines+markers",
+                line=dict(color="deeppink", shape="spline", dash="dot"),
+                connectgaps=True,
+            ),
+            secondary_y=True,
+        )
 
-    fig.add_trace(
-        go.Scatter(
-            name="inflation adjusted per capita public spending",
-            x=pub_exp.year,
-            y=pub_exp.per_capita_real_expenditure,
-            mode="lines",
-            marker_color="darkblue",
-            opacity=0.6,
-        ),
-        secondary_y=False,
-    )
+        fig.add_trace(
+            go.Scatter(
+                name="inflation adjusted per capita public spending",
+                x=pub_exp.year,
+                y=pub_exp.per_capita_real_expenditure,
+                mode="lines",
+                marker_color="darkblue",
+                opacity=0.6,
+            ),
+            secondary_y=False,
+        )
 
-    fig.update_layout(
-        plot_bgcolor="white",
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=0.9,
-            xanchor="left",
-            x=0,
-            bgcolor="rgba(0,0,0,0)",
-        ),
-        title="How has education outcome changed?",
-        annotations=[
-            dict(
-                xref="paper",
-                yref="paper",
-                x=-0,
-                y=-0.25,
-                text="Source: Education index measured by years of education: UNDP through GDL. <br>"
-                "BOOST, CPI, Learning Poverty: World Bank; Population: UN, Eurostat",
-                showarrow=False,
-                font=dict(size=12),
-            )
-        ],
-    )
+        fig.update_layout(
+            plot_bgcolor="white",
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=0.9,
+                xanchor="left",
+                x=0,
+                bgcolor="rgba(0,0,0,0)",
+            ),
+            title="How has education outcome changed?",
+            annotations=[
+                dict(
+                    xref="paper",
+                    yref="paper",
+                    x=-0,
+                    y=-0.25,
+                    text="Source: Education index measured by years of education: UNDP through GDL. <br>"
+                    "BOOST, CPI, Learning Poverty: World Bank; Population: UN, Eurostat",
+                    showarrow=False,
+                    font=dict(size=12),
+                )
+            ],
+        )
 
-    fig.update_yaxes(
-        range=[0, max(pub_exp.per_capita_real_expenditure) * 1.2], secondary_y=False
-    )
-    fig.update_yaxes(range=[0, 1], secondary_y=True)
+        fig.update_yaxes(
+            range=[0, max(pub_exp.per_capita_real_expenditure) * 1.2], secondary_y=False
+        )
+        fig.update_yaxes(range=[0, 1], secondary_y=True)
+    except:
+        return empty_plot("No data available for this period"), generate_error_prompt(
+            "DATA_UNAVAILABLE"
+        )
 
     narrative = outcome_narrative(indicator, pub_exp, country)
     return fig, narrative
 
 
 def education_sub_func_narrative(data, country):
-    max_row = data.loc[data["real_expenditure"].idxmax()]
-    max_sector = max_row.func_sub
-    max_amount = max_row.real_expenditure
+    try:
+        max_row = data.loc[data["real_expenditure"].idxmax()]
+        max_sector = max_row.func_sub
+        max_amount = max_row.real_expenditure
 
-    percentage = (max_amount / data["real_expenditure"].sum()) * 100
+        percentage = (max_amount / data["real_expenditure"].sum()) * 100
 
-    text = f"""
-        In {country}, the government spent the most on {max_sector}, totalling {millify(max_amount)}. This is {percentage:.2f}% of the total education expenditure.
-"""
+        text = f"""
+            In {country}, the government spent the most on {max_sector}, totalling {millify(max_amount)}. This is {percentage:.2f}% of the total education expenditure.
+    """
+    except:
+        return generate_error_prompt("GENERIC_ERROR")
+
     return text
 
 
@@ -609,64 +636,69 @@ def education_sub_func_narrative(data, country):
     Input("country-select", "value"),
 )
 def render_education_sub_func(sub_func_data, country):
-    if not sub_func_data or not country:
-        return
+    try:
+        if not sub_func_data or not country:
+            return
 
-    data = pd.DataFrame(sub_func_data["expenditure_by_country_sub_func_year"])
-    data = data.loc[(data.func == "Education") & (data.year == data.latest_year)]
-    data = filter_country_sort_year(data, country)
+        data = pd.DataFrame(sub_func_data["expenditure_by_country_sub_func_year"])
+        data = data.loc[(data.func == "Education") & (data.year == data.latest_year)]
+        data = filter_country_sort_year(data, country)
 
-    fig = go.Figure()
-    ids = ["total"]
-    parents = [""]
-    labels = ["Total"]
-    real_expenditures = [data["real_expenditure"].sum()]
-    data["func_sub"] = data["func_sub"].fillna(value="Others")
-    parents_values = data.groupby("func_sub").sum(numeric_only=True).reset_index()
-    customData = [millify(real_expenditures[0])]
-    for _, row in parents_values.iterrows():
-        parents.append("total")
-        ids.append(row["func_sub"] + "-" + "all")
-        labels.append(row["func_sub"])
-        real_expenditures.append(row["real_expenditure"])
-        customData.append(millify(row["real_expenditure"]))
+        fig = go.Figure()
+        ids = ["total"]
+        parents = [""]
+        labels = ["Total"]
+        real_expenditures = [data["real_expenditure"].sum()]
+        data["func_sub"] = data["func_sub"].fillna(value="Others")
+        parents_values = data.groupby("func_sub").sum(numeric_only=True).reset_index()
+        customData = [millify(real_expenditures[0])]
+        for _, row in parents_values.iterrows():
+            parents.append("total")
+            ids.append(row["func_sub"] + "-" + "all")
+            labels.append(row["func_sub"])
+            real_expenditures.append(row["real_expenditure"])
+            customData.append(millify(row["real_expenditure"]))
 
-    for _, row in data.iterrows():
-        ids.append(row["admin0"] + "-" + row["func_sub"])
-        parents.append(row["func_sub"] + "-" + "all")
-        labels.append(row["admin0"])
-        real_expenditures.append(row["real_expenditure"])
-        customData.append(millify(row["real_expenditure"]))
+        for _, row in data.iterrows():
+            ids.append(row["admin0"] + "-" + row["func_sub"])
+            parents.append(row["func_sub"] + "-" + "all")
+            labels.append(row["admin0"])
+            real_expenditures.append(row["real_expenditure"])
+            customData.append(millify(row["real_expenditure"]))
 
-    fig.add_trace(
-        go.Icicle(
-            ids=ids,
-            labels=labels,
-            parents=parents,
-            values=real_expenditures,
-            branchvalues="total",
-            root_color="lightgrey",
-            customdata=np.stack(customData),
-            hovertemplate="<b>Real expenditure</b>: $%{customdata}<br>"
-            + "<extra></extra>",
-        )
-    )
-    source = f"Calculated from the latest available year: {data.year.values[0]}"
-    fig.update_layout(
-        plot_bgcolor="white",
-        title="How much did the gov spend on different levels of education?",
-        annotations=[
-            dict(
-                xref="paper",
-                yref="paper",
-                x=-0,
-                y=-0.25,
-                text=source,
-                showarrow=False,
-                font=dict(size=12),
+        fig.add_trace(
+            go.Icicle(
+                ids=ids,
+                labels=labels,
+                parents=parents,
+                values=real_expenditures,
+                branchvalues="total",
+                root_color="lightgrey",
+                customdata=np.stack(customData),
+                hovertemplate="<b>Real expenditure</b>: $%{customdata}<br>"
+                + "<extra></extra>",
             )
-        ],
-    )
+        )
+        source = f"Calculated from the latest available year: {data.year.values[0]}"
+        fig.update_layout(
+            plot_bgcolor="white",
+            title="How much did the gov spend on different levels of education?",
+            annotations=[
+                dict(
+                    xref="paper",
+                    yref="paper",
+                    x=-0,
+                    y=-0.25,
+                    text=source,
+                    showarrow=False,
+                    font=dict(size=12),
+                )
+            ],
+        )
+    except:
+        return empty_plot("No data available for this period"), generate_error_prompt(
+            "DATA_UNAVAILABLE"
+        )
 
     narrative = education_sub_func_narrative(parents_values, country)
     return fig, narrative

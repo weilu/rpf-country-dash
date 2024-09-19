@@ -99,9 +99,12 @@ def empty_plot(message):
 
 
 def get_percentage_change_text(percent):
-    if percent > 0:
-        return f"increased by {percent:.2f}%"
-    return f"decreased by {-1 * percent:.2f}%"
+    if abs(percent) < 0.01:
+        return 'mostly remained unchanged'
+    elif percent > 0:
+        return f"increased by {percent:.0%}"
+    else:
+        return f"decreased by {-1 * percent:.0%}"
 
 
 def calculate_PCC(df, x_col, y_col):

@@ -6,3 +6,4 @@ databricks-sql-connector
 dash[diskcache]
 gunicorn
 shapely
+scipy

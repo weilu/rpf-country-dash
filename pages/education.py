@@ -178,7 +178,7 @@ def render_education_content(tab):
                         xs={"size": 12, "offset": 0},
                         sm={"size": 12, "offset": 0},
                         md={"size": 12, "offset": 0},
-                        lg={"size": 8, "offset": 0},
+                        lg={"size": 7, "offset": 0},
                     ),
                     dbc.Col(
                         [
@@ -197,7 +197,7 @@ def render_education_content(tab):
                         xs={"size": 12, "offset": 0},
                         sm={"size": 12, "offset": 0},
                         md={"size": 12, "offset": 0},
-                        lg={"size": 4, "offset": 0},
+                        lg={"size": 5, "offset": 0},
                     ),
                 ]),
                 dbc.Row(
@@ -503,16 +503,24 @@ def render_public_private_figure(private_data, public_data, country):
 def outcome_measure(country):
     return f"To check if this is the case for {country}, we can use inflation-adjusted per capita public spending as a measure for public financial resource allocation per person on education, use school attendance rate of 6-17 year-old children to proximate access to education, and use learning poverty rate as an indicator for education quality."
 
-def outcome_narrative(outcome_df, expenditure_df, country):
+def outcome_narrative(outcome_df, pov_df, expenditure_df, country):
     try:
         start_year = expenditure_df.year.min()
         end_year = expenditure_df.year.max()
+
         merged = pd.merge(outcome_df, expenditure_df, on=["year"], how="inner")
         x_col = {"display": "6-17 year-old school attendance", "col_name": "attendance_6to17yo"}
         y_col = {"display": "per capita public spending", "col_name": "per_capita_real_expenditure"}
         PCC = get_correlation_text(merged, x_col, y_col)
 
         text = f"From {start_year} to {end_year}, {PCC}"
+
+        merged = pd.merge(pov_df, expenditure_df, on=["year"], how="inner")
+        x_col = {"display": "learning poverty rate", "col_name": "learning_poverty_rate"}
+        y_col = {"display": "per capita public spending", "col_name": "per_capita_real_expenditure"}
+        PCC = get_correlation_text(merged, x_col, y_col)
+
+        text += f" Meanwhile, {PCC}"
     except:
         traceback.print_exc()
         return generate_error_prompt("GENERIC_ERROR")
@@ -621,7 +629,9 @@ def render_education_outcome(outcome_data, total_data, country):
         )
 
     measure = outcome_measure(country)
-    narrative = outcome_narrative(indicator, pub_exp, country)
+    narrative = outcome_narrative(
+        indicator, learning_poverty, pub_exp, country
+    )
     return fig, measure, narrative
 
 

@@ -5,8 +5,8 @@ START_YEAR = 2010
 
 CORRELATION_THRESHOLDS = {
     "0": "no",
-    "0.1": "negligible",
-    "0.4": "weak",
+    "0.1": "no",
+    "0.3": "weak",
     "0.7": "moderate",
     "0.9": "strong",
     "1": "very strong",

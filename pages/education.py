@@ -15,6 +15,8 @@ from utils import (
     millify,
 )
 import numpy as np
+import traceback
+
 
 dash.register_page(__name__)
 
@@ -352,7 +354,8 @@ def education_narrative(data, country):
         return generate_error_prompt(
             "DATA_UNAVAILABLE",
         )
-    except Exception as e:
+    except:
+        traceback.print_exc()
         return generate_error_prompt("GENERIC_ERROR")
     return text
 
@@ -505,12 +508,13 @@ def outcome_narrative(outcome_df, expenditure_df, country):
         start_year = expenditure_df.year.min()
         end_year = expenditure_df.year.max()
         merged = pd.merge(outcome_df, expenditure_df, on=["year"], how="inner")
-        x_col = {"display": "education index", "col_name": "education_index"}
-        y_col = {"display": "real expenditure", "col_name": "real_expenditure"}
+        x_col = {"display": "6-17 year-old school attendance", "col_name": "attendance_6to17yo"}
+        y_col = {"display": "per capita public spending", "col_name": "per_capita_real_expenditure"}
         PCC = get_correlation_text(merged, x_col, y_col)
 
         text = f"From {start_year} to {end_year}, {PCC}"
     except:
+        traceback.print_exc()
         return generate_error_prompt("GENERIC_ERROR")
     return text
 
@@ -541,9 +545,9 @@ def render_education_outcome(outcome_data, total_data, country):
 
         fig.add_trace(
             go.Scatter(
-                name="education index",
+                name="6-17yo attendance rate",
                 x=indicator.year,
-                y=indicator.education_index,
+                y=indicator.attendance_6to17yo,
                 mode="lines+markers",
                 line=dict(color="MediumPurple", shape="spline", dash="dot"),
                 connectgaps=True,
@@ -577,21 +581,28 @@ def render_education_outcome(outcome_data, total_data, country):
 
         fig.update_layout(
             plot_bgcolor="white",
+            height=500,
             legend=dict(
                 orientation="h",
                 yanchor="bottom",
-                y=0.9,
+                y=0.95,
                 xanchor="left",
                 x=0,
                 bgcolor="rgba(0,0,0,0)",
             ),
-            title="How has education outcome changed?",
+            title=dict(
+                text="How has education outcome changed?",
+                y=0.95,
+                x=0.5,
+                xanchor="center",
+                yanchor="top"
+            ),
             annotations=[
                 dict(
                     xref="paper",
                     yref="paper",
                     x=-0,
-                    y=-0.25,
+                    y=-0.2,
                     text="Source: Education index measured by years of education: UNDP through GDL. <br>"
                     "BOOST, CPI, Learning Poverty: World Bank; Population: UN, Eurostat",
                     showarrow=False,
@@ -603,7 +614,7 @@ def render_education_outcome(outcome_data, total_data, country):
         fig.update_yaxes(
             range=[0, max(pub_exp.per_capita_real_expenditure) * 1.2], secondary_y=False
         )
-        fig.update_yaxes(range=[0, 1], secondary_y=True)
+        fig.update_yaxes(range=[0, 1.2], tickformat='.0%', secondary_y=True)
     except:
         return empty_plot("No data available for this period"), generate_error_prompt(
             "DATA_UNAVAILABLE"

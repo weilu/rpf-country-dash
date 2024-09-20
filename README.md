@@ -18,7 +18,6 @@ export HTTP_PATH="[http path, e.g. /sql/1.0/warehouses/abcdxxx123]"
 export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
 ```
 
-
 Then to setup and verify the app works locally:
 
 ```bash
@@ -28,7 +27,15 @@ open http://127.0.0.1:8050/
 ```
 You should see the data app.
 
+### Tests
 
+To run the python unit tests:
+
+```
+python -m unittest discover tests/
+```
+
+Make sure all tests pass locally before sending a PR.
 
 ## Development within docker container
 1. Edit .env to update your environment variables after copying the sample env file. (Do not use quotations around the values)

@@ -10,7 +10,7 @@ import plotly.graph_objects as go
 import unicodedata
 
 
-def filter_country_sort_year(df, country):
+def filter_country_sort_year(df, country, start_year=START_YEAR):
     """
     Preprocess the dataframe to filter by country and sort by year
     :param df: DataFrame
@@ -19,8 +19,13 @@ def filter_country_sort_year(df, country):
     """
     df = df.loc[df["country_name"] == country]
 
-    df = df[df.year >= START_YEAR]
+    df = df[df.year >= start_year]
+    if not df.empty:
+        earliest_year = df['year'].min()
+        df['earliest_year'] = earliest_year
+
     df = df.sort_values(["year"], ascending=False)
+
     return df
 
 

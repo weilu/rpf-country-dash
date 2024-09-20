@@ -62,7 +62,8 @@ sidebar = html.Div(
                 dbc.NavLink(
                     "Education", href=get_relative_path("education"), active="exact"
                 ),
-                dbc.NavLink("Health", href=get_relative_path("health"), active="exact"),
+                # Hide health until charts & narrative are populated
+                # dbc.NavLink("Health", href=get_relative_path("health"), active="exact"),
                 dbc.NavLink("About", href=get_relative_path("about"), active="exact"),
             ],
             vertical=True,

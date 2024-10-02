@@ -4,10 +4,10 @@ from constants import (
     CORRELATION_THRESHOLDS,
     TREND_THRESHOLDS,
 )
-from scipy.stats import pearsonr
 from shapely.geometry import shape, MultiPolygon, Polygon
 import plotly.graph_objects as go
 import unicodedata
+from math import isnan
 
 
 def filter_country_sort_year(df, country, start_year=START_YEAR):
@@ -99,21 +99,12 @@ def empty_plot(message):
 
 
 def get_percentage_change_text(percent):
-    if percent > 0:
-        return f"increased by {percent:.2f}%"
-    return f"decreased by {-1 * percent:.2f}%"
-
-
-def calculate_PCC(df, x_col, y_col):
-    """
-    Calculate the Pearson Correlation Coefficient between two columns
-    :param df: DataFrame
-    :param x_col: str
-    :param y_col: str
-    :return: float
-    """
-    df = df[[x_col, y_col]].dropna()
-    return pearsonr(df[x_col], df[y_col])[0]
+    if abs(percent) < 0.01:
+        return 'mostly remained unchanged'
+    elif percent > 0:
+        return f"increased by {percent:.0%}"
+    else:
+        return f"decreased by {-1 * percent:.0%}"
 
 
 def get_correlation_text(df, x_col, y_col):
@@ -124,29 +115,31 @@ def get_correlation_text(df, x_col, y_col):
     :param y_col: {"col_name": str, "display": str} // col_name is the column name in the DataFrame and display is the name to be displayed in the text
     :return: str
     """
+    pcc = df[x_col["col_name"]].corr(df[y_col["col_name"]])
 
-    pcc = calculate_PCC(df, x_col["col_name"], y_col["col_name"])
+    x_display_name = x_col["display"]
+    y_display_name = y_col["display"]
+
+    if isnan(pcc):
+        return f'the correlation between {x_display_name} and {y_display_name} is unknown due to limited data availability or variability.'
+
     if pcc > 0:
         direction = "positive "
         association = "higher"
     else:
         direction = "inverse"
         association = "lower"
-    abs_pcc = abs(pcc)
 
+    intensity = None
     for threshold, pcc_text in CORRELATION_THRESHOLDS.items():
-        if abs_pcc < float(threshold):
+        if abs(pcc) <= float(threshold):
             intensity = pcc_text
             break
 
-    x_display_name = x_col["display"]
-    y_display_name = y_col["display"]
-
     if intensity == "no":
-        return f"the correlation between {y_display_name} and {x_display_name} is {pcc:.2f},\
-                indicating there is no linear relationship."
+        return f"there is no correlation between {y_display_name} and {x_display_name}."
 
-    text = f"the correlation between {y_display_name} and {x_display_name} is {pcc:.2f},\
+    text = f"the correlation between {y_display_name} and {x_display_name} is {pcc:.1f},\
                 indicating a {intensity} {direction} relationship. Higher {y_display_name} is generally associated with {association} {x_display_name}."
     return text
 
@@ -158,7 +151,7 @@ def detect_trend(df, x_col):
     :param x_col: str
     :return: str
     """
-    pcc = calculate_PCC(df, x_col, "year")
+    pcc = df.year.corr(df[x_col["col_name"]])
     abs_pcc = abs(pcc)
     if abs_pcc > TREND_THRESHOLDS:
         if pcc > 0:

@@ -412,90 +412,101 @@ def public_private_narrative(df, country):
     Input("country-select", "value"),
 )
 def render_public_private_figure(private_data, public_data, country):
-    try:
-        if not private_data or not public_data:
-            return
-        private = pd.DataFrame(private_data["edu_private_expenditure"])
-        private = filter_country_sort_year(private, country)
+    if not private_data or not public_data:
+        return
 
-        public_data = pd.DataFrame(public_data["edu_public_expenditure"])
-        public = filter_country_sort_year(public_data, country)
+    private = pd.DataFrame(private_data["edu_private_expenditure"])
+    private = filter_country_sort_year(private, country)
 
-        merged = pd.merge(
-            private,
-            public,
-            on=["year", "country_name"],
-            how="inner",
-            suffixes=["_private", "_public"],
-        )
-        merged["private_percentage"] = merged["real_expenditure_private"] / (
-            merged["real_expenditure_private"] + merged["real_expenditure_public"]
-        )
-        merged["public_percentage"] = 1 - merged["private_percentage"]
+    public_data = pd.DataFrame(public_data["edu_public_expenditure"])
+    public = filter_country_sort_year(public_data, country)
 
-        merged["real_expenditure_private_formatted"] = merged[
-            "real_expenditure_private"
-        ].apply(millify)
+    merged = pd.merge(
+        private,
+        public,
+        on=["year", "country_name"],
+        how="inner",
+        suffixes=["_private", "_public"],
+    )
 
-        fig = go.Figure()
-        fig.add_trace(
-            go.Bar(
-                name="Private Expenditure",
-                y=merged["year"].astype(str),
-                x=merged.private_percentage,
-                orientation="h",
-                customdata=merged.real_expenditure_private_formatted,
-                hovertemplate="%{customdata}",
-                marker=dict(
-                    color="rgb(255, 191, 0)",
-                ),
-                text=merged.private_percentage,
-                texttemplate="%{text:.0%}",
-                textposition="auto",
+    if merged.empty:
+        if public.empty:
+            prompt = generate_error_prompt(
+                "DATA_UNAVAILABLE_DATASET_NAME",
+                dataset_name="Education public spending"
             )
-        )
-
-        merged["real_expenditure_public_formatted"] = merged[
-            "real_expenditure_public"
-        ].apply(millify)
-        fig.add_trace(
-            go.Bar(
-                name="Public Expenditure",
-                y=merged["year"].astype(str),
-                x=merged.public_percentage,
-                orientation="h",
-                customdata=merged.real_expenditure_public_formatted,
-                hovertemplate="$%{customdata}",
-                marker=dict(
-                    color="darkblue",
-                ),
-                text=merged.public_percentage,
-                texttemplate="%{text:.0%}",
-                textposition="auto",
+        elif private.empty:
+            prompt = generate_error_prompt(
+                "DATA_UNAVAILABLE_DATASET_NAME",
+                dataset_name="Education private spending"
             )
-        )
-        fig.update_layout(
-            barmode="stack",
-            plot_bgcolor="white",
-            legend=dict(orientation="h", yanchor="bottom", y=1),
-            title="What % was spent by the govt vs household?",
-            annotations=[
-                dict(
-                    xref="paper",
-                    yref="paper",
-                    x=-0,
-                    y=-0.2,
-                    text="Source: BOOST & CPI: World Bank",
-                    showarrow=False,
-                    font=dict(size=12),
-                )
-            ],
-        )
+        else:
+            prompt = "Available public and private spending data on education do not have an overlapping time period."
+        return (empty_plot(prompt), prompt)
 
-    except:
-        return empty_plot("No data available for this period"), generate_error_prompt(
-            "DATA_UNAVAILABLE"
+    merged["private_percentage"] = merged["real_expenditure_private"] / (
+        merged["real_expenditure_private"] + merged["real_expenditure_public"]
+    )
+    merged["public_percentage"] = 1 - merged["private_percentage"]
+
+    merged["real_expenditure_private_formatted"] = merged[
+        "real_expenditure_private"
+    ].apply(millify)
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Bar(
+            name="Private Expenditure",
+            y=merged["year"].astype(str),
+            x=merged.private_percentage,
+            orientation="h",
+            customdata=merged.real_expenditure_private_formatted,
+            hovertemplate="%{customdata}",
+            marker=dict(
+                color="rgb(255, 191, 0)",
+            ),
+            text=merged.private_percentage,
+            texttemplate="%{text:.0%}",
+            textposition="auto",
         )
+    )
+
+    merged["real_expenditure_public_formatted"] = merged[
+        "real_expenditure_public"
+    ].apply(millify)
+    fig.add_trace(
+        go.Bar(
+            name="Public Expenditure",
+            y=merged["year"].astype(str),
+            x=merged.public_percentage,
+            orientation="h",
+            customdata=merged.real_expenditure_public_formatted,
+            hovertemplate="$%{customdata}",
+            marker=dict(
+                color="darkblue",
+            ),
+            text=merged.public_percentage,
+            texttemplate="%{text:.0%}",
+            textposition="auto",
+        )
+    )
+    fig.update_layout(
+        barmode="stack",
+        plot_bgcolor="white",
+        legend=dict(orientation="h", yanchor="bottom", y=1),
+        title="What % was spent by the govt vs household?",
+        annotations=[
+            dict(
+                xref="paper",
+                yref="paper",
+                x=-0,
+                y=-0.2,
+                text="Source: BOOST & CPI: World Bank",
+                showarrow=False,
+                font=dict(size=12),
+            )
+        ],
+    )
 
     narrative = public_private_narrative(merged, country)
     return fig, narrative

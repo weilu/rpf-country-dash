@@ -545,97 +545,93 @@ def outcome_narrative(outcome_df, pov_df, expenditure_df, country):
     Input("country-select", "value"),
 )
 def render_education_outcome(outcome_data, total_data, country):
-    try:
-        if not total_data or not outcome_data:
-            return
-        indicator = pd.DataFrame(outcome_data["hd_index"])
-        indicator = filter_country_sort_year(indicator, country)
-        indicator = indicator[indicator.adm1_name == "Total"]
+    if not total_data or not outcome_data:
+        return
 
-        learning_poverty = pd.DataFrame(outcome_data["learning_poverty"])
-        learning_poverty = filter_country_sort_year(learning_poverty, country)
+    indicator = pd.DataFrame(outcome_data["hd_index"])
+    indicator = filter_country_sort_year(indicator, country)
+    indicator = indicator[indicator.adm1_name == "Total"]
 
-        pub_exp = pd.DataFrame(total_data["edu_public_expenditure"])
-        pub_exp = filter_country_sort_year(pub_exp, country)
+    learning_poverty = pd.DataFrame(outcome_data["learning_poverty"])
+    learning_poverty = filter_country_sort_year(learning_poverty, country)
 
-        fig = make_subplots(specs=[[{"secondary_y": True}]])
+    pub_exp = pd.DataFrame(total_data["edu_public_expenditure"])
+    pub_exp = filter_country_sort_year(pub_exp, country)
 
-        fig.add_trace(
-            go.Scatter(
-                name="6-17yo attendance rate",
-                x=indicator.year,
-                y=indicator.attendance_6to17yo,
-                mode="lines+markers",
-                line=dict(color="MediumPurple", shape="spline", dash="dot"),
-                connectgaps=True,
-            ),
-            secondary_y=True,
-        )
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-        fig.add_trace(
-            go.Scatter(
-                name="learning poverty rate",
-                x=learning_poverty.year,
-                y=learning_poverty.learning_poverty_rate,
-                mode="lines+markers",
-                line=dict(color="deeppink", shape="spline", dash="dot"),
-                connectgaps=True,
-            ),
-            secondary_y=True,
-        )
+    fig.add_trace(
+        go.Scatter(
+            name="6-17yo attendance rate",
+            x=indicator.year,
+            y=indicator.attendance_6to17yo,
+            mode="lines+markers",
+            line=dict(color="MediumPurple", shape="spline", dash="dot"),
+            connectgaps=True,
+        ),
+        secondary_y=True,
+    )
 
-        fig.add_trace(
-            go.Scatter(
-                name="inflation adjusted per capita public spending",
-                x=pub_exp.year,
-                y=pub_exp.per_capita_real_expenditure,
-                mode="lines",
-                marker_color="darkblue",
-                opacity=0.6,
-            ),
-            secondary_y=False,
-        )
+    fig.add_trace(
+        go.Scatter(
+            name="learning poverty rate",
+            x=learning_poverty.year,
+            y=learning_poverty.learning_poverty_rate,
+            mode="lines+markers",
+            line=dict(color="deeppink", shape="spline", dash="dot"),
+            connectgaps=True,
+        ),
+        secondary_y=True,
+    )
 
-        fig.update_layout(
-            plot_bgcolor="white",
-            height=500,
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=0.95,
-                xanchor="left",
-                x=0,
-                bgcolor="rgba(0,0,0,0)",
-            ),
-            title=dict(
-                text="How has education outcome changed?",
-                y=0.95,
-                x=0.5,
-                xanchor="center",
-                yanchor="top"
-            ),
-            annotations=[
-                dict(
-                    xref="paper",
-                    yref="paper",
-                    x=-0,
-                    y=-0.2,
-                    text="Source: Education index measured by years of education: UNDP through GDL. <br>"
-                    "BOOST, CPI, Learning Poverty: World Bank; Population: UN, Eurostat",
-                    showarrow=False,
-                    font=dict(size=12),
-                )
-            ],
-        )
+    fig.add_trace(
+        go.Scatter(
+            name="inflation adjusted per capita public spending",
+            x=pub_exp.year,
+            y=pub_exp.per_capita_real_expenditure,
+            mode="lines",
+            marker_color="darkblue",
+            opacity=0.6,
+        ),
+        secondary_y=False,
+    )
 
-        fig.update_yaxes(
-            range=[0, max(pub_exp.per_capita_real_expenditure) * 1.2], secondary_y=False
-        )
-        fig.update_yaxes(range=[0, 1.2], tickformat='.0%', secondary_y=True)
-    except:
-        return empty_plot("No data available for this period"), generate_error_prompt(
-            "DATA_UNAVAILABLE"
-        )
+    fig.update_layout(
+        plot_bgcolor="white",
+        height=500,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=0.95,
+            xanchor="left",
+            x=0,
+            bgcolor="rgba(0,0,0,0)",
+        ),
+        title=dict(
+            text="How has education outcome changed?",
+            y=0.95,
+            x=0.5,
+            xanchor="center",
+            yanchor="top"
+        ),
+        annotations=[
+            dict(
+                xref="paper",
+                yref="paper",
+                x=-0,
+                y=-0.2,
+                text="Source: Education index measured by years of education: UNDP through GDL. <br>"
+                "BOOST, CPI, Learning Poverty: World Bank; Population: UN, Eurostat",
+                showarrow=False,
+                font=dict(size=12),
+            )
+        ],
+    )
+
+    fig.update_yaxes(
+        range=[0, max(pub_exp.per_capita_real_expenditure) * 1.2], secondary_y=False
+    )
+    fig.update_yaxes(range=[0, 1.2], tickformat='.0%', secondary_y=True)
 
     measure = outcome_measure(country)
     narrative = outcome_narrative(

@@ -855,23 +855,9 @@ def render_education_sub_outcome(subnational_outcome_data, country, base_year):
     data = filter_country_sort_year(data, country)
     data = data[data["attendance"].notna()]
 
-    # data = data.loc[
-    #     (data.func == "Education")
-    #     & (data.year <= base_year + 2)
-    #     & (data.year >= base_year)
-    # ]
     data = data.loc[(data.func == "Education") & (data.year == base_year)]
     if data.empty:
         return empty_plot("No attendance data available for this period")
-    pivot = (
-        pd.pivot(data, index="adm1_name", columns="year", values="attendance")
-        .add_prefix("attendance_")
-        .reset_index()
-    )
-    pivot = pivot.merge(
-        data[data.year == base_year][["adm1_name", "per_capita_expenditure"]],
-        on="adm1_name",
-    )
     n = data.shape[0]
     data_expenditure_sorted = data[["adm1_name", "per_capita_expenditure"]].sort_values(
         "per_capita_expenditure", ascending=False
@@ -938,38 +924,6 @@ def render_education_sub_outcome(subnational_outcome_data, country, base_year):
         arrowcolor="rgba(0, 0, 0, 0)",
         text=f"<b>Attendance</b> <br> <b>{base_year}</b>",
     )
-
-    # dimensions = [
-    #     dict(
-    #         label=f"Per Capita Expenditure {base_year}",
-    #         values=pivot.per_capita_expenditure,
-    #         tickvals=pivot.per_capita_expenditure,
-    #         ticktext=pivot.adm1_name,
-    #     )
-    # ]
-
-    # years = data.year.unique()
-    # years.sort()
-    # for year in years:
-    #     dimensions.append(
-    #         dict(
-    #             tickvals=pivot[f"attendance_{year}"],
-    #             label=f"attendance {year}",
-    #             values=pivot[f"attendance_{year}"],
-    #             ticktext=pivot.adm1_name,
-    #         )
-    #     )
-
-    # fig.add_trace(
-    #     go.Parcoords(
-    #         line=dict(
-    #             color=data.per_capita_expenditure,
-    #             colorscale="Magma_r",
-    #             showscale=True,
-    #         ),
-    #         dimensions=dimensions,
-    #     )
-    # )
     narrative = education_sub_narrative(base_year, data)
     return fig, narrative
 

@@ -102,7 +102,7 @@ def get_expenditure_by_country_sub_func_year():
 def get_basic_country_data(countries):
     country_list = "', '".join(countries)
     query = """
-        SELECT country_name, longitude, latitude, income_level FROM indicator.country
+        SELECT country_name, display_lon, display_lat, zoom, income_level FROM indicator.country
     """
     query += f" WHERE country_name IN ('{country_list}')"
     df = execute_query(query)

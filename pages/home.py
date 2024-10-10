@@ -8,9 +8,7 @@ from plotly.subplots import make_subplots
 import numpy as np
 from utils import (
     filter_country_sort_year,
-    map_center,
     filter_geojson_by_country,
-    zoom,
     empty_plot,
     remove_accents,
 )
@@ -559,7 +557,7 @@ def subnational_spending_narrative(
     return f"{exp_narrative} {per_capita_narrative} {corr_narrative}"
 
 
-def regional_spending_choropleth(geojson, df, zmin, zmax, lat, lon):
+def regional_spending_choropleth(geojson, df, zmin, zmax, lat, lon, zoom):
     all_regions = [feature["properties"]["region"] for feature in geojson["features"]]
     regions_without_data = [r for r in all_regions if r not in df.adm1_name.values]
     df_no_data = pd.DataFrame({"region_name": regions_without_data})
@@ -573,10 +571,9 @@ def regional_spending_choropleth(geojson, df, zmin, zmax, lat, lon):
         color="expenditure",
         locations="adm1_name",
         featureidkey="properties.region",
-        # center=map_center(geojson),
         center={"lat": lat, "lon": lon},
         mapbox_style="carto-positron",
-        zoom=zoom.get(country_name, 6),
+        zoom=zoom,
         range_color=[zmin, zmax],
     )
     fig.add_trace(
@@ -586,7 +583,7 @@ def regional_spending_choropleth(geojson, df, zmin, zmax, lat, lon):
             color_discrete_sequence=["rgba(211, 211, 211, 0.3)"],
             locations="region_name",
             featureidkey="properties.region",
-            zoom=zoom.get(country_name, 6),
+            zoom=zoom,
         ).data[0]
     )
     fig.update_layout(
@@ -617,7 +614,7 @@ def regional_spending_choropleth(geojson, df, zmin, zmax, lat, lon):
     return fig
 
 
-def regional_percapita_spending_choropleth(geojson, df, zmin, zmax, lat, lon):
+def regional_percapita_spending_choropleth(geojson, df, zmin, zmax, lat, lon, zoom):
     all_regions = [feature["properties"]["region"] for feature in geojson["features"]]
     regions_without_data = [r for r in all_regions if r not in df.adm1_name.values]
     df_no_data = pd.DataFrame({"region_name": regions_without_data})
@@ -633,9 +630,8 @@ def regional_percapita_spending_choropleth(geojson, df, zmin, zmax, lat, lon):
         locations="adm1_name",
         featureidkey="properties.region",
         center={"lat": lat, "lon": lon},
-        # center=map_center(geojson),
         mapbox_style="carto-positron",
-        zoom=zoom.get(country_name, 6),
+        zoom=zoom,
         range_color=[zmin, zmax],
     )
     fig.add_trace(
@@ -645,7 +641,7 @@ def regional_percapita_spending_choropleth(geojson, df, zmin, zmax, lat, lon):
             color_discrete_sequence=["rgba(211, 211, 211, 0.3)"],
             locations="region_name",
             featureidkey="properties.region",
-            zoom=zoom.get(df.country_name.iloc[0], 6),
+            zoom=zoom,
         ).data[0]
     )
     fig.update_layout(
@@ -677,7 +673,7 @@ def regional_percapita_spending_choropleth(geojson, df, zmin, zmax, lat, lon):
     return fig
 
 
-def subnational_poverty_choropleth(geojson, df, zmin, zmax, lat, lon):
+def subnational_poverty_choropleth(geojson, df, zmin, zmax, lat, lon, zoom):
 
     if df[df.region_name != "National"].empty:
         return empty_plot("Sub-national poverty data not available")
@@ -697,7 +693,7 @@ def subnational_poverty_choropleth(geojson, df, zmin, zmax, lat, lon):
         locations="region_name",
         featureidkey="properties.region",
         center={"lat": lat, "lon": lon},
-        zoom=zoom.get(country_name, 3),
+        zoom=zoom,
         range_color=[zmin, zmax],
         mapbox_style="carto-positron",
     )
@@ -708,7 +704,7 @@ def subnational_poverty_choropleth(geojson, df, zmin, zmax, lat, lon):
             color_discrete_sequence=["rgba(211, 211, 211, 0.3)"],
             locations="region_name",
             featureidkey="properties.region",
-            zoom=zoom.get(country_name, 3),
+            zoom=zoom,
         ).data[0]
     )
     fig.update_layout(
@@ -849,8 +845,9 @@ def render_subnational_spending_figures(data, country_data, country, plot_type, 
         geojson = data["boundaries"]
         lat, lon = [
             country_data["basic_country_info"][country].get(k)
-            for k in ["latitude", "longitude"]
+            for k in ["display_lat", "display_lon"]
         ]
+        zoom = country_data["basic_country_info"][country]['zoom']
 
         filtered_geojson = filter_geojson_by_country(geojson, country)
         df = pd.DataFrame(data["expenditure_by_country_geo1_year"])
@@ -877,6 +874,7 @@ def render_subnational_spending_figures(data, country_data, country, plot_type, 
                 legend_percapita_max,
                 lat,
                 lon,
+                zoom
             )
         else:
             return regional_spending_choropleth(
@@ -886,6 +884,7 @@ def render_subnational_spending_figures(data, country_data, country, plot_type, 
                 legend_expenditure_max,
                 lat,
                 lon,
+                zoom
             )
     except:
         return empty_plot("An error was encountered when producing this figure")
@@ -914,8 +913,9 @@ def render_subnational_poverty_figure(subnational_data, country_data, country, y
         )
         lat, lon = [
             country_data["basic_country_info"][country].get(k)
-            for k in ["latitude", "longitude"]
+            for k in ["display_lat", "display_lon"]
         ]
+        zoom = country_data["basic_country_info"][country]['zoom']
 
         available_years = country_data["basic_country_info"][country].get(
             "poverty_years", []
@@ -932,6 +932,7 @@ def render_subnational_poverty_figure(subnational_data, country_data, country, y
             legend_max,
             lat,
             lon,
+            zoom
         )
     except:
         return empty_plot("An error was encountered when producing this figure")

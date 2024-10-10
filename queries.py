@@ -136,3 +136,19 @@ def get_subnational_poverty_index(countries):
     query += f" WHERE country_name IN ('{country_list}')"
     df = execute_query(query)
     return df
+
+
+def get_universal_health_coverage_index():
+    query = """
+        SELECT * FROM indicator.universal_health_coverage_index_gho
+    """
+    return execute_query(query)
+
+
+def get_health_private_expenditure():
+    query = """
+        SELECT country_name, year, real_expenditure
+        FROM boost.health_private_expenditure_by_country_year
+    """
+    df = execute_query(query)
+    return df

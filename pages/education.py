@@ -855,12 +855,11 @@ def render_education_sub_outcome(subnational_outcome_data, country, base_year):
     data = filter_country_sort_year(data, country)
     data = data[data["attendance"].notna()]
 
-    # data = data.loc[
-    #     (data.func == "Education")
-    #     & (data.year <= base_year + 2)
-    #     & (data.year >= base_year)
-    # ]
-    data = data.loc[(data.func == "Education") & (data.year == base_year)]
+    data = data.loc[
+        (data.func == "Education")
+        & (data.year <= base_year + 2)
+        & (data.year >= base_year)
+    ]
     if data.empty:
         return empty_plot("No attendance data available for this period")
     pivot = (
@@ -873,103 +872,39 @@ def render_education_sub_outcome(subnational_outcome_data, country, base_year):
         on="adm1_name",
     )
     n = data.shape[0]
-    data_expenditure_sorted = data[["adm1_name", "per_capita_expenditure"]].sort_values(
-        "per_capita_expenditure", ascending=False
-    )
-    data_outcome_sorted = data[["attendance", "adm1_name"]].sort_values(
-        "attendance", ascending=False
-    )
-    source = list(data_expenditure_sorted.adm1_name)
-    dest = list(data_outcome_sorted.adm1_name)
-    node_custom_data = [
-        (
-            f"${millify(data_expenditure_sorted.iloc[i]['per_capita_expenditure'])}",
-            data_expenditure_sorted.iloc[i]["adm1_name"],
-        )
-        for i in range(n)
-    ]
-    node_custom_data += [
-        (
-            f"{'{:.2f}'.format(data_outcome_sorted.iloc[i]['attendance'])}%",
-            data_outcome_sorted.iloc[i]["adm1_name"],
-        )
-        for i in range(n)
-    ]
-
-    colors = px.colors.sequential.Rainbow
-    node_colors = [colors[i % len(colors)] for i in range(len(source))]
-    node_colors_opaque = [add_opacity(color, 0.5) for color in node_colors]
-    node_colors += [node_colors[source.index(dest[i])] for i in range(n)]
 
     fig = go.Figure()
+    dimensions = [
+        dict(
+            label=f"Per Capita Expenditure {base_year}",
+            values=pivot.per_capita_expenditure,
+            tickvals=pivot.per_capita_expenditure,
+            ticktext=pivot.adm1_name,
+        )
+    ]
+
+    years = data.year.unique()
+    years.sort()
+    for year in years:
+        dimensions.append(
+            dict(
+                tickvals=pivot[f"attendance_{year}"],
+                label=f"attendance {year}",
+                values=pivot[f"attendance_{year}"],
+                ticktext=pivot.adm1_name,
+            )
+        )
+
     fig.add_trace(
-        go.Sankey(
-            node=dict(
-                pad=50,
-                thickness=20,
-                line=dict(color="black", width=0.2),
-                label=list(source) + [name + "-" for name in list(dest)],
-                y=[(i + 1) / (n + 1) for i in range(n)]
-                + [(i + 1) / (n + 1) for i in range(n)],
-                x=[0.1 for i in range(n)] + [0.9 for i in range(n)],
-                color=node_colors,
-                customdata=node_custom_data,
-                hovertemplate="%{customdata[1]}:  %{customdata[0]}<extra></extra>",
+        go.Parcoords(
+            line=dict(
+                color=data.per_capita_expenditure,
+                colorscale="Magma_r",
+                showscale=True,
             ),
-            link=dict(
-                source=[i for i in range(data.shape[0])],
-                target=[data.shape[0] + dest.index(source[i]) for i in range(n)],
-                color=node_colors_opaque,
-                value=[1 for i in range(n)],
-                hovertemplate="Expenditure: %{source.customdata[0]} <br /> Attendance: %{target.customdata[0]}<extra></extra>",
-            ),
+            dimensions=dimensions,
         )
     )
-
-    fig.add_annotation(
-        x=0.1,
-        y=1,
-        arrowcolor="rgba(0, 0, 0, 0)",
-        text=f"<b>Per Capita Expenditure on Education</b><br> <b>{base_year}</b>",
-    )
-    fig.add_annotation(
-        x=0.9,
-        y=1,
-        arrowcolor="rgba(0, 0, 0, 0)",
-        text=f"<b>Attendance</b> <br> <b>{base_year}</b>",
-    )
-
-    # dimensions = [
-    #     dict(
-    #         label=f"Per Capita Expenditure {base_year}",
-    #         values=pivot.per_capita_expenditure,
-    #         tickvals=pivot.per_capita_expenditure,
-    #         ticktext=pivot.adm1_name,
-    #     )
-    # ]
-
-    # years = data.year.unique()
-    # years.sort()
-    # for year in years:
-    #     dimensions.append(
-    #         dict(
-    #             tickvals=pivot[f"attendance_{year}"],
-    #             label=f"attendance {year}",
-    #             values=pivot[f"attendance_{year}"],
-    #             ticktext=pivot.adm1_name,
-    #         )
-    #     )
-
-    # fig.add_trace(
-    #     go.Parcoords(
-    #         line=dict(
-    #             color=data.per_capita_expenditure,
-    #             colorscale="Magma_r",
-    #             showscale=True,
-    #         ),
-    #         dimensions=dimensions,
-    #     )
-    # )
     narrative = education_sub_narrative(base_year, data)
     return fig, narrative
 

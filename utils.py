@@ -21,8 +21,8 @@ def filter_country_sort_year(df, country, start_year=START_YEAR):
 
     df = df[df.year >= start_year]
     if not df.empty:
-        earliest_year = df['year'].min()
-        df['earliest_year'] = earliest_year
+        earliest_year = df["year"].min()
+        df["earliest_year"] = earliest_year
 
     df = df.sort_values(["year"], ascending=False)
 
@@ -100,7 +100,7 @@ def empty_plot(message):
 
 def get_percentage_change_text(percent):
     if abs(percent) < 0.01:
-        return 'mostly remained unchanged'
+        return "mostly remained unchanged"
     elif percent > 0:
         return f"increased by {percent:.0%}"
     else:
@@ -121,7 +121,7 @@ def get_correlation_text(df, x_col, y_col):
     y_display_name = y_col["display"]
 
     if isnan(pcc):
-        return f'the correlation between {x_display_name} and {y_display_name} is unknown due to limited data availability or variability.'
+        return f"the correlation between {x_display_name} and {y_display_name} is unknown due to limited data availability or variability."
 
     if pcc > 0:
         direction = "positive "
@@ -192,3 +192,9 @@ zoom = {
     "Paraguay": 4.4,
     "Tunisia": 4.5,
 }
+
+
+def add_opacity(rgb, opacity):
+    first = rgb.split(")")[0]
+    rgba = (first + "," + str(opacity) + ")").replace("rgb", "rgba")
+    return rgba

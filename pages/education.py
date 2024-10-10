@@ -6,7 +6,6 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import queries
 from utils import (
-    detect_trend,
     empty_plot,
     filter_country_sort_year,
     generate_error_prompt,
@@ -131,7 +130,6 @@ def render_education_content(tab):
                         ),
                         html.P(
                             id="education-narrative",
-                            children="loading...",
                         ),
                     ])
                 ),

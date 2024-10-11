@@ -258,63 +258,57 @@ def total_health_figure(df):
 
 
 def health_narrative(data, country):
-    try:
-        spending = pd.DataFrame(data["health_public_expenditure"])
-        spending = filter_country_sort_year(spending, country)
-        spending.dropna(
-            subset=["real_expenditure", "central_expenditure"], inplace=True
-        )
+    spending = pd.DataFrame(data["health_public_expenditure"])
+    spending = filter_country_sort_year(spending, country)
+    spending.dropna(
+        subset=["real_expenditure", "central_expenditure"], inplace=True
+    )
 
-        start_year = spending.year.min()
-        end_year = spending.year.max()
-        start_value = spending[spending.year == start_year].real_expenditure.values[0]
-        end_value = spending[spending.year == end_year].real_expenditure.values[0]
-        spending_growth_rate = ((end_value - start_value) / start_value)
-        trend = 'increased' if end_value > start_value else 'decreased'
-        text = f"Between {start_year} and {end_year} after adjusting for inflation, total public spending on health in {country} has {trend} from ${millify(start_value)} to ${millify(end_value)}, reflecting a growth rate of {spending_growth_rate:.0%}. "
+    start_year = spending.year.min()
+    end_year = spending.year.max()
+    start_value = spending[spending.year == start_year].real_expenditure.values[0]
+    end_value = spending[spending.year == end_year].real_expenditure.values[0]
+    spending_growth_rate = ((end_value - start_value) / start_value)
+    trend = 'increased' if end_value > start_value else 'decreased'
+    text = f"Between {start_year} and {end_year} after adjusting for inflation, total public spending on health in {country} has {trend} from ${millify(start_value)} to ${millify(end_value)}, reflecting a growth rate of {spending_growth_rate:.0%}. "
 
-        spending['real_central_expenditure'] = spending.real_expenditure / spending.expenditure * spending.central_expenditure
-        start_value_central = spending[
+    spending['real_central_expenditure'] = spending.real_expenditure / spending.expenditure * spending.central_expenditure
+    start_value_central = spending[
+        spending.year == start_year
+    ].real_central_expenditure.values[0]
+    end_value_central = spending[
+        spending.year == end_year
+    ].real_central_expenditure.values[0]
+
+    spending_growth_rate_central = (
+        (end_value_central - start_value_central) / start_value_central
+    )
+
+    text += f"In this time period, the central government's inflation-adjusted spending has {get_percentage_change_text(spending_growth_rate_central)} "
+
+    if not np.isnan(
+        spending[spending.year == start_year].decentralized_expenditure.values[0]
+    ):
+        spending['real_decentralized_expenditure'] = spending.real_expenditure / spending.expenditure * spending.decentralized_expenditure
+        start_value_decentralized = spending[
             spending.year == start_year
-        ].real_central_expenditure.values[0]
-        end_value_central = spending[
+        ].real_decentralized_expenditure.values[0]
+        end_value_decentralized = spending[
             spending.year == end_year
-        ].real_central_expenditure.values[0]
+        ].real_decentralized_expenditure.values[0]
 
-        spending_growth_rate_central = (
-            (end_value_central - start_value_central) / start_value_central
+        spending_growth_rate_decentralized = (
+            (end_value_decentralized - start_value_decentralized)
+            / start_value_decentralized
+        )
+        decentralized_spending_text = f"while the subnational government's inflation-adjusted spending has {get_percentage_change_text(spending_growth_rate_decentralized)}."
+    else:
+        decentralized_spending_text = (
+            ". The subnational government's data is not available for this period."
         )
 
-        text += f"In this time period, the central government's inflation-adjusted spending has {get_percentage_change_text(spending_growth_rate_central)} "
+    text += decentralized_spending_text
 
-        if not np.isnan(
-            spending[spending.year == start_year].decentralized_expenditure.values[0]
-        ):
-            spending['real_decentralized_expenditure'] = spending.real_expenditure / spending.expenditure * spending.decentralized_expenditure
-            start_value_decentralized = spending[
-                spending.year == start_year
-            ].real_decentralized_expenditure.values[0]
-            end_value_decentralized = spending[
-                spending.year == end_year
-            ].real_decentralized_expenditure.values[0]
-
-            spending_growth_rate_decentralized = (
-                (end_value_decentralized - start_value_decentralized)
-                / start_value_decentralized
-            )
-            decentralized_spending_text = f"while the subnational government's inflation-adjusted spending has {get_percentage_change_text(spending_growth_rate_decentralized)}."
-        else:
-            decentralized_spending_text = (
-                ". The subnational government's data is not available for this period."
-            )
-        text += decentralized_spending_text
-    except IndexError:
-        return generate_error_prompt(
-            "DATA_UNAVAILABLE",
-        )
-    except:
-        traceback.print_exc()
-        return generate_error_prompt("GENERIC_ERROR")
     return text
 
 
@@ -325,16 +319,19 @@ def health_narrative(data, country):
     Input("country-select", "value"),
 )
 def render_overview_total_figure(data, country):
-    try:
-        if data is None:
-            return None
-        all_countries = pd.DataFrame(data["health_public_expenditure"])
-        df = filter_country_sort_year(all_countries, country)
-        fig = total_health_figure(df)
-    except:
-        return empty_plot("No data available for this period"), generate_error_prompt(
-            "DATA_UNAVAILABLE"
+    if data is None:
+        return None
+
+    all_countries = pd.DataFrame(data["health_public_expenditure"])
+    df = filter_country_sort_year(all_countries, country)
+
+    if df.empty:
+        return (
+            empty_plot("No data available for this period"),
+            generate_error_prompt("DATA_UNAVAILABLE"),
         )
+
+    fig = total_health_figure(df)
     return fig, health_narrative(data, country)
 
 

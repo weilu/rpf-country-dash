@@ -386,6 +386,7 @@ def render_public_private_figure(private_data, public_data, country):
         how="inner",
         suffixes=["_private", "_public"],
     )
+    merged = merged.dropna(subset=["real_expenditure_public", "real_expenditure_private"])
 
     if merged.empty:
         if public.empty:

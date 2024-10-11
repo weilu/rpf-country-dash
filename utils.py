@@ -84,7 +84,7 @@ def map_center(geojson):
     return {"lat": center_lat, "lon": center_lon}
 
 
-def empty_plot(message, max_line_length=40):
+def empty_plot(message, fig_title="", max_line_length=40):
     wrapped_text = "<br>".join(textwrap.wrap(message, width=max_line_length))
 
     fig = go.Figure()
@@ -96,6 +96,7 @@ def empty_plot(message, max_line_length=40):
         font=dict(size=14),
     )
     fig.update_layout(
+        title=fig_title,
         xaxis={"visible": False},
         yaxis={"visible": False},
         plot_bgcolor="white",

@@ -377,6 +377,8 @@ def render_public_private_figure(private_data, public_data, country):
     if not private_data or not public_data:
         return
 
+    fig_title = "What % was spent by the govt vs household?"
+
     private = pd.DataFrame(private_data["health_private_expenditure"])
     private = filter_country_sort_year(private, country)
 
@@ -405,7 +407,7 @@ def render_public_private_figure(private_data, public_data, country):
             )
         else:
             prompt = "Available public and private spending data on health do not have an overlapping time period."
-        return (empty_plot(prompt), prompt)
+        return (empty_plot(prompt, fig_title=fig_title), prompt)
 
     merged["private_percentage"] = merged["real_expenditure_private"] / (
         merged["real_expenditure_private"] + merged["real_expenditure_public"]
@@ -457,7 +459,7 @@ def render_public_private_figure(private_data, public_data, country):
         barmode="stack",
         plot_bgcolor="white",
         legend=dict(orientation="h", yanchor="bottom", y=1),
-        title="What % was spent by the govt vs household?",
+        title=fig_title,
         annotations=[
             dict(
                 xref="paper",

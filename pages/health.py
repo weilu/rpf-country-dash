@@ -301,13 +301,20 @@ def health_narrative(data, country):
             (end_value_decentralized - start_value_decentralized)
             / start_value_decentralized
         )
-        decentralized_spending_text = f"while the subnational government's inflation-adjusted spending has {get_percentage_change_text(spending_growth_rate_decentralized)}."
+        spending_change_regional = f"while the subnational government's inflation-adjusted spending has {get_percentage_change_text(spending_growth_rate_decentralized)}. "
     else:
-        decentralized_spending_text = (
-            ". The subnational government's data is not available for this period."
+        spending_change_regional = (
+            ". The subnational government's data is not available for this period. "
         )
 
-    text += decentralized_spending_text
+    text += spending_change_regional
+
+    decentralization = spending[spending.year == end_year].expenditure_decentralization.values[0]
+    if pd.isna(decentralization) or decentralization == 0:
+        spending_decentralization = "The extent of health spending decentralization is unknown due to a lack of subnational public expenditure data."
+    else:
+        spending_decentralization = f'By {end_year}, {decentralization:.1%} of health spending has been decentralized.'
+    text += spending_decentralization
 
     return text
 

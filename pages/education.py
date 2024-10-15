@@ -854,10 +854,11 @@ def render_education_sub_outcome(subnational_outcome_data, country, base_year):
     data = pd.DataFrame(subnational_outcome_data["edu_subnational_expenditure"])
     data = filter_country_sort_year(data, country)
     data = data[data["attendance"].notna()]
-
     data = data.loc[(data.func == "Education") & (data.year == base_year)]
     if data.empty:
-        return empty_plot("No attendance data available for this period")
+        return empty_plot(
+            "No attendance data available for this period"
+        ), generate_error_prompt("DATA_UNAVAILABLE")
     n = data.shape[0]
     data_expenditure_sorted = data[["adm1_name", "per_capita_expenditure"]].sort_values(
         "per_capita_expenditure", ascending=False
@@ -882,16 +883,21 @@ def render_education_sub_outcome(subnational_outcome_data, country, base_year):
         for i in range(n)
     ]
 
-    colors = px.colors.sequential.Rainbow
-    node_colors = [colors[i % len(colors)] for i in range(len(source))]
-    node_colors_opaque = [add_opacity(color, 0.5) for color in node_colors]
+    gradient_n = 1 if n < 6 else 2 if n < 11 else 3
+
+    color_highs = px.colors.sequential.Oranges[-1 * gradient_n :]
+    colors_lows = px.colors.sequential.Blues[-1 * gradient_n :]
+    node_colors = (
+        color_highs[::-1] + ["rgb(169,169,169)"] * (n - 2 * gradient_n) + colors_lows
+    )
+    # node_colors = [colors[i % len(colors)] for i in range(len(source))]
+    node_colors_opaque = [add_opacity(color, 0.7) for color in node_colors]
     node_colors += [node_colors[source.index(dest[i])] for i in range(n)]
 
     fig = go.Figure()
     fig.add_trace(
         go.Sankey(
             node=dict(
-                pad=50,
                 thickness=20,
                 line=dict(color="black", width=0.2),
                 label=list(source) + [name + "-" for name in list(dest)],
@@ -924,6 +930,17 @@ def render_education_sub_outcome(subnational_outcome_data, country, base_year):
         arrowcolor="rgba(0, 0, 0, 0)",
         text=f"<b>Attendance</b> <br> <b>{base_year}</b>",
     )
+
+    rank_mapping = {0: "1st", 10: "10th", 20: "20th", 30: "30th", 40: "40th"}
+    for i in range(0, n + 1, 10):
+        fig.add_annotation(
+            y=1 - ((i + 1) / (n + 1)),
+            x=0.075,
+            yshift=10,
+            text=f"<b>{rank_mapping[i]}</b>",
+            showarrow=False,
+        )
+
     narrative = education_sub_narrative(base_year, data)
     return fig, narrative
 

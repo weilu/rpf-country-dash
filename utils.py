@@ -8,6 +8,7 @@ from shapely.geometry import shape, MultiPolygon, Polygon
 import plotly.graph_objects as go
 import unicodedata
 from math import isnan
+import textwrap
 
 
 def filter_country_sort_year(df, country, start_year=START_YEAR):
@@ -83,17 +84,22 @@ def map_center(geojson):
     return {"lat": center_lat, "lon": center_lon}
 
 
-def empty_plot(message):
+def empty_plot(message, fig_title="", max_line_length=40):
+    wrapped_text = "<br>".join(textwrap.wrap(message, width=max_line_length))
+
     fig = go.Figure()
     fig.add_annotation(
-        text=message,
+        text=wrapped_text,
         xref="paper",
         yref="paper",
         showarrow=False,
         font=dict(size=14),
     )
     fig.update_layout(
-        xaxis={"visible": False}, yaxis={"visible": False}, plot_bgcolor="white"
+        title=fig_title,
+        xaxis={"visible": False},
+        yaxis={"visible": False},
+        plot_bgcolor="white",
     )
     return fig
 

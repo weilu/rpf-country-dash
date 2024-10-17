@@ -136,3 +136,11 @@ def get_subnational_poverty_index(countries):
     query += f" WHERE country_name IN ('{country_list}')"
     df = execute_query(query)
     return df
+
+
+def expenditure_and_outcome_by_country_geo1_func_year():
+    query = """
+        SELECT * FROM boost.expenditure_and_outcome_by_country_geo1_func_year
+    """
+    df = execute_query(query)
+    return df

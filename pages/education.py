@@ -118,8 +118,6 @@ def fetch_edu_sub_func_data_once(edu_data):
 )
 def fetch_edu_subnational_data_once(edu_data):
     if edu_data is None:
-
-        # filter shared data down to education specific
         subnational_data = queries.expenditure_and_outcome_by_country_geo1_func_year()
 
         return {
@@ -863,7 +861,6 @@ def render_education_sub_outcome(subnational_outcome_data, country, base_year):
     node_colors = (
         color_highs[::-1] + ["rgb(169,169,169)"] * (n - 2 * gradient_n) + colors_lows
     )
-    # node_colors = [colors[i % len(colors)] for i in range(len(source))]
     node_colors_opaque = [add_opacity(color, 0.7) for color in node_colors]
     node_colors += [node_colors[source.index(dest[i])] for i in range(n)]
 
@@ -949,16 +946,16 @@ def education_sub_narrative(year, data):
     Input("country-select", "value"),
 )
 def update_education_year_range(data, country):
-    try:
-        data = pd.DataFrame(data["edu_subnational_expenditure"])
-        data = data.loc[(data.func == "Education")]
+    data = pd.DataFrame(data["edu_subnational_expenditure"])
+    data = data.loc[(data.func == "Education")]
 
-        data = filter_country_sort_year(data, country)
-        data = data[data["attendance"].notna()]
-        years = list(data.year.astype("int").unique())
-        years_test = [year for year in years if year % 2 == 0]
-        years.sort()
-        configs = slider_helper(years, years_test)
-        return configs
-    except Exception as e:
+    data = filter_country_sort_year(data, country)
+    
+    if data.empty:
         return {"display": "block"}, {}, 0, 0, 0, {}
+
+    expenditure_years = list(data.year.astype("int").unique())
+    data = data[data["attendance"].notna()]
+    outcome_years = list(data.year.astype("int").unique())
+    configs = slider_helper(expenditure_years, outcome_years)
+    return configs

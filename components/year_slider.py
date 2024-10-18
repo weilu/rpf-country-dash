@@ -48,15 +48,16 @@ def slider_helper(expenditure_years, outcome_years):
             {"template": "data not available", "always_visible": True},
         )
 
-    common_years = set(outcome_years).intersection(set(expenditure_years))
+    common_years = [year for year in expenditure_years if year in outcome_years]
     min_year, max_year = expenditure_years[0], expenditure_years[-1]
 
     marks = {
         str(year): ({"label": str(year), "style": {"color": "white"}})
+        if year in common_years else {"label": str(year), "style": {"color": "black"}}
         for year in expenditure_years
     }
 
-    selected_year = max_year
+    selected_year = max(common_years) if common_years else max_year
     return (
         {"display": "block"},
         marks,

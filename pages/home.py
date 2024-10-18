@@ -13,6 +13,8 @@ from utils import (
     remove_accents,
 )
 
+from components import slider, get_slider_config
+
 dash.register_page(__name__)
 
 layout = html.Div(
@@ -141,19 +143,7 @@ def render_overview_content(tab):
                     [
                         dbc.Col(width=1),
                         dbc.Col(
-                            html.Div(
-                                id="year-slider-container",
-                                children=[
-                                    dcc.Slider(
-                                        id="year-slider",
-                                        min=0,
-                                        max=0,
-                                        value=None,
-                                        step=None,
-                                        included=False,
-                                    ),
-                                ],
-                            ),
+                            slider("year-slider", "year-slider-container"),
                             width=10,
                         ),
                     ]
@@ -797,7 +787,7 @@ def render_overview_total_figure(data, country):
     Output("year-slider", "value"),
     Output("year-slider", "min"),
     Output("year-slider", "max"),
-    Output("year-slider", "disabled"),
+    Output("year-slider", "tooltip"),
     Input("stored-basic-country-data", "data"),
     Input("country-select", "value"),
 )
@@ -807,26 +797,10 @@ def update_year_range(data, country):
         expenditure_years = data[country].get("expenditure_years", [])
         poverty_years = data[country].get("poverty_years", [])
 
-        if not expenditure_years:
-            return {"display": "none"}, {}, 0, 0, 0, True
-
-        common_years = set(poverty_years).intersection(set(expenditure_years))
-        min_year, max_year = expenditure_years[0], expenditure_years[-1]
-
-        marks = {
-            year: (
-                {"label": str(year), "style": {"color": "white"}}
-                if year in common_years
-                else {"label": str(year), "style": {"color": "black"}}
-            )
-            for year in expenditure_years
-        }
-
-        selected_year = max_year
-        return {"display": "block"}, marks, selected_year, min_year, max_year, False
-
+        slider_configs = get_slider_config(expenditure_years, poverty_years)
+        return slider_configs
     except Exception as e:
-        return {"display": "block"}, {}, 0, 0, 0, True
+        return {"display": "block"}, {}, 0, 0, 0, {}
 
 
 @callback(

@@ -3,6 +3,7 @@ from dash import html, dcc, callback, Input, Output
 import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.express as px
 from plotly.subplots import make_subplots
 import queries
 from utils import (
@@ -13,9 +14,11 @@ from utils import (
     get_correlation_text,
     get_percentage_change_text,
     millify,
+    add_opacity,
 )
 import numpy as np
 import traceback
+from components.year_slider import slider, get_slider_config
 
 
 dash.register_page(__name__)
@@ -42,6 +45,7 @@ layout = html.Div(
         dcc.Store(id="stored-data-education-outcome"),
         dcc.Store(id="stored-data-education-private"),
         dcc.Store(id="stored-data-education-sub-func"),
+        dcc.Store(id="stored-data-education-subnational"),
     ]
 )
 
@@ -104,6 +108,20 @@ def fetch_edu_sub_func_data_once(edu_data):
         exp_by_sub_func = queries.get_expenditure_by_country_sub_func_year()
         return {
             "expenditure_by_country_sub_func_year": exp_by_sub_func.to_dict("records"),
+        }
+    return dash.no_update
+
+
+@callback(
+    Output("stored-data-education-subnational", "data"),
+    Input("stored-data-education-subnational", "data"),
+)
+def fetch_edu_subnational_data_once(edu_data):
+    if edu_data is None:
+        subnational_data = queries.expenditure_and_outcome_by_country_geo1_func_year()
+
+        return {
+            "edu_subnational_expenditure": subnational_data.to_dict("records"),
         }
     return dash.no_update
 
@@ -240,7 +258,61 @@ def render_education_content(tab):
             ]
         )
     elif tab == "edu-tab-space":
-        return html.Div("Preparing spatial analysis for education data...")
+        return html.Div(
+            [
+                dbc.Row(
+                    dbc.Col(
+                        html.H3(
+                            id="education-subnational-title",
+                            children="How does spending on education vary across regions?",
+                        )
+                    )
+                ),
+                dbc.Row(
+                    dbc.Col(
+                        [
+                            html.P(
+                                id="education-subnational-narrative",
+                                children="loading...",
+                            ),
+                        ]
+                    )
+                ),
+                dbc.Row(style={"height": "20px"}),
+                dbc.Row(
+                    [
+                        dbc.Col(width=1),
+                        html.Div(
+                            id="year_slider_edu_container",
+                            children=[
+                                dcc.Slider(
+                                    id="year_slider_edu",
+                                    min=0,
+                                    max=0,
+                                    value=None,
+                                    step=None,
+                                    included=False,
+                                ),
+                            ],
+                        ),
+                    ]
+                ),
+                dbc.Row(
+                    [
+                        dbc.Col(
+                            dcc.Graph(
+                                id="education-subnational",
+                                config={"displayModeBar": False},
+                            ),
+                            xs={"size": 12, "offset": 0},
+                            sm={"size": 12, "offset": 0},
+                            md={"size": 12, "offset": 0},
+                            lg={"size": 12, "offset": 0},
+                        )
+                    ]
+                ),
+            ],
+        )
 
 
 def total_edu_figure(df):
@@ -736,3 +808,153 @@ def render_education_sub_func(sub_func_data, country):
 
     narrative = education_sub_func_narrative(parents_values, country)
     return fig, narrative
+
+
+
+@callback(
+    Output("education-subnational", "figure"),
+    Output("education-subnational-narrative", "children"),
+    Input("stored-data-education-subnational", "data"),
+    Input("country-select", "value"),
+    Input("year_slider_edu", "value"),
+)
+def render_education_sub_outcome(subnational_outcome_data, country, base_year):
+    if not subnational_outcome_data or not country:
+        return
+
+    data = pd.DataFrame(subnational_outcome_data["edu_subnational_expenditure"])
+    data = filter_country_sort_year(data, country)
+    data = data[data["attendance"].notna()]
+    data = data.loc[(data.func == "Education") & (data.year == base_year)]
+    if data.empty:
+        return empty_plot(
+            "No attendance data available for this period"
+        ), generate_error_prompt("DATA_UNAVAILABLE")
+    n = data.shape[0]
+    data_expenditure_sorted = data[["adm1_name", "per_capita_expenditure"]].sort_values(
+        "per_capita_expenditure", ascending=False
+    )
+    data_outcome_sorted = data[["attendance", "adm1_name"]].sort_values(
+        "attendance", ascending=False
+    )
+    source = list(data_expenditure_sorted.adm1_name)
+    dest = list(data_outcome_sorted.adm1_name)
+    node_custom_data = [
+        (
+            f"${millify(data_expenditure_sorted.iloc[i]['per_capita_expenditure'])}",
+            data_expenditure_sorted.iloc[i]["adm1_name"],
+        )
+        for i in range(n)
+    ]
+    node_custom_data += [
+        (
+            f"{'{:.2f}'.format(data_outcome_sorted.iloc[i]['attendance'])}%",
+            data_outcome_sorted.iloc[i]["adm1_name"],
+        )
+        for i in range(n)
+    ]
+
+    gradient_n = 1 if n < 6 else 2 if n < 11 else 3
+
+    color_highs = px.colors.sequential.Oranges[-1 * gradient_n :]
+    colors_lows = px.colors.sequential.Blues[-1 * gradient_n :]
+    node_colors = (
+        color_highs[::-1] + ["rgb(169,169,169)"] * (n - 2 * gradient_n) + colors_lows
+    )
+    node_colors_opaque = [add_opacity(color, 0.7) for color in node_colors]
+    node_colors += [node_colors[source.index(dest[i])] for i in range(n)]
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Sankey(
+            node=dict(
+                thickness=20,
+                line=dict(color="black", width=0.2),
+                label=list(source) + [name + "-" for name in list(dest)],
+                y=[(i + 1) / (n + 1) for i in range(n)]
+                + [(i + 1) / (n + 1) for i in range(n)],
+                x=[0.1 for i in range(n)] + [0.9 for i in range(n)],
+                color=node_colors,
+                customdata=node_custom_data,
+                hovertemplate="%{customdata[1]}:  %{customdata[0]}<extra></extra>",
+            ),
+            link=dict(
+                source=[i for i in range(data.shape[0])],
+                target=[data.shape[0] + dest.index(source[i]) for i in range(n)],
+                color=node_colors_opaque,
+                value=[1 for i in range(n)],
+                hovertemplate="Expenditure: %{source.customdata[0]} <br /> Attendance: %{target.customdata[0]}<extra></extra>",
+            ),
+        )
+    )
+
+    fig.add_annotation(
+        x=0.1,
+        y=1,
+        arrowcolor="rgba(0, 0, 0, 0)",
+        text=f"<b>Per Capita Expenditure on Education</b><br> <b>{base_year}</b>",
+    )
+    fig.add_annotation(
+        x=0.9,
+        y=1,
+        arrowcolor="rgba(0, 0, 0, 0)",
+        text=f"<b>Attendance</b> <br> <b>{base_year}</b>",
+    )
+
+    rank_mapping = {0: "1st", 10: "10th", 20: "20th", 30: "30th", 40: "40th"}
+    for i in range(0, n + 1, 10):
+        fig.add_annotation(
+            y=1 - ((i + 1) / (n + 1)),
+            x=0.075,
+            yshift=10,
+            text=f"<b>{rank_mapping[i]}</b>",
+            showarrow=False,
+        )
+
+    narrative = education_sub_narrative(base_year, data)
+    return fig, narrative
+
+
+def education_sub_narrative(year, data):
+
+    data["ROI"] = data.attendance / data.per_capita_expenditure
+    PCC = get_correlation_text(
+        data,
+        {"col_name": "ROI", "display": "ROI"},
+        {
+            "col_name": "per_capita_expenditure",
+            "display": "per capita expenditure on education",
+        },
+    )
+
+    narrative = f"In {year}, {PCC}"
+    best_ROI = data[data["ROI"] == data.ROI.max()].adm1_name.values[0]
+    worst_ROI = data[data["ROI"] == data.ROI.min()].adm1_name.values[0]
+
+    narrative += f" Among the subnational regions, in terms of return on public spending on education measured by attendance, {best_ROI} had the highest return on investment (ROI) while {worst_ROI} had the lowest."
+    return narrative
+
+
+@callback(
+    Output("year_slider_edu_container", "style"),
+    Output("year_slider_edu", "marks"),
+    Output("year_slider_edu", "value"),
+    Output("year_slider_edu", "min"),
+    Output("year_slider_edu", "max"),
+    Output("year_slider_edu", "tooltip"),
+    Input("stored-data-education-subnational", "data"),
+    Input("country-select", "value"),
+)
+def update_education_year_range(data, country):
+    data = pd.DataFrame(data["edu_subnational_expenditure"])
+    data = data.loc[(data.func == "Education")]
+
+    data = filter_country_sort_year(data, country)
+    
+    if data.empty:
+        return {"display": "block"}, {}, 0, 0, 0, {}
+
+    expenditure_years = list(data.year.astype("int").unique())
+    data = data[data["attendance"].notna()]
+    outcome_years = list(data.year.astype("int").unique())
+    return get_slider_config(expenditure_years, outcome_years)

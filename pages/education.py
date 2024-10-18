@@ -18,7 +18,7 @@ from utils import (
 )
 import numpy as np
 import traceback
-from components.year_slider import slider, slider_helper
+from components.year_slider import slider, get_slider_config
 
 
 dash.register_page(__name__)
@@ -957,5 +957,5 @@ def update_education_year_range(data, country):
     expenditure_years = list(data.year.astype("int").unique())
     data = data[data["attendance"].notna()]
     outcome_years = list(data.year.astype("int").unique())
-    configs = slider_helper(expenditure_years, outcome_years)
+    configs = get_slider_config(expenditure_years, outcome_years)
     return configs

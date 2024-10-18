@@ -28,7 +28,7 @@ def slider(id, container_id):
 #           - min_year: the minimum year
 #           - max_year: the maximum year
 #           - tooltip: tooltip configuration for the slider
-def slider_helper(expenditure_years, outcome_years):
+def get_slider_config(expenditure_years, outcome_years):
     expenditure_years.sort()
     outcome_years.sort()
     if not expenditure_years:

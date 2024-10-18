@@ -13,7 +13,7 @@ from utils import (
     remove_accents,
 )
 
-from components import slider, slider_helper
+from components import slider, get_slider_config
 
 dash.register_page(__name__)
 
@@ -797,7 +797,7 @@ def update_year_range(data, country):
         expenditure_years = data[country].get("expenditure_years", [])
         poverty_years = data[country].get("poverty_years", [])
 
-        slider_configs = slider_helper(expenditure_years, poverty_years)
+        slider_configs = get_slider_config(expenditure_years, poverty_years)
         return slider_configs
     except Exception as e:
         return {"display": "block"}, {}, 0, 0, 0, {}

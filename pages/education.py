@@ -7,7 +7,6 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import queries
 from utils import (
-    detect_trend,
     empty_plot,
     filter_country_sort_year,
     generate_error_prompt,
@@ -149,7 +148,6 @@ def render_education_content(tab):
                         ),
                         html.P(
                             id="education-narrative",
-                            children="loading...",
                         ),
                     ])
                 ),
@@ -372,63 +370,64 @@ def total_edu_figure(df):
 
 
 def education_narrative(data, country):
-    try:
-        spending = pd.DataFrame(data["edu_public_expenditure"])
-        spending = filter_country_sort_year(spending, country)
-        spending.dropna(
-            subset=["real_expenditure", "central_expenditure"], inplace=True
-        )
+    spending = pd.DataFrame(data["edu_public_expenditure"])
+    spending = filter_country_sort_year(spending, country)
+    spending.dropna(
+        subset=["real_expenditure", "central_expenditure"], inplace=True
+    )
 
-        start_year = spending.year.min()
-        end_year = spending.year.max()
-        start_value = spending[spending.year == start_year].real_expenditure.values[0]
-        end_value = spending[spending.year == end_year].real_expenditure.values[0]
-        spending_growth_rate = ((end_value - start_value) / start_value)
-        trend = 'increased' if end_value > start_value else 'decreased'
-        text = f"Between {start_year} and {end_year} after adjusting for inflation, total public spending on education in {country} has {trend} from ${millify(start_value)} to ${millify(end_value)}, reflecting a growth rate of {spending_growth_rate:.0%}. "
+    start_year = spending.year.min()
+    end_year = spending.year.max()
+    start_value = spending[spending.year == start_year].real_expenditure.values[0]
+    end_value = spending[spending.year == end_year].real_expenditure.values[0]
+    spending_growth_rate = ((end_value - start_value) / start_value)
+    trend = 'increased' if end_value > start_value else 'decreased'
+    text = f"Between {start_year} and {end_year} after adjusting for inflation, total public spending on education in {country} has {trend} from ${millify(start_value)} to ${millify(end_value)}, reflecting a growth rate of {spending_growth_rate:.0%}. "
 
-        spending['real_central_expenditure'] = spending.real_expenditure / spending.expenditure * spending.central_expenditure
-        start_value_central = spending[
+    spending['real_central_expenditure'] = spending.real_expenditure / spending.expenditure * spending.central_expenditure
+    start_value_central = spending[
+        spending.year == start_year
+    ].real_central_expenditure.values[0]
+    end_value_central = spending[
+        spending.year == end_year
+    ].real_central_expenditure.values[0]
+
+    spending_growth_rate_central = (
+        (end_value_central - start_value_central) / start_value_central
+    )
+
+    text += f"In this time period, the central government's inflation-adjusted spending has {get_percentage_change_text(spending_growth_rate_central)} "
+
+    if not np.isnan(
+        spending[spending.year == start_year].decentralized_expenditure.values[0]
+    ):
+        spending['real_decentralized_expenditure'] = spending.real_expenditure / spending.expenditure * spending.decentralized_expenditure
+        start_value_decentralized = spending[
             spending.year == start_year
-        ].real_central_expenditure.values[0]
-        end_value_central = spending[
+        ].real_decentralized_expenditure.values[0]
+        end_value_decentralized = spending[
             spending.year == end_year
-        ].real_central_expenditure.values[0]
+        ].real_decentralized_expenditure.values[0]
 
-        spending_growth_rate_central = (
-            (end_value_central - start_value_central) / start_value_central
+        spending_growth_rate_decentralized = (
+            (end_value_decentralized - start_value_decentralized)
+            / start_value_decentralized
+        )
+        spending_change_regional = f"while the subnational government's inflation-adjusted spending has {get_percentage_change_text(spending_growth_rate_decentralized)}. "
+    else:
+        spending_change_regional = (
+            ". The subnational government's data is not available for this period. "
         )
 
-        text += f"In this time period, the central government's inflation-adjusted spending has {get_percentage_change_text(spending_growth_rate_central)} "
+    text += spending_change_regional
 
-        if not np.isnan(
-            spending[spending.year == start_year].decentralized_expenditure.values[0]
-        ):
-            spending['real_decentralized_expenditure'] = spending.real_expenditure / spending.expenditure * spending.decentralized_expenditure
-            start_value_decentralized = spending[
-                spending.year == start_year
-            ].real_decentralized_expenditure.values[0]
-            end_value_decentralized = spending[
-                spending.year == end_year
-            ].real_decentralized_expenditure.values[0]
+    decentralization = spending[spending.year == end_year].expenditure_decentralization.values[0]
+    if pd.isna(decentralization) or decentralization == 0:
+        spending_decentralization = "The extent of education spending decentralization is unknown due to a lack of subnational public expenditure data."
+    else:
+        spending_decentralization = f'By {end_year}, {decentralization:.1%} of education spending has been decentralized.'
+    text += spending_decentralization
 
-            spending_growth_rate_decentralized = (
-                (end_value_decentralized - start_value_decentralized)
-                / start_value_decentralized
-            )
-            decentralized_spending_text = f"while the subnational government's inflation-adjusted spending has {get_percentage_change_text(spending_growth_rate_decentralized)}."
-        else:
-            decentralized_spending_text = (
-                ". The subnational government's data is not available for this period."
-            )
-        text += decentralized_spending_text
-    except IndexError:
-        return generate_error_prompt(
-            "DATA_UNAVAILABLE",
-        )
-    except:
-        traceback.print_exc()
-        return generate_error_prompt("GENERIC_ERROR")
     return text
 
 
@@ -439,16 +438,19 @@ def education_narrative(data, country):
     Input("country-select", "value"),
 )
 def render_overview_total_figure(data, country):
-    try:
-        if data is None:
-            return None
-        all_countries = pd.DataFrame(data["edu_public_expenditure"])
-        df = filter_country_sort_year(all_countries, country)
-        fig = total_edu_figure(df)
-    except:
-        return empty_plot("No data available for this period"), generate_error_prompt(
-            "DATA_UNAVAILABLE"
+    if data is None:
+        return None
+
+    all_countries = pd.DataFrame(data["edu_public_expenditure"])
+    df = filter_country_sort_year(all_countries, country)
+
+    if df.empty:
+        return (
+            empty_plot("No data available for this period"),
+            generate_error_prompt("DATA_UNAVAILABLE"),
         )
+
+    fig = total_edu_figure(df)
     return fig, education_narrative(data, country)
 
 
@@ -487,6 +489,8 @@ def render_public_private_figure(private_data, public_data, country):
     if not private_data or not public_data:
         return
 
+    fig_title = "What % was spent by the govt vs household?"
+
     private = pd.DataFrame(private_data["edu_private_expenditure"])
     private = filter_country_sort_year(private, country)
 
@@ -500,6 +504,7 @@ def render_public_private_figure(private_data, public_data, country):
         how="inner",
         suffixes=["_private", "_public"],
     )
+    merged = merged.dropna(subset=["real_expenditure_public", "real_expenditure_private"])
 
     if merged.empty:
         if public.empty:
@@ -514,7 +519,7 @@ def render_public_private_figure(private_data, public_data, country):
             )
         else:
             prompt = "Available public and private spending data on education do not have an overlapping time period."
-        return (empty_plot(prompt), prompt)
+        return (empty_plot(prompt, fig_title=fig_title), prompt)
 
     merged["private_percentage"] = merged["real_expenditure_private"] / (
         merged["real_expenditure_private"] + merged["real_expenditure_public"]
@@ -566,7 +571,7 @@ def render_public_private_figure(private_data, public_data, country):
         barmode="stack",
         plot_bgcolor="white",
         legend=dict(orientation="h", yanchor="bottom", y=1),
-        title="What % was spent by the govt vs household?",
+        title=fig_title,
         annotations=[
             dict(
                 xref="paper",
@@ -619,97 +624,94 @@ def outcome_narrative(outcome_df, pov_df, expenditure_df, country):
     Input("country-select", "value"),
 )
 def render_education_outcome(outcome_data, total_data, country):
-    try:
-        if not total_data or not outcome_data:
-            return
-        indicator = pd.DataFrame(outcome_data["hd_index"])
-        indicator = filter_country_sort_year(indicator, country)
-        indicator = indicator[indicator.adm1_name == "Total"]
+    if not total_data or not outcome_data:
+        return
 
-        learning_poverty = pd.DataFrame(outcome_data["learning_poverty"])
-        learning_poverty = filter_country_sort_year(learning_poverty, country)
+    indicator = pd.DataFrame(outcome_data["hd_index"])
+    indicator = filter_country_sort_year(indicator, country)
+    indicator = indicator[indicator.adm1_name == "Total"]
 
-        pub_exp = pd.DataFrame(total_data["edu_public_expenditure"])
-        pub_exp = filter_country_sort_year(pub_exp, country)
+    learning_poverty = pd.DataFrame(outcome_data["learning_poverty"])
+    learning_poverty = filter_country_sort_year(learning_poverty, country)
 
-        fig = make_subplots(specs=[[{"secondary_y": True}]])
+    pub_exp = pd.DataFrame(total_data["edu_public_expenditure"])
+    pub_exp = filter_country_sort_year(pub_exp, country)
 
-        fig.add_trace(
-            go.Scatter(
-                name="6-17yo attendance rate",
-                x=indicator.year,
-                y=indicator.attendance_6to17yo,
-                mode="lines+markers",
-                line=dict(color="MediumPurple", shape="spline", dash="dot"),
-                connectgaps=True,
-            ),
-            secondary_y=True,
-        )
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-        fig.add_trace(
-            go.Scatter(
-                name="learning poverty rate",
-                x=learning_poverty.year,
-                y=learning_poverty.learning_poverty_rate,
-                mode="lines+markers",
-                line=dict(color="deeppink", shape="spline", dash="dot"),
-                connectgaps=True,
-            ),
-            secondary_y=True,
-        )
+    fig.add_trace(
+        go.Scatter(
+            name="6-17yo attendance rate",
+            x=indicator.year,
+            y=indicator.attendance_6to17yo,
+            mode="lines+markers",
+            line=dict(color="MediumPurple", shape="spline", dash="dot"),
+            connectgaps=True,
+        ),
+        secondary_y=True,
+    )
 
-        fig.add_trace(
-            go.Scatter(
-                name="inflation adjusted per capita public spending",
-                x=pub_exp.year,
-                y=pub_exp.per_capita_real_expenditure,
-                mode="lines",
-                marker_color="darkblue",
-                opacity=0.6,
-            ),
-            secondary_y=False,
-        )
+    fig.add_trace(
+        go.Scatter(
+            name="learning poverty rate",
+            x=learning_poverty.year,
+            y=learning_poverty.learning_poverty_rate,
+            mode="lines+markers",
+            line=dict(color="deeppink", shape="spline", dash="dot"),
+            connectgaps=True,
+        ),
+        secondary_y=True,
+    )
 
-        fig.update_layout(
-            plot_bgcolor="white",
-            height=500,
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=0.95,
-                xanchor="left",
-                x=0,
-                bgcolor="rgba(0,0,0,0)",
-            ),
-            title=dict(
-                text="How has education outcome changed?",
-                y=0.95,
-                x=0.5,
-                xanchor="center",
-                yanchor="top"
-            ),
-            annotations=[
-                dict(
-                    xref="paper",
-                    yref="paper",
-                    x=-0,
-                    y=-0.2,
-                    text="Source: Education index measured by years of education: UNDP through GDL. <br>"
-                    "BOOST, CPI, Learning Poverty: World Bank; Population: UN, Eurostat",
-                    showarrow=False,
-                    font=dict(size=12),
-                )
-            ],
-        )
+    fig.add_trace(
+        go.Scatter(
+            name="inflation adjusted per capita public spending",
+            x=pub_exp.year,
+            y=pub_exp.per_capita_real_expenditure,
+            mode="lines",
+            marker_color="darkblue",
+            opacity=0.6,
+        ),
+        secondary_y=False,
+    )
 
-        fig.update_yaxes(
-            range=[0, max(pub_exp.per_capita_real_expenditure) * 1.2], secondary_y=False
-        )
-        fig.update_yaxes(range=[0, 1.2], tickformat='.0%', secondary_y=True)
-    except:
-        return empty_plot("No data available for this period"), generate_error_prompt(
-            "DATA_UNAVAILABLE"
-        )
+    fig.update_layout(
+        plot_bgcolor="white",
+        height=500,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=0.95,
+            xanchor="left",
+            x=0,
+            bgcolor="rgba(0,0,0,0)",
+        ),
+        title=dict(
+            text="How has education outcome changed?",
+            y=0.95,
+            x=0.5,
+            xanchor="center",
+            yanchor="top"
+        ),
+        annotations=[
+            dict(
+                xref="paper",
+                yref="paper",
+                x=-0,
+                y=-0.2,
+                text="Source: Education index measured by years of education: UNDP through GDL. <br>"
+                "BOOST, CPI, Learning Poverty: World Bank; Population: UN, Eurostat",
+                showarrow=False,
+                font=dict(size=12),
+            )
+        ],
+        hoverlabel_namelength=-1,
+    )
+
+    fig.update_yaxes(
+        range=[0, max(pub_exp.per_capita_real_expenditure) * 1.2], secondary_y=False
+    )
+    fig.update_yaxes(range=[0, 1.2], tickformat='.0%', secondary_y=True)
 
     measure = outcome_measure(country)
     narrative = outcome_narrative(

@@ -62,8 +62,7 @@ sidebar = html.Div(
                 dbc.NavLink(
                     "Education", href=get_relative_path("education"), active="exact"
                 ),
-                # Hide health until charts & narrative are populated
-                # dbc.NavLink("Health", href=get_relative_path("health"), active="exact"),
+                dbc.NavLink("Health", href=get_relative_path("health"), active="exact"),
                 dbc.NavLink("About", href=get_relative_path("about"), active="exact"),
             ],
             vertical=True,
@@ -227,39 +226,6 @@ def fetch_country_data_once(countries, subnational_data, country_data):
 
         return {"basic_country_info": country_info}
     return dash.no_update
-
-
-@app.long_callback(
-    Output("health-content", "children"),
-    Input("health-tabs", "active_tab"),
-    running=[
-        (
-            Output("health-spinner", "style"),
-            {"display": "block"},
-            {"display": "none"},
-        ),
-        (
-            Output("health-content", "style"),
-            {"display": "none"},
-            {"display": "block"},
-        ),
-    ],
-)
-def render_health_content(tab):
-    if tab == "health-tab-time":
-        return html.Div(
-            [
-                "Time series viz"
-                # dcc.Graph(id='edu-plot', figure=make_edu_plot(gdp, country))
-            ]
-        )
-    elif tab == "health-tab-space":
-        return html.Div(
-            [
-                "Geospatial viz"
-                # dcc.Graph(id='health-plot', figure=make_health_plot(gdp, country))
-            ]
-        )
 
 
 server = app.server

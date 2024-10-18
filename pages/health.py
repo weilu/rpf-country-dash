@@ -569,6 +569,7 @@ def render_health_outcome(outcome_data, total_data, country):
                 font=dict(size=12),
             )
         ],
+        hoverlabel_namelength=-1,
     )
 
     fig.update_yaxes(

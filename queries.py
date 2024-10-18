@@ -102,7 +102,7 @@ def get_expenditure_by_country_sub_func_year():
 def get_basic_country_data(countries):
     country_list = "', '".join(countries)
     query = """
-        SELECT country_name, longitude, latitude, income_level FROM indicator.country
+        SELECT country_name, display_lon, display_lat, zoom, income_level FROM indicator.country
     """
     query += f" WHERE country_name IN ('{country_list}')"
     df = execute_query(query)
@@ -144,11 +144,17 @@ def get_universal_health_coverage_index():
     """
     return execute_query(query)
 
-
 def get_health_private_expenditure():
     query = """
         SELECT country_name, year, real_expenditure
         FROM boost.health_private_expenditure_by_country_year
+    """
+    return execute_query(query)
+
+
+def expenditure_and_outcome_by_country_geo1_func_year():
+    query = """
+        SELECT * FROM boost.expenditure_and_outcome_by_country_geo1_func_year
     """
     df = execute_query(query)
     return df

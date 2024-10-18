@@ -198,3 +198,9 @@ zoom = {
     "Paraguay": 4.4,
     "Tunisia": 4.5,
 }
+
+
+def add_opacity(rgb, opacity):
+    first = rgb.split(")")[0]
+    rgba = (first + "," + str(opacity) + ")").replace("rgb", "rgba")
+    return rgba

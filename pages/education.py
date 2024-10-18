@@ -957,5 +957,4 @@ def update_education_year_range(data, country):
     expenditure_years = list(data.year.astype("int").unique())
     data = data[data["attendance"].notna()]
     outcome_years = list(data.year.astype("int").unique())
-    configs = get_slider_config(expenditure_years, outcome_years)
-    return configs
+    return get_slider_config(expenditure_years, outcome_years)

@@ -891,28 +891,45 @@ def render_education_sub_outcome(subnational_outcome_data, country, base_year):
     )
 
     fig.add_annotation(
+        y=1-fig.data[0].node.y[0],
+        x=fig.data[0].node.x[0] - 0.05,
+        yshift=-10,
+        yref="paper",
+        yanchor="bottom",
+        text=f"<b>1st</b>",
+        showarrow=False,
+        align="right",
+    )
+    rank_mapping = {9: "10th", 19: "20th", 29: "30th", 39: "40th"}
+    for i in range(9,n,10):
+        fig.add_annotation(
+            y=1-fig.data[0].node.y[i],
+            x=fig.data[0].node.x[i] -  0.05,
+            yshift=-10,
+            yref="paper",
+            yanchor="bottom",
+            text=f"<b>{rank_mapping[i]}</b>",
+            showarrow=False,
+            align="right",
+        )
+    font_size = 12 if n < 30 else 8
+    fig.update_layout(
+        font_size=font_size
+    )
+    fig.add_annotation(
+        font=dict(size=12),
         x=0.1,
         y=1,
         arrowcolor="rgba(0, 0, 0, 0)",
         text=f"<b>Per Capita Expenditure on Education</b><br> <b>{base_year}</b>",
     )
     fig.add_annotation(
+        font=dict(size=12),
         x=0.9,
         y=1,
         arrowcolor="rgba(0, 0, 0, 0)",
         text=f"<b>Attendance</b> <br> <b>{base_year}</b>",
     )
-
-    rank_mapping = {0: "1st", 10: "10th", 20: "20th", 30: "30th", 40: "40th"}
-    for i in range(0, n + 1, 10):
-        fig.add_annotation(
-            y=1 - ((i + 1) / (n + 1)),
-            x=0.075,
-            yshift=10,
-            text=f"<b>{rank_mapping[i]}</b>",
-            showarrow=False,
-        )
-
     narrative = education_sub_narrative(base_year, data)
     return fig, narrative
 

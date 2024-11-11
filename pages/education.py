@@ -5,7 +5,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
-import queries
+from queries import QueryService
 from utils import (
     empty_plot,
     filter_country_sort_year,
@@ -19,6 +19,7 @@ import numpy as np
 import traceback
 from components.year_slider import slider, get_slider_config
 
+db = QueryService.get_instance()
 
 dash.register_page(__name__)
 
@@ -74,9 +75,9 @@ def fetch_edu_total_data_once(edu_data, shared_data):
 )
 def fetch_edu_outcome_data_once(edu_data, shared_data):
     if edu_data is None:
-        learning_poverty = queries.get_learning_poverty_rate()
+        learning_poverty = db.get_learning_poverty_rate()
 
-        hd_index = queries.get_hd_index(shared_data["countries"])
+        hd_index = db.get_hd_index(shared_data["countries"])
 
         return {
             "learning_poverty": learning_poverty.to_dict("records"),
@@ -91,7 +92,7 @@ def fetch_edu_outcome_data_once(edu_data, shared_data):
 )
 def fetch_edu_private_data_once(edu_data):
     if edu_data is None:
-        priv_exp = queries.get_edu_private_expenditure()
+        priv_exp = db.get_edu_private_expenditure()
         return {
             "edu_private_expenditure": priv_exp.to_dict("records"),
         }
@@ -104,7 +105,7 @@ def fetch_edu_private_data_once(edu_data):
 )
 def fetch_edu_sub_func_data_once(edu_data):
     if edu_data is None:
-        exp_by_sub_func = queries.get_expenditure_by_country_sub_func_year()
+        exp_by_sub_func = db.get_expenditure_by_country_sub_func_year()
         return {
             "expenditure_by_country_sub_func_year": exp_by_sub_func.to_dict("records"),
         }
@@ -117,7 +118,7 @@ def fetch_edu_sub_func_data_once(edu_data):
 )
 def fetch_edu_subnational_data_once(edu_data):
     if edu_data is None:
-        subnational_data = queries.expenditure_and_outcome_by_country_geo1_func_year()
+        subnational_data = db.expenditure_and_outcome_by_country_geo1_func_year()
 
         return {
             "edu_subnational_expenditure": subnational_data.to_dict("records"),

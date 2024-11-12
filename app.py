@@ -6,6 +6,7 @@ from dash.long_callback import DiskcacheLongCallbackManager
 import pandas as pd
 import queries
 import json
+import dash_auth
 
 import diskcache
 
@@ -36,7 +37,14 @@ CONTENT_STYLE = {
     "padding": "2rem 1rem",
 }
 
-
+# Keep this out of source code repository - save in a file or a database
+VALID_USERNAME_PASSWORD_PAIRS = {
+    'hello': 'world'
+}
+auth = dash_auth.BasicAuth(
+    app,
+    VALID_USERNAME_PASSWORD_PAIRS
+)
 def get_relative_path(page_name):
     return dash.page_registry[f"pages.{page_name}"]["relative_path"]
 

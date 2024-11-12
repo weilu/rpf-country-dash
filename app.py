@@ -6,8 +6,8 @@ from dash.long_callback import DiskcacheLongCallbackManager
 import pandas as pd
 import queries
 import json
-
 import diskcache
+from auth import setup_basic_auth
 
 cache = diskcache.Cache("./cache")
 long_callback_manager = DiskcacheLongCallbackManager(cache)
@@ -20,6 +20,8 @@ app = dash.Dash(
     suppress_callback_exceptions=True,
     use_pages=True,
 )
+
+auth = setup_basic_auth(app)
 
 SIDEBAR_STYLE = {
     "position": "fixed",

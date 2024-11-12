@@ -6,14 +6,8 @@ from dash.long_callback import DiskcacheLongCallbackManager
 import pandas as pd
 import queries
 import json
-from dash_auth import BasicAuth
-import bcrypt
 import diskcache
-import os
-
-USER_NAME = os.getenv("USER_NAME")
-SALTED_PASSWORD = os.getenv("SALTED_PASSWORD")
-
+from auth import setup_basic_auth
 
 cache = diskcache.Cache("./cache")
 long_callback_manager = DiskcacheLongCallbackManager(cache)
@@ -26,6 +20,8 @@ app = dash.Dash(
     suppress_callback_exceptions=True,
     use_pages=True,
 )
+
+setup_basic_auth(app)
 
 SIDEBAR_STYLE = {
     "position": "fixed",
@@ -42,24 +38,7 @@ CONTENT_STYLE = {
     "padding": "2rem 1rem",
 }
 
-VALID_USERNAME_SALT_PASSWORD_PAIRS = {
-    USER_NAME: SALTED_PASSWORD
-}
 
-
-def authorization_function(username, password):
-    if username not in VALID_USERNAME_SALT_PASSWORD_PAIRS:
-        return False
-    salted_password = VALID_USERNAME_SALT_PASSWORD_PAIRS[username]
-    return bcrypt.checkpw(password.encode("utf-8"), salted_password.encode("utf-8"))
-    
-
-if USER_NAME:
-    auth = BasicAuth(
-    app,
-    auth_func=authorization_function
-)
-    
 def get_relative_path(page_name):
     return dash.page_registry[f"pages.{page_name}"]["relative_path"]
 

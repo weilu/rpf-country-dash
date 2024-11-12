@@ -21,7 +21,7 @@ app = dash.Dash(
     use_pages=True,
 )
 
-setup_basic_auth(app)
+auth = setup_basic_auth(app)
 
 SIDEBAR_STYLE = {
     "position": "fixed",

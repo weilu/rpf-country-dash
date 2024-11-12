@@ -4,7 +4,7 @@ import os
 
 USER_NAME = os.getenv("USER_NAME")
 SALTED_PASSWORD = os.getenv("SALTED_PASSWORD")
-
+SECRET_KEY = os.getenv("SECRET_KEY")
 CREDENTIAL_STORE = {
     USER_NAME: SALTED_PASSWORD
 }
@@ -19,4 +19,4 @@ def authenticate(username, password):
 
 def setup_basic_auth(app):
     if USER_NAME and SALTED_PASSWORD:
-        return BasicAuth(app, auth_func=authenticate)
+        return BasicAuth(app, auth_func=authenticate, secret_key=SECRET_KEY)

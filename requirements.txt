@@ -6,3 +6,5 @@ databricks-sql-connector
 dash[diskcache]
 gunicorn
 shapely
+dash-auth>=2.3.0
+bcrypt

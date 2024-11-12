@@ -11,7 +11,7 @@ import bcrypt
 import diskcache
 import os
 
-USER_NAME = os.getenv("USERNAME")
+USER_NAME = os.getenv("USER_NAME")
 SALTED_PASSWORD = os.getenv("SALTED_PASSWORD")
 
 
@@ -48,19 +48,18 @@ VALID_USERNAME_SALT_PASSWORD_PAIRS = {
 
 
 def authorization_function(username, password):
-    # if no username is set, allow access for local development
-    if not USER_NAME:
-        return True
-    
     if username not in VALID_USERNAME_SALT_PASSWORD_PAIRS:
         return False
     salted_password = VALID_USERNAME_SALT_PASSWORD_PAIRS[username]
-    return bcrypt.checkpw(password, salted_password)
+    return bcrypt.checkpw(password.encode("utf-8"), salted_password.encode("utf-8"))
     
-auth = BasicAuth(
+
+if USER_NAME:
+    auth = BasicAuth(
     app,
     auth_func=authorization_function
 )
+    
 def get_relative_path(page_name):
     return dash.page_registry[f"pages.{page_name}"]["relative_path"]
 

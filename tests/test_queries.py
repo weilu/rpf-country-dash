@@ -29,17 +29,14 @@ class TestQueryService(unittest.TestCase):
         instance2 = QueryService.get_instance()
         self.assertIs(instance1, instance2)
 
-    @patch("queries.PUBLIC_ONLY", True)
-    def test_fetch_data_init_country_whitelist_when_public_only(self):
-        self.assertIsNone(self.query_service.country_whitelist)
-        df = self.query_service.fetch_data("SELECT * FROM test_table")
-        self.assertIsNotNone(self.query_service.country_whitelist)
+    def test_init_country_whitelist_conditions_on_public_only(self):
+        with patch("queries.PUBLIC_ONLY", False):
+            service = QueryService()
+            self.assertIsNone(service.country_whitelist)
 
-    @patch("queries.PUBLIC_ONLY", False)
-    def test_fetch_data_does_not_init_country_whitelist_when_not_public_only(self):
-        self.assertIsNone(self.query_service.country_whitelist)
-        df = self.query_service.fetch_data("SELECT * FROM test_table")
-        self.assertIsNone(self.query_service.country_whitelist)
+        with patch("queries.PUBLIC_ONLY", True):
+            service = QueryService()
+            self.assertIsNotNone(service.country_whitelist)
 
     @patch("queries.PUBLIC_ONLY", False)
     def test_fetch_data_no_filter(self):

@@ -19,6 +19,13 @@ class QueryService:
 
     def __init__(self):
         self.country_whitelist = None
+        if PUBLIC_ONLY:
+            query = """
+                SELECT country_name
+                FROM boost.data_availability
+                WHERE boost_public = 'Yes'
+            """
+            self.country_whitelist = self.execute_query(query)["country_name"].tolist()
 
     def execute_query(self, query):
         """
@@ -36,24 +43,14 @@ class QueryService:
         conn.close()
         return df
 
-    def _initialize_country_whitelist(self):
-        if PUBLIC_ONLY and self.country_whitelist is None:
-            query = """
-                SELECT country_name
-                FROM boost.data_availability
-                WHERE boost_public = 'Yes'
-            """
-            self.country_whitelist = self.execute_query(query)["country_name"].tolist()
+    def fetch_data(self, query):
+        df = self.execute_query(query)
+        return self._apply_country_whitelist_filter(df)
 
     def _apply_country_whitelist_filter(self, df):
         if self.country_whitelist is not None and 'country_name' in df.columns:
             return df[df['country_name'].isin(self.country_whitelist)]
         return df
-
-    def fetch_data(self, query):
-        self._initialize_country_whitelist()
-        df = self.execute_query(query)
-        return self._apply_country_whitelist_filter(df)
 
     def get_expenditure_w_poverty_by_country_year(self):
         query = """

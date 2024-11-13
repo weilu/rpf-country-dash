@@ -4,7 +4,7 @@ from dash import dcc, html
 from dash.dependencies import Input, Output
 from dash.long_callback import DiskcacheLongCallbackManager
 import pandas as pd
-import queries
+from queries import QueryService
 import json
 import diskcache
 from auth import setup_basic_auth
@@ -38,6 +38,7 @@ CONTENT_STYLE = {
     "padding": "2rem 1rem",
 }
 
+db = QueryService.get_instance()
 
 def get_relative_path(page_name):
     return dash.page_registry[f"pages.{page_name}"]["relative_path"]
@@ -104,7 +105,7 @@ def redirect_default(url_pathname):
 @app.callback(Output("stored-data", "data"), Input("stored-data", "data"))
 def fetch_data_once(data):
     if data is None:
-        df = queries.get_expenditure_w_poverty_by_country_year()
+        df = db.get_expenditure_w_poverty_by_country_year()
         countries = sorted(df["country_name"].unique())
         return {
             "countries": countries,
@@ -116,8 +117,8 @@ def fetch_data_once(data):
 @app.callback(Output("stored-data-func", "data"), Input("stored-data-func", "data"))
 def fetch_func_data_once(data):
     if data is None:
-        func_df = queries.get_expenditure_by_country_func_year()
-        func_econ_df = queries.get_expenditure_by_country_func_econ_year()
+        func_df = db.get_expenditure_by_country_func_year()
+        func_econ_df = db.get_expenditure_by_country_func_econ_year()
         return {
             "expenditure_by_country_func_econ_year": func_econ_df.to_dict("records"),
             "expenditure_by_country_func_year": func_df.to_dict("records"),
@@ -133,7 +134,7 @@ def fetch_func_data_once(data):
 def fetch_subnational_data_once(data, country_data):
     countries = country_data["countries"]
     if data is None:
-        df = queries.get_adm_boundaries(countries)
+        df = db.get_adm_boundaries(countries)
 
         boundaries_geojson = {
             "type": "FeatureCollection",
@@ -146,8 +147,8 @@ def fetch_subnational_data_once(data, country_data):
             ],
         }
 
-        subnational_poverty_df = queries.get_subnational_poverty_index(countries)
-        geo1_year_df = queries.get_expenditure_by_country_geo1_year()
+        subnational_poverty_df = db.get_subnational_poverty_index(countries)
+        geo1_year_df = db.get_expenditure_by_country_geo1_year()
         return {
             "subnational_poverty_index": subnational_poverty_df.to_dict("records"),
             "boundaries": boundaries_geojson,
@@ -182,7 +183,7 @@ def display_data(data):
 def fetch_country_data_once(countries, subnational_data, country_data):
     countries = [x["label"] for x in countries]
     if country_data is None:
-        country_df = queries.get_basic_country_data(countries)
+        country_df = db.get_basic_country_data(countries)
         country_info = country_df.set_index("country_name").T.to_dict()
 
         expenditure_df = pd.DataFrame(

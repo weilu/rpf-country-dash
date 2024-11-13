@@ -4,7 +4,7 @@ import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import queries
+from queries import QueryService
 from utils import (
     empty_plot,
     filter_country_sort_year,
@@ -16,6 +16,7 @@ from utils import (
 import numpy as np
 import traceback
 
+db = QueryService.get_instance()
 
 dash.register_page(__name__)
 
@@ -69,7 +70,7 @@ def fetch_health_total_data_once(health_data, shared_data):
 )
 def fetch_health_outcome_data_once(health_data):
     if health_data is None:
-        uhc_index = queries.get_universal_health_coverage_index()
+        uhc_index = db.get_universal_health_coverage_index()
 
         return {
             "uhc_index": uhc_index.to_dict("records"),
@@ -83,7 +84,7 @@ def fetch_health_outcome_data_once(health_data):
 )
 def fetch_health_private_data_once(health_data):
     if health_data is None:
-        priv_exp = queries.get_health_private_expenditure()
+        priv_exp = db.get_health_private_expenditure()
         return {
             "health_private_expenditure": priv_exp.to_dict("records"),
         }
@@ -96,7 +97,7 @@ def fetch_health_private_data_once(health_data):
 )
 def fetch_health_sub_func_data_once(health_data):
     if health_data is None:
-        exp_by_sub_func = queries.get_expenditure_by_country_sub_func_year()
+        exp_by_sub_func = db.get_expenditure_by_country_sub_func_year()
         return {
             "expenditure_by_country_sub_func_year": exp_by_sub_func.to_dict("records"),
         }

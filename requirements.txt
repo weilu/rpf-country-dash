@@ -6,6 +6,5 @@ databricks-sql-connector
 dash[diskcache]
 gunicorn
 shapely
-flask
 flask_login
 bcrypt

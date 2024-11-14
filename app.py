@@ -8,17 +8,15 @@ import pandas as pd
 from queries import QueryService
 import json
 import diskcache
-from flask import Flask, session
-from flask_login import LoginManager, current_user, logout_user
-import os 
+from flask_login import current_user, logout_user
+import os
 
-from auth import User, attempt_login
+from server import server
 
 cache = diskcache.Cache("./cache")
 long_callback_manager = DiskcacheLongCallbackManager(cache)
 
 dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
-server = Flask(__name__)
 app = dash.Dash(
     __name__,
     server=server,
@@ -27,23 +25,6 @@ app = dash.Dash(
     suppress_callback_exceptions=True,
     use_pages=True,
 )
-# Updating the Flask Server configuration with Secret Key to encrypt the user session cookie
-server.config.update(SECRET_KEY=os.getenv("SECRET_KEY"))
-
-# Login manager object will be used to login / logout users
-login_manager = LoginManager()
-login_manager.init_app(server)
-login_manager.login_view = "/login"
-
-
-
-@login_manager.user_loader
-def load_user(username):
-    """This function loads the user by user id. Typically this looks up the user from a user database.
-    We won't be registering or looking up users in this example, since we'll just login using LDAP server.
-    So we'll simply return a User object with the passed in username.
-    """
-    return User(username)
 
 HEADER_STYLE = {
     "display": "flex",
@@ -77,7 +58,14 @@ def get_relative_path(page_name):
 
 header = html.Div(
     [
-        html.Div(id="user-status-header")
+        html.Div(id="user-status-header", children=[
+            html.A(
+                children="logout",
+                n_clicks=0,
+                id="logout-button",
+                style={"display": "none"}
+            )
+        ])
     ],
     style=HEADER_STYLE
 )
@@ -85,7 +73,7 @@ header = html.Div(
 sidebar = html.Div(
     [
         dbc.Row(
-            [   
+            [
                 html.Img(
                     src=app.get_asset_url("rpf_logo.png"), style={"height": "100"}
                 )
@@ -132,41 +120,33 @@ app.layout = html.Div(
 )
 
 @app.callback(
-    Output("div-for-redirect", "children"),
-    Input("logout-button", "n_clicks"),
-    prevent_initial_call=True,
+    [Output("url", "pathname"), Output("page-content", "children")],
+    [Input("url", "pathname"), Input("logout-button", "n_clicks")]
 )
-def logout(n_clicks):
-    if n_clicks > 0:
+def display_page_or_redirect(pathname, logout_clicks):
+    if logout_clicks:
         logout_user()
-        return dcc.Location(pathname="/login", id="someid_doesnt_matter")
-    return dash.no_update
+        return "/login", dash.page_container
 
-    
-@app.callback(
-    Output("user-status-header", "children"),
-    Input("url", "pathname"),
-)
-def update_authentication_status(path):
-    if path == "/":
-        return dcc.Location(pathname="/about", id="url")
     if current_user.is_authenticated:
-        return html.A(children="logout", n_clicks=0, id="logout-button", style={"text-decoration": "underline", "cursor": "pointer"})
-    if path == "/login":
-        return html.Div()
-    return dcc.Link("login", href="/login")
+        if pathname == "/login" or pathname is None:
+            return "/home", dash.page_container
+        return pathname, dash.page_container
+    else:
+        if pathname != "/login":
+            return "/login", dash.page_container
+        return pathname, dash.page_container
 
 
 @app.callback(
-    Output("hidden_div_for_redirect_callback", "children"),
-    Input("login-button", "n_clicks"),
-    State("uname-box", "value"),
-    State("pwd-box", "value"),
+    Output("logout-button", "style"),
+    Input("url", "pathname")
 )
-def login_button_click(n_clicks, username, password):
-    if n_clicks > 0:
-        return attempt_login(username, password)
-    return dash.no_update
+def update_logout_button_visibility(pathname):
+    if current_user.is_authenticated:
+        return {"display": "block", "text-decoration": "underline", "cursor": "pointer"}
+    else:
+        return {"display": "none"}
 
 
 @app.callback(Output("stored-data", "data"), Input("stored-data", "data"))

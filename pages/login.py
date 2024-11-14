@@ -1,7 +1,8 @@
 import dash
-from dash import html, dcc
+from dash import html, dcc, callback, Output, Input, State
+from auth import authenticate
 
-dash.register_page(__name__, path_template="/login")
+dash.register_page(__name__)
 
 def layout():
     return html.Div(
@@ -14,3 +15,17 @@ def layout():
         html.Br(),
     ]
 )
+
+@callback(
+    Output("hidden_div_for_redirect_callback", "children"),
+    Input("login-button", "n_clicks"),
+    State("uname-box", "value"),
+    State("pwd-box", "value"),
+)
+def login_button_click(n_clicks, username, password):
+    if n_clicks > 0:
+        if authenticate(username, password):
+            return dcc.Location(pathname=f"/home", id="home")
+        else:
+            return "Invalid credentials"
+    return dash.no_update

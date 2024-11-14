@@ -2,6 +2,7 @@ import dash
 from dash import html, dcc, callback, Input, Output
 import dash_bootstrap_components as dbc
 import pandas as pd
+from flask_login import current_user
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
@@ -19,11 +20,16 @@ import numpy as np
 import traceback
 from components.year_slider import slider, get_slider_config
 
+
 db = QueryService.get_instance()
 
 dash.register_page(__name__)
 
-layout = html.Div(
+def layout():
+    if not current_user.is_authenticated:
+        return dcc.Location(pathname="/login", id="login-redirect-home")
+    
+    return html.Div(
     children=[
         dbc.Card(
             dbc.CardBody(

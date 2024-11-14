@@ -1,27 +1,59 @@
 import dash
 import dash_bootstrap_components as dbc
 from dash import dcc, html
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State, ALL
+from flask import redirect
+
 from dash.long_callback import DiskcacheLongCallbackManager
 import pandas as pd
 from queries import QueryService
 import json
 import diskcache
-from auth import setup_basic_auth
+from flask import Flask, session
+from flask_login import login_user, LoginManager, UserMixin, current_user, logout_user
+import os 
 
 cache = diskcache.Cache("./cache")
 long_callback_manager = DiskcacheLongCallbackManager(cache)
 
 dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
+server = Flask(__name__)
 app = dash.Dash(
     __name__,
+    server=server,
     external_stylesheets=[dbc.themes.QUARTZ, dbc_css],
     long_callback_manager=long_callback_manager,
     suppress_callback_exceptions=True,
     use_pages=True,
 )
+# Updating the Flask Server configuration with Secret Key to encrypt the user session cookie
+server.config.update(SECRET_KEY=os.getenv("SECRET_KEY"))
 
-auth = setup_basic_auth(app)
+# Login manager object will be used to login / logout users
+login_manager = LoginManager()
+login_manager.init_app(server)
+login_manager.login_view = "/login"
+
+class User(UserMixin):
+    # User data model. It has to have at least self.id as a minimum
+    def __init__(self, username):
+        self.id = username
+
+USER_NAME = os.getenv("USER_NAME")
+SALTED_PASSWORD = os.getenv("SALTED_PASSWORD")
+SECRET_KEY = os.getenv("SECRET_KEY")
+CREDENTIAL_STORE = {
+    USER_NAME: SALTED_PASSWORD
+}
+
+@login_manager.user_loader
+def load_user(username):
+    """This function loads the user by user id. Typically this looks up the user from a user database.
+    We won't be registering or looking up users in this example, since we'll just login using LDAP server.
+    So we'll simply return a User object with the passed in username.
+    """
+    return User(username)
+
 
 SIDEBAR_STYLE = {
     "position": "fixed",
@@ -47,7 +79,7 @@ def get_relative_path(page_name):
 sidebar = html.Div(
     [
         dbc.Row(
-            [
+            [   html.Div(id="user-status-header"),
                 html.Img(
                     src=app.get_asset_url("rpf_logo.png"), style={"height": "100"}
                 ),
@@ -92,19 +124,51 @@ app.layout = html.Div(
     ]
 )
 
+@app.callback(
+    Output("div-for-redirect", "children"),
+    Input("logout-button", "n_clicks"),
+    prevent_initial_call=True,
+)
+def logout(n_clicks):
+    if n_clicks > 0:
+        logout_user()
+        return dcc.Location(pathname="/login", id="someid_doesnt_matter")
+    return dash.no_update
 
-@app.callback(Output("div-for-redirect", "children"), Input("url", "pathname"))
-def redirect_default(url_pathname):
-    known_paths = list(p["relative_path"] for p in dash.page_registry.values())
-    if url_pathname not in known_paths:
-        return dcc.Location(pathname=get_relative_path("home"), id="redirect-me")
-    else:
-        return ""
+    
+@app.callback(
+    Output("user-status-header", "children"),
+    Input("url", "pathname"),
+)
+def update_authentication_status(path):
+    if path == "/":
+        return dcc.Location(pathname="/home", id="someid_doesnt_matter")
+    if current_user.is_authenticated:
+        return html.Button(children="logout", n_clicks=0, id="logout-button"),
+    return dcc.Link("login", href="/login")
+
+
+@app.callback(
+    Output("hidden_div_for_redirect_callback", "children"),
+    Input("login-button", "n_clicks"),
+    Input('url', 'pathname'),
+    State("uname-box", "value"),
+    State("pwd-box", "value"),
+)
+def login_button_click(n_clicks, path, username, password):
+    if n_clicks > 0:
+        if CREDENTIAL_STORE.get(username) is None:
+            return "Invalid username"
+        if CREDENTIAL_STORE.get(username) == password:
+            login_user(User(username))
+            return dcc.Location(pathname=f"/home", id="home")
+        return "Incorrect  password"
+    return dash.no_update
 
 
 @app.callback(Output("stored-data", "data"), Input("stored-data", "data"))
 def fetch_data_once(data):
-    if data is None:
+    if data is None and current_user and current_user.is_authenticated:
         df = db.get_expenditure_w_poverty_by_country_year()
         countries = sorted(df["country_name"].unique())
         return {
@@ -116,7 +180,7 @@ def fetch_data_once(data):
 
 @app.callback(Output("stored-data-func", "data"), Input("stored-data-func", "data"))
 def fetch_func_data_once(data):
-    if data is None:
+    if data is None and current_user and current_user.is_authenticated:
         func_df = db.get_expenditure_by_country_func_year()
         func_econ_df = db.get_expenditure_by_country_func_econ_year()
         return {
@@ -132,8 +196,8 @@ def fetch_func_data_once(data):
     Input("stored-data", "data"),
 )
 def fetch_subnational_data_once(data, country_data):
-    countries = country_data["countries"]
-    if data is None:
+    if data is None and current_user and current_user.is_authenticated:
+        countries = country_data["countries"]
         df = db.get_adm_boundaries(countries)
 
         boundaries_geojson = {
@@ -168,7 +232,7 @@ def display_data(data):
         options[0]["selected"] = True
         return options
 
-    if data is not None:
+    if data is not None and current_user and current_user.is_authenticated:
         countries = data["countries"]
         return get_country_select_options(countries), countries[0]
     return ["No data available"], ""
@@ -181,8 +245,8 @@ def display_data(data):
     Input("stored-basic-country-data", "data"),
 )
 def fetch_country_data_once(countries, subnational_data, country_data):
-    countries = [x["label"] for x in countries]
-    if country_data is None:
+    if country_data is None and current_user and current_user.is_authenticated:
+        countries = [x["label"] for x in countries]
         country_df = db.get_basic_country_data(countries)
         country_info = country_df.set_index("country_name").T.to_dict()
 
@@ -231,7 +295,6 @@ def fetch_country_data_once(countries, subnational_data, country_data):
     return dash.no_update
 
 
-server = app.server
 
 if __name__ == "__main__":
     app.run_server(debug=True)

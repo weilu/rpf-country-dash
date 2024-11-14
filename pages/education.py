@@ -53,7 +53,7 @@ layout = html.Div(
 @callback(
     Output("stored-data-education-total", "data"),
     Input("stored-data-education-total", "data"),
-    Input("stored-data-func", "data"),
+    Input("stored-data-func-econ", "data"),
 )
 def fetch_edu_total_data_once(edu_data, shared_data):
     if edu_data is None:

@@ -49,7 +49,7 @@ layout = html.Div(
 @callback(
     Output("stored-data-health-total", "data"),
     Input("stored-data-health-total", "data"),
-    Input("stored-data-func", "data"),
+    Input("stored-data-func-econ", "data"),
 )
 def fetch_health_total_data_once(health_data, shared_data):
     if health_data is None:

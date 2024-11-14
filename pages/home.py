@@ -124,6 +124,43 @@ def render_overview_content(tab):
                         ),
                     ],
                 ),
+                dbc.Row(
+                    dbc.Col(
+                        html.Hr(),
+                    )
+                ),
+                dbc.Row(
+                    dbc.Col(
+                        html.H3(
+                            children="Spending by Economic Categories",
+                        )
+                    )
+                ),
+                dbc.Row(
+                    [
+                        # How much was spent on each economic category?
+                        dbc.Col(
+                            html.P(
+                                id="economic-narrative",
+                                children="loading...",
+                            ),
+                            xs={"size": 12, "offset": 0},
+                            sm={"size": 12, "offset": 0},
+                            md={"size": 12, "offset": 0},
+                            lg={"size": 4, "offset": 0},
+                        ),
+                        dbc.Col(
+                            dcc.Graph(
+                                id="economic-breakdown",
+                                config={"displayModeBar": False},
+                            ),
+                            xs={"size": 12, "offset": 0},
+                            sm={"size": 12, "offset": 0},
+                            md={"size": 12, "offset": 0},
+                            lg={"size": 8, "offset": 0},
+                        ),
+                    ],
+                ),
             ]
         )
     elif tab == "overview-tab-space":
@@ -445,54 +482,157 @@ def functional_narrative(df):
     n = 3
     top_funcs = mean_percentage.sort_values(by="percentage", ascending=False).head(n)
     text += f"On average, the top {n} spending functional categories are "
-    text += (
-        ", ".join(
-            [
-                f"{row['func']} ({row['percentage']:.1f}%)"
-                for _, row in top_funcs.iterrows()
-            ]
-        )
-        + "; "
-    )
+    text += format_func_cats_with_numbers(top_funcs, format_percentage)
+    text += "; "
 
     bottom_funcs = mean_percentage.sort_values(by="percentage", ascending=True).head(n)
     text += f"while the bottom {n} spenders are "
-    text += (
-        ", ".join(
-            [
-                f"{row['func']} ({row['percentage']:.1f}%)"
-                for _, row in bottom_funcs.iterrows()
-            ]
-        )
-        + ". "
-    )
+    text += format_func_cats_with_numbers(bottom_funcs, format_percentage)
+    text += ". "
 
     std_percentage = df.groupby("func")["percentage"].std().reset_index()
     m = 2
     stable_funcs = std_percentage.sort_values(by="percentage", ascending=True).head(m)
     text += f"Relatively, public expenditure remain the most stable in "
-    text += (
-        " and ".join(
-            [
-                f"{row['func']} (std={row['percentage']:.1f})"
-                for _, row in stable_funcs.iterrows()
-            ]
-        )
-        + "; "
-    )
+    text += format_func_cats_with_numbers(stable_funcs, format_std)
+    text += "; "
 
     flux_funcs = std_percentage.sort_values(by="percentage", ascending=False).head(m)
     text += f"while spending in "
-    text += " and ".join(
-        [
-            f"{row['func']} (std={row['percentage']:.1f})"
-            for _, row in flux_funcs.iterrows()
-        ]
-    )
+    text += format_func_cats_with_numbers(flux_funcs, format_std)
     text += f" fluctuate the most over time. "
 
     return text
 
+def format_func_cats_with_numbers(df, format_number_func):
+    return format_cats_with_numbers(df, format_func_cat, format_number_func)
+
+def format_cats_with_numbers(df, format_cat_func, format_number_func):
+    items = [
+        f"{format_cat_func(row)} ({format_number_func(row['percentage'])})"
+        for _, row in df.iterrows()
+    ]
+
+    if len(items) == 2:
+        return " and ".join(items)
+    elif len(items) > 2:
+        return ", ".join(items[:-1]) + f", and {items[-1]}"
+    elif items:
+        return items[0] 
+    else:
+        return ""
+
+def format_percentage(num):
+    return f'{num:.1f}%'
+
+def format_std(num):
+    return f'std={num:.1f}'
+
+def format_func_cat(row):
+    return row['func']
+
+
+ECON_CAT_MAP = {
+    "Capital expenditures": "Capital expenditures",
+    "Goods and services": "Goods and services",
+    "Social benefits": "Social benefits",
+    "Subsidies": "Subsidies",
+    "Wage bill": "Employees compensation",
+    "Interest on debt": "Interest on debt",
+    "Other grants and transfers": "Grants and transfers",
+    "Other expenses": "Other expenses",
+}
+ECON_PALETTE = px.colors.qualitative.Dark2
+ECON_COLORS = {
+    cat: FUNC_PALETTE[i % len(FUNC_PALETTE)] for i, cat in enumerate(ECON_CAT_MAP.keys())
+}
+def economic_figure(df):
+    categories = sorted(df.econ.unique(), reverse=True)
+
+    fig = go.Figure()
+
+    for cat in categories:
+        cat_df = df[df.econ == cat]
+        fig.add_trace(
+            go.Bar(
+                name=ECON_CAT_MAP[cat],
+                x=cat_df.year,
+                y=cat_df.percentage,
+                marker_color=ECON_COLORS[cat],
+                customdata=cat_df["expenditure"],
+                hovertemplate=(
+                    "<b>Year</b>: %{x}<br>"
+                    "<b>Expenditure</b>: %{customdata:,} (%{y:.1f}%)"
+                ),
+            )
+        )
+
+    fig.update_xaxes(tickformat="d")
+    fig.update_yaxes(fixedrange=True)
+    fig.update_layout(
+        barmode="stack",
+        title="How much was spent on each economic category?",
+        plot_bgcolor="white",
+        legend=dict(orientation="v", x=1.02, y=1, xanchor="left", yanchor="top"),
+        annotations=[
+            dict(
+                xref="paper",
+                yref="paper",
+                x=-0.1,
+                y=-0.2,
+                text="Expenditure % by economic categories. Source: BOOST",
+                showarrow=False,
+                font=dict(size=12),
+            )
+        ],
+    )
+
+    return fig
+
+def economic_narrative(df):
+    country = df.country_name.iloc[0]
+    categories = df.econ.unique().tolist()
+    text = f"For {country}, BOOST provides spending data on {len(categories)} economic categories, generally based on Economic Classification of Expense outlined in the Government Finance Statistics (GFS) framework. "
+
+    if len(categories) < len(ECON_CAT_MAP):
+        missing_cats = set(ECON_CAT_MAP.keys()) - set(categories)
+        missing_cats = list(ECON_CAT_MAP[c] for c in missing_cats)
+        if len(missing_cats) == 1:
+            text += f"The cartegory we do not have data on is {missing_cats[0]}. "
+        else:
+            text += f'The cartegories we do not have data on include {", ".join(missing_cats)}. '
+
+    mean_percentage = df.groupby("econ")["percentage"].mean().reset_index()
+    n = 3
+    top_econs = mean_percentage.sort_values(by="percentage", ascending=False).head(n)
+    text += f"On average, the top {n} spending economic categories are "
+    text += format_econ_cats_with_numbers(top_econs, format_percentage)
+    text += "; "
+
+    bottom_econs = mean_percentage.sort_values(by="percentage", ascending=True).head(n)
+    text += f"while the bottom {n} spenders are "
+    text += format_econ_cats_with_numbers(bottom_econs, format_percentage)
+    text += ". "
+
+    std_percentage = df.groupby("econ")["percentage"].std().reset_index()
+    m = 2
+    stable_econs = std_percentage.sort_values(by="percentage", ascending=True).head(m)
+    text += f"Relatively, public expenditure remain the most stable in "
+    text += format_econ_cats_with_numbers(stable_econs, format_std)
+    text += "; "
+
+    flux_econs = std_percentage.sort_values(by="percentage", ascending=False).head(m)
+    text += f"while spending in "
+    text += format_econ_cats_with_numbers(flux_econs, format_std)
+    text += f" fluctuate the most over time. "
+
+    return text
+
+def format_econ_cats_with_numbers(df, format_number_func):
+    return format_cats_with_numbers(df, format_econ_cat, format_number_func)
+
+def format_econ_cat(row):
+    return ECON_CAT_MAP[row['econ']]
 
 def subnational_spending_narrative(
     df_spending,
@@ -762,16 +902,12 @@ def render_overview_total_figure(data, country):
 @callback(
     Output("functional-breakdown", "figure"),
     Output("functional-narrative", "children"),
-    Input("stored-data-func", "data"),
+    Input("stored-data-func-econ", "data"),
     Input("country-select", "value"),
 )
-def render_overview_total_figure(data, country):
-    all_countries = pd.DataFrame(data["expenditure_by_country_func_econ_year"])
-    df = filter_country_sort_year(all_countries, country)
-    func_df = (
-        df.groupby(["year", "country_name", "func"])["expenditure"].sum().reset_index()
-    )
-
+def render_overview_func_figure(data, country):
+    all_countries = pd.DataFrame(data["expenditure_by_country_func_year"])
+    func_df = filter_country_sort_year(all_countries, country)
     total_per_year = func_df.groupby("year")["expenditure"].sum().reset_index()
     func_df = func_df.merge(total_per_year, on="year", suffixes=("", "_total"))
     func_df["percentage"] = (
@@ -779,6 +915,23 @@ def render_overview_total_figure(data, country):
     ) * 100
 
     return functional_figure(func_df), functional_narrative(func_df)
+
+@callback(
+    Output("economic-breakdown", "figure"),
+    Output("economic-narrative", "children"),
+    Input("stored-data-func-econ", "data"),
+    Input("country-select", "value"),
+)
+def render_overview_econ_figure(data, country):
+    all_countries = pd.DataFrame(data["expenditure_by_country_econ_year"])
+    econ_df = filter_country_sort_year(all_countries, country)
+    total_per_year = econ_df.groupby("year")["expenditure"].sum().reset_index()
+    econ_df = econ_df.merge(total_per_year, on="year", suffixes=("", "_total"))
+    econ_df["percentage"] = (
+        econ_df["expenditure"] / econ_df["expenditure_total"]
+    ) * 100
+
+    return economic_figure(econ_df), economic_narrative(econ_df)
 
 
 @callback(

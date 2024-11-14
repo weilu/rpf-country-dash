@@ -139,7 +139,7 @@ app.layout = html.Div(
 def logout(n_clicks):
     if n_clicks > 0:
         logout_user()
-        return dcc.Location(pathname="/about", id="someid_doesnt_matter")
+        return dcc.Location(pathname="/login", id="someid_doesnt_matter")
     return dash.no_update
 
     

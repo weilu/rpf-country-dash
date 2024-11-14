@@ -16,6 +16,8 @@ class User(UserMixin):
         self.id = username
 
 def attempt_login(username, password):
+        if not USER_NAME:
+            return dcc.Location(pathname=f"/home", id="home")
         if CREDENTIAL_STORE.get(username) is None:
             return "Invalid username"
         salted_password = CREDENTIAL_STORE[username]

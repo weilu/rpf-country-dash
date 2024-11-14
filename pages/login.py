@@ -1,31 +1,57 @@
 import dash
 from dash import html, dcc, callback, Output, Input, State
+import dash_bootstrap_components as dbc
 from auth import authenticate
 
 dash.register_page(__name__)
 
 def layout():
-    return html.Div(
-    [
-        html.H2("Please log in to continue:", id="h1"),
-        html.Div(id="hidden_div_for_redirect_callback"),
-        dcc.Input(placeholder="Enter your username", type="text", id="uname-box", style={"marginRight": "10px"}),
-        dcc.Input(placeholder="Enter your password", type="password", id="pwd-box", style={"marginRight": "10px"}),
-        html.Button(children="Login", n_clicks=0, type="submit", id="login-button"),
-        html.Br(),
-    ]
-)
+    return dbc.Container(
+        [
+            dbc.Row([
+                dbc.Col([html.Div('')], width=3),
+                dbc.Col(
+                    dbc.Form([
+                            dbc.Label("Username", html_for="username", className="mb-1"),
+                            dbc.Input(
+                                type="text",
+                                id="username",
+                                placeholder="Enter your username",
+                                className="mb-3",
+                            ),
+                            dbc.Label("Password", html_for="password", className="mb-1"),
+                            dbc.Input(
+                                type="password",
+                                id="password",
+                                placeholder="Enter your password",
+                                className="mb-3",
+                            ),
+                            dbc.Button(
+                                "Login", color="primary", id="login-button", n_clicks=0, className="w-100 mb-3"
+                            ),
+                            html.Div(id="login-alert"),
+                    ]),
+                    width=6,
+                ),
+                dbc.Col([html.Div('')], width=3),
+            ]),
+            html.Div(id="hidden_div_for_redirect_callback"),
+        ],
+        className="mt-5",
+    )
 
 @callback(
+    Output("login-alert", "children"),
     Output("hidden_div_for_redirect_callback", "children"),
     Input("login-button", "n_clicks"),
-    State("uname-box", "value"),
-    State("pwd-box", "value"),
+    State("username", "value"),
+    State("password", "value"),
 )
 def login_button_click(n_clicks, username, password):
     if n_clicks > 0:
         if authenticate(username, password):
-            return dcc.Location(pathname=f"/home", id="home")
+            return "", dcc.Location(pathname="/home", id="home")
         else:
-            return "Invalid credentials"
-    return dash.no_update
+            return dbc.Alert("Invalid credentials", color="danger", dismissable=True), dash.no_update
+    return dash.no_update, dash.no_update
+

@@ -1,6 +1,7 @@
-from dash_auth import BasicAuth
 import bcrypt
 import os
+from flask_login import login_user, UserMixin
+from dash import dcc
 
 USER_NAME = os.getenv("USER_NAME")
 SALTED_PASSWORD = os.getenv("SALTED_PASSWORD")
@@ -9,14 +10,16 @@ CREDENTIAL_STORE = {
     USER_NAME: SALTED_PASSWORD
 }
 
+class User(UserMixin):
+    # User data model. It has to have at least self.id as a minimum
+    def __init__(self, username):
+        self.id = username
 
-def authenticate(username, password):
-    if username not in CREDENTIAL_STORE:
-        return False
-    salted_password = CREDENTIAL_STORE[username]
-    return bcrypt.checkpw(password.encode("utf-8"), salted_password.encode("utf-8"))
-
-
-def setup_basic_auth(app):
-    if USER_NAME and SALTED_PASSWORD:
-        return BasicAuth(app, auth_func=authenticate, secret_key=SECRET_KEY)
+def attempt_login(username, password):
+        if CREDENTIAL_STORE.get(username) is None:
+            return "Invalid username"
+        salted_password = CREDENTIAL_STORE[username]
+        if bcrypt.checkpw(password.encode("utf-8"), salted_password.encode("utf-8")):
+            login_user(User(username))
+            return dcc.Location(pathname=f"/home", id="home")
+        return "Incorrect  password"

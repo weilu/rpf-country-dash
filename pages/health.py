@@ -1,6 +1,7 @@
 import dash
 from dash import html, dcc, callback, Input, Output
 import dash_bootstrap_components as dbc
+from flask_login import current_user
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -20,30 +21,34 @@ db = QueryService.get_instance()
 
 dash.register_page(__name__)
 
-layout = html.Div(
-    children=[
-        dbc.Card(
-            dbc.CardBody(
-                [
-                    dbc.Tabs(
-                        id="health-tabs",
-                        active_tab="health-tab-time",
-                        children=[
-                            dbc.Tab(label="Over Time", tab_id="health-tab-time"),
-                            dbc.Tab(label="Across Space", tab_id="health-tab-space"),
-                        ],
-                        style={"marginBottom": "2rem"},
-                    ),
-                    html.Div(id="health-content"),
-                ]
-            )
-        ),
-        dcc.Store(id="stored-data-health-total"),
-        dcc.Store(id="stored-data-health-outcome"),
-        dcc.Store(id="stored-data-health-private"),
-        dcc.Store(id="stored-data-health-sub-func"),
-    ]
-)
+def layout():
+    if not current_user.is_authenticated:
+        return dcc.Location(pathname="/login", id="login-redirect-home")
+    
+    return html.Div(
+        children=[
+            dbc.Card(
+                dbc.CardBody(
+                    [
+                        dbc.Tabs(
+                            id="health-tabs",
+                            active_tab="health-tab-time",
+                            children=[
+                                dbc.Tab(label="Over Time", tab_id="health-tab-time"),
+                                dbc.Tab(label="Across Space", tab_id="health-tab-space"),
+                            ],
+                            style={"marginBottom": "2rem"},
+                        ),
+                        html.Div(id="health-content"),
+                    ]
+                )
+            ),
+            dcc.Store(id="stored-data-health-total"),
+            dcc.Store(id="stored-data-health-outcome"),
+            dcc.Store(id="stored-data-health-private"),
+            dcc.Store(id="stored-data-health-sub-func"),
+        ]
+    )
 
 
 @callback(

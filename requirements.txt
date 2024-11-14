@@ -8,3 +8,4 @@ gunicorn
 shapely
 flask
 flask_login
+bcrypt

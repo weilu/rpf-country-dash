@@ -1,8 +1,7 @@
 import dash
 import dash_bootstrap_components as dbc
 from dash import dcc, html
-from dash.dependencies import Input, Output, State, ALL
-from flask import redirect
+from dash.dependencies import Input, Output, State
 
 from dash.long_callback import DiskcacheLongCallbackManager
 import pandas as pd
@@ -10,8 +9,10 @@ from queries import QueryService
 import json
 import diskcache
 from flask import Flask, session
-from flask_login import login_user, LoginManager, UserMixin, current_user, logout_user
+from flask_login import LoginManager, current_user, logout_user
 import os 
+
+from auth import User, attempt_login
 
 cache = diskcache.Cache("./cache")
 long_callback_manager = DiskcacheLongCallbackManager(cache)
@@ -34,17 +35,7 @@ login_manager = LoginManager()
 login_manager.init_app(server)
 login_manager.login_view = "/login"
 
-class User(UserMixin):
-    # User data model. It has to have at least self.id as a minimum
-    def __init__(self, username):
-        self.id = username
 
-USER_NAME = os.getenv("USER_NAME")
-SALTED_PASSWORD = os.getenv("SALTED_PASSWORD")
-SECRET_KEY = os.getenv("SECRET_KEY")
-CREDENTIAL_STORE = {
-    USER_NAME: SALTED_PASSWORD
-}
 
 @login_manager.user_loader
 def load_user(username):
@@ -54,10 +45,19 @@ def load_user(username):
     """
     return User(username)
 
+HEADER_STYLE = {
+    "display": "flex",
+    "flexDirection": "column",
+    "alignItems": "end",
+    "marginTop": "2rem",
+    "marginRight": "4rem",
+    "fontSize": "20px",
+}
+
 
 SIDEBAR_STYLE = {
     "position": "fixed",
-    "top": 0,
+    "top": 10,
     "left": 0,
     "bottom": 0,
     "width": "14rem",
@@ -75,14 +75,20 @@ db = QueryService.get_instance()
 def get_relative_path(page_name):
     return dash.page_registry[f"pages.{page_name}"]["relative_path"]
 
+header = html.Div(
+    [
+        html.Div(id="user-status-header")
+    ],
+    style=HEADER_STYLE
+)
 
 sidebar = html.Div(
     [
         dbc.Row(
-            [   html.Div(id="user-status-header"),
+            [   
                 html.Img(
                     src=app.get_asset_url("rpf_logo.png"), style={"height": "100"}
-                ),
+                )
             ]
         ),
         html.Hr(),
@@ -114,6 +120,7 @@ dummy_div = html.Div(id="div-for-redirect")
 app.layout = html.Div(
     [
         dcc.Location(id="url", refresh=False),
+        header,
         sidebar,
         content,
         dummy_div,
@@ -132,7 +139,7 @@ app.layout = html.Div(
 def logout(n_clicks):
     if n_clicks > 0:
         logout_user()
-        return dcc.Location(pathname="/login", id="someid_doesnt_matter")
+        return dcc.Location(pathname="/about", id="someid_doesnt_matter")
     return dash.no_update
 
     
@@ -142,27 +149,23 @@ def logout(n_clicks):
 )
 def update_authentication_status(path):
     if path == "/":
-        return dcc.Location(pathname="/home", id="someid_doesnt_matter")
+        return dcc.Location(pathname="/about", id="url")
     if current_user.is_authenticated:
-        return html.Button(children="logout", n_clicks=0, id="logout-button"),
+        return html.A(children="logout", n_clicks=0, id="logout-button", style={"text-decoration": "underline", "cursor": "pointer"})
+    if path == "/login":
+        return html.Div()
     return dcc.Link("login", href="/login")
 
 
 @app.callback(
     Output("hidden_div_for_redirect_callback", "children"),
     Input("login-button", "n_clicks"),
-    Input('url', 'pathname'),
     State("uname-box", "value"),
     State("pwd-box", "value"),
 )
-def login_button_click(n_clicks, path, username, password):
+def login_button_click(n_clicks, username, password):
     if n_clicks > 0:
-        if CREDENTIAL_STORE.get(username) is None:
-            return "Invalid username"
-        if CREDENTIAL_STORE.get(username) == password:
-            login_user(User(username))
-            return dcc.Location(pathname=f"/home", id="home")
-        return "Incorrect  password"
+        return attempt_login(username, password)
     return dash.no_update
 
 

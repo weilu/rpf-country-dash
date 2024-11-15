@@ -12,6 +12,7 @@ from utils import (
     get_correlation_text,
     get_percentage_change_text,
     millify,
+    require_login,
 )
 import numpy as np
 import traceback
@@ -20,30 +21,32 @@ db = QueryService.get_instance()
 
 dash.register_page(__name__)
 
-layout = html.Div(
-    children=[
-        dbc.Card(
-            dbc.CardBody(
-                [
-                    dbc.Tabs(
-                        id="health-tabs",
-                        active_tab="health-tab-time",
-                        children=[
-                            dbc.Tab(label="Over Time", tab_id="health-tab-time"),
-                            dbc.Tab(label="Across Space", tab_id="health-tab-space"),
-                        ],
-                        style={"marginBottom": "2rem"},
-                    ),
-                    html.Div(id="health-content"),
-                ]
-            )
-        ),
-        dcc.Store(id="stored-data-health-total"),
-        dcc.Store(id="stored-data-health-outcome"),
-        dcc.Store(id="stored-data-health-private"),
-        dcc.Store(id="stored-data-health-sub-func"),
-    ]
-)
+@require_login
+def layout():
+    return html.Div(
+        children=[
+            dbc.Card(
+                dbc.CardBody(
+                    [
+                        dbc.Tabs(
+                            id="health-tabs",
+                            active_tab="health-tab-time",
+                            children=[
+                                dbc.Tab(label="Over Time", tab_id="health-tab-time"),
+                                dbc.Tab(label="Across Space", tab_id="health-tab-space"),
+                            ],
+                            style={"marginBottom": "2rem"},
+                        ),
+                        html.Div(id="health-content"),
+                    ]
+                )
+            ),
+            dcc.Store(id="stored-data-health-total"),
+            dcc.Store(id="stored-data-health-outcome"),
+            dcc.Store(id="stored-data-health-private"),
+            dcc.Store(id="stored-data-health-sub-func"),
+        ]
+    )
 
 
 @callback(

@@ -1,31 +1,42 @@
-import dash
 import dash_bootstrap_components as dbc
-from dash import dcc, html
-from dash.dependencies import Input, Output
-from dash.long_callback import DiskcacheLongCallbackManager
-import pandas as pd
-from queries import QueryService
-import json
 import diskcache
-from auth import setup_basic_auth
+import pandas as pd
+import json
+import os
+
+from dash import dcc, html, Dash, Input, Output, State, page_container, page_registry, no_update
+from dash.long_callback import DiskcacheLongCallbackManager
+from flask_login import current_user, logout_user
+from queries import QueryService
+from server import server
+from utils import get_login_path, get_prefixed_path
 
 cache = diskcache.Cache("./cache")
 long_callback_manager = DiskcacheLongCallbackManager(cache)
 
 dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
-app = dash.Dash(
+app = Dash(
     __name__,
+    server=server,
     external_stylesheets=[dbc.themes.QUARTZ, dbc_css],
     long_callback_manager=long_callback_manager,
     suppress_callback_exceptions=True,
     use_pages=True,
 )
 
-auth = setup_basic_auth(app)
+HEADER_STYLE = {
+    "display": "flex",
+    "flexDirection": "column",
+    "alignItems": "end",
+    "marginTop": "2rem",
+    "marginRight": "4rem",
+    "fontSize": "20px",
+}
+
 
 SIDEBAR_STYLE = {
     "position": "fixed",
-    "top": 0,
+    "top": 10,
     "left": 0,
     "bottom": 0,
     "width": "14rem",
@@ -40,9 +51,22 @@ CONTENT_STYLE = {
 
 db = QueryService.get_instance()
 
-def get_relative_path(page_name):
-    return dash.page_registry[f"pages.{page_name}"]["relative_path"]
+header = html.Div(
+    [
+        html.Div(id="user-status-header", children=[
+            html.A(
+                children="logout",
+                n_clicks=0,
+                id="logout-button",
+                style={"display": "none"}
+            )
+        ])
+    ],
+    style=HEADER_STYLE
+)
 
+def get_relative_path(page_name):
+    return page_registry[f"pages.{page_name}"]["relative_path"]
 
 sidebar = html.Div(
     [
@@ -50,7 +74,7 @@ sidebar = html.Div(
             [
                 html.Img(
                     src=app.get_asset_url("rpf_logo.png"), style={"height": "100"}
-                ),
+                )
             ]
         ),
         html.Hr(),
@@ -75,13 +99,14 @@ sidebar = html.Div(
     style=SIDEBAR_STYLE,
 )
 
-content = html.Div(dash.page_container, id="page-content", style=CONTENT_STYLE)
+content = html.Div(page_container, id="page-content", style=CONTENT_STYLE)
 
 dummy_div = html.Div(id="div-for-redirect")
 
 app.layout = html.Div(
     [
         dcc.Location(id="url", refresh=False),
+        header,
         sidebar,
         content,
         dummy_div,
@@ -92,38 +117,63 @@ app.layout = html.Div(
     ]
 )
 
+@app.callback(
+    [Output("url", "pathname"), Output("page-content", "children")],
+    [Input("url", "pathname"), Input("logout-button", "n_clicks")]
+)
+def display_page_or_redirect(pathname, logout_clicks):
+    login_path = get_login_path()
+    if logout_clicks:
+        logout_user()
+        return login_path, page_container
 
-@app.callback(Output("div-for-redirect", "children"), Input("url", "pathname"))
-def redirect_default(url_pathname):
-    known_paths = list(p["relative_path"] for p in dash.page_registry.values())
-    if url_pathname not in known_paths:
-        return dcc.Location(pathname=get_relative_path("home"), id="redirect-me")
+    if current_user.is_authenticated:
+        if (
+            pathname == get_login_path() or
+            pathname is None or
+            pathname == os.getenv("DEFAULT_ROOT_PATH", "/")
+        ):
+            return get_prefixed_path("home"), page_container
+        return pathname, page_container
     else:
-        return ""
+        if pathname != login_path:
+            return login_path, page_container
+        return pathname, page_container
+
+
+@app.callback(
+    Output("logout-button", "style"),
+    Input("url", "pathname")
+)
+def update_logout_button_visibility(pathname):
+    if current_user.is_authenticated:
+        return {"display": "block", "text-decoration": "underline", "cursor": "pointer"}
+    else:
+        return {"display": "none"}
 
 
 @app.callback(Output("stored-data", "data"), Input("stored-data", "data"))
 def fetch_data_once(data):
-    if data is None:
+    if data is None and current_user and current_user.is_authenticated:
         df = db.get_expenditure_w_poverty_by_country_year()
         countries = sorted(df["country_name"].unique())
         return {
             "countries": countries,
             "expenditure_w_poverty_by_country_year": df.to_dict("records"),
         }
-    return dash.no_update
+    return no_update
 
 
 @app.callback(Output("stored-data-func", "data"), Input("stored-data-func", "data"))
 def fetch_func_data_once(data):
-    if data is None:
+    if data is None and current_user and current_user.is_authenticated:
         func_df = db.get_expenditure_by_country_func_year()
         func_econ_df = db.get_expenditure_by_country_func_econ_year()
         return {
             "expenditure_by_country_func_econ_year": func_econ_df.to_dict("records"),
             "expenditure_by_country_func_year": func_df.to_dict("records"),
         }
-    return dash.no_update
+    return no_update
 
 
 @app.callback(
@@ -132,8 +182,8 @@ def fetch_func_data_once(data):
     Input("stored-data", "data"),
 )
 def fetch_subnational_data_once(data, country_data):
-    countries = country_data["countries"]
-    if data is None:
+    if data is None and current_user and current_user.is_authenticated:
+        countries = country_data["countries"]
         df = db.get_adm_boundaries(countries)
 
         boundaries_geojson = {
@@ -154,7 +204,7 @@ def fetch_subnational_data_once(data, country_data):
             "boundaries": boundaries_geojson,
             "expenditure_by_country_geo1_year": geo1_year_df.to_dict("records"),
         }
-    return dash.no_update
+    return no_update
 
 
 @app.callback(
@@ -168,7 +218,7 @@ def display_data(data):
         options[0]["selected"] = True
         return options
 
-    if data is not None:
+    if data is not None and current_user and current_user.is_authenticated:
         countries = data["countries"]
         return get_country_select_options(countries), countries[0]
     return ["No data available"], ""
@@ -181,8 +231,8 @@ def display_data(data):
     Input("stored-basic-country-data", "data"),
 )
 def fetch_country_data_once(countries, subnational_data, country_data):
-    countries = [x["label"] for x in countries]
-    if country_data is None:
+    if country_data is None and current_user and current_user.is_authenticated:
+        countries = [x["label"] for x in countries]
         country_df = db.get_basic_country_data(countries)
         country_info = country_df.set_index("country_name").T.to_dict()
 
@@ -228,10 +278,9 @@ def fetch_country_data_once(countries, subnational_data, country_data):
             info["poverty_bounds"] = poverty_level_stats[country_income_level]
 
         return {"basic_country_info": country_info}
-    return dash.no_update
+    return no_update
 
 
-server = app.server
 
 if __name__ == "__main__":
     app.run_server(debug=True)

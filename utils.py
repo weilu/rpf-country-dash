@@ -1,14 +1,17 @@
+import plotly.graph_objects as go
+import unicodedata
+import textwrap
+
 from constants import (
     NARRATIVE_ERROR_TEMPLATES,
     START_YEAR,
     CORRELATION_THRESHOLDS,
     TREND_THRESHOLDS,
 )
-from shapely.geometry import shape, MultiPolygon, Polygon
-import plotly.graph_objects as go
-import unicodedata
+from dash import dcc, get_app
+from flask_login import current_user
 from math import isnan
-import textwrap
+from shapely.geometry import shape, MultiPolygon, Polygon
 
 
 def filter_country_sort_year(df, country, start_year=START_YEAR):
@@ -204,3 +207,19 @@ def add_opacity(rgb, opacity):
     first = rgb.split(")")[0]
     rgba = (first + "," + str(opacity) + ")").replace("rgb", "rgba")
     return rgba
+
+def get_prefixed_path(pathname):
+    base_path = get_app().config.requests_pathname_prefix
+    return f"{base_path.rstrip('/')}/{pathname}"
+
+def get_login_path():
+    return get_prefixed_path('login')
+
+def require_login(layout_func):
+    def wrapper(*args, **kwargs):
+        if current_user.is_authenticated:
+            return layout_func(*args, **kwargs)
+        else:
+            base_path = get_app().config.requests_pathname_prefix
+            return dcc.Location(pathname=get_login_path(), id="redirect-to-login")
+    return wrapper

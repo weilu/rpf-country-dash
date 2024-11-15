@@ -1,22 +1,28 @@
-from dash_auth import BasicAuth
 import bcrypt
 import os
+from flask_login import login_user, UserMixin
 
 USER_NAME = os.getenv("USER_NAME")
 SALTED_PASSWORD = os.getenv("SALTED_PASSWORD")
-SECRET_KEY = os.getenv("SECRET_KEY")
 CREDENTIAL_STORE = {
     USER_NAME: SALTED_PASSWORD
 }
 
+class User(UserMixin):
+    def __init__(self, username):
+        self.id = username
 
 def authenticate(username, password):
-    if username not in CREDENTIAL_STORE:
+        if not USER_NAME:
+            login_user(User(username))
+            return True
+
+        if CREDENTIAL_STORE.get(username) is None:
+            return False
+
+        salted_password = CREDENTIAL_STORE[username]
+        if bcrypt.checkpw(password.encode("utf-8"), salted_password.encode("utf-8")):
+            login_user(User(username))
+            return True
+
         return False
-    salted_password = CREDENTIAL_STORE[username]
-    return bcrypt.checkpw(password.encode("utf-8"), salted_password.encode("utf-8"))
-
-
-def setup_basic_auth(app):
-    if USER_NAME and SALTED_PASSWORD:
-        return BasicAuth(app, auth_func=authenticate, secret_key=SECRET_KEY)

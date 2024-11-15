@@ -6,38 +6,41 @@ import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
 import numpy as np
+
 from utils import (
     filter_country_sort_year,
     filter_geojson_by_country,
     empty_plot,
     remove_accents,
+    require_login,
 )
 
 from components import slider, get_slider_config
 
 dash.register_page(__name__)
 
-layout = html.Div(
-    children=[
-        dbc.Card(
-            dbc.CardBody(
-                [
-                    dbc.Tabs(
-                        id="overview-tabs",
-                        active_tab="overview-tab-time",
-                        children=[
-                            dbc.Tab(label="Over Time", tab_id="overview-tab-time"),
-                            dbc.Tab(label="Across Space", tab_id="overview-tab-space"),
-                        ],
-                        style={"marginBottom": "2rem"},
-                    ),
-                    html.Div(id="overview-content"),
-                ]
+@require_login
+def layout():
+    return html.Div(
+        children=[
+            dbc.Card(
+                dbc.CardBody(
+                    [
+                        dbc.Tabs(
+                            id="overview-tabs",
+                            active_tab="overview-tab-time",
+                            children=[
+                                dbc.Tab(label="Over Time", tab_id="overview-tab-time"),
+                                dbc.Tab(label="Across Space", tab_id="overview-tab-space"),
+                            ],
+                            style={"marginBottom": "2rem"},
+                        ),
+                        html.Div(id="overview-content"),
+                    ]
+                )
             )
-        )
-    ]
-)
-
+        ]
+    )
 
 @callback(
     Output("overview-content", "children"),

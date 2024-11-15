@@ -9,7 +9,7 @@ from dash.long_callback import DiskcacheLongCallbackManager
 from flask_login import current_user, logout_user
 from queries import QueryService
 from server import server
-from utils import get_login_path
+from utils import get_login_path, get_prefixed_path
 
 cache = diskcache.Cache("./cache")
 long_callback_manager = DiskcacheLongCallbackManager(cache)
@@ -128,8 +128,12 @@ def display_page_or_redirect(pathname, logout_clicks):
         return login_path, page_container
 
     if current_user.is_authenticated:
-        if pathname == get_login_path() or pathname is None:
-            return "/home", page_container
+        if (
+            pathname == get_login_path() or
+            pathname is None or
+            pathname == os.getenv("DEFAULT_ROOT_PATH", "/")
+        ):
+            return get_prefixed_path("home"), page_container
         return pathname, page_container
     else:
         if pathname != login_path:

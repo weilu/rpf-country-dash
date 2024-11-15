@@ -2,7 +2,6 @@ import dash
 from dash import html, dcc, callback, Input, Output
 import dash_bootstrap_components as dbc
 import pandas as pd
-from flask_login import current_user
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots

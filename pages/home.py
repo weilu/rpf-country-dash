@@ -6,7 +6,6 @@ import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
 import numpy as np
-from flask_login import current_user
 
 from utils import (
     filter_country_sort_year,

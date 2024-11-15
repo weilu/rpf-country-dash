@@ -13,16 +13,15 @@ from utils import (
     filter_geojson_by_country,
     empty_plot,
     remove_accents,
+    require_login,
 )
 
 from components import slider, get_slider_config
 
 dash.register_page(__name__)
 
+@require_login
 def layout():
-    if not current_user.is_authenticated:
-        return dcc.Location(pathname="/login", id="login-redirect-home")
-    
     return html.Div(
         children=[
             dbc.Card(

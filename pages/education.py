@@ -15,6 +15,7 @@ from utils import (
     get_percentage_change_text,
     millify,
     add_opacity,
+    require_login,
 )
 import numpy as np
 import traceback
@@ -25,35 +26,33 @@ db = QueryService.get_instance()
 
 dash.register_page(__name__)
 
+@require_login
 def layout():
-    if not current_user.is_authenticated:
-        return dcc.Location(pathname="/login", id="login-redirect-home")
-    
     return html.Div(
-    children=[
-        dbc.Card(
-            dbc.CardBody(
-                [
-                    dbc.Tabs(
-                        id="education-tabs",
-                        active_tab="edu-tab-time",
-                        children=[
-                            dbc.Tab(label="Over Time", tab_id="edu-tab-time"),
-                            dbc.Tab(label="Across Space", tab_id="edu-tab-space"),
-                        ],
-                        style={"marginBottom": "2rem"},
-                    ),
-                    html.Div(id="education-content"),
-                ]
+        children=[
+            dbc.Card(
+                dbc.CardBody(
+                    [
+                        dbc.Tabs(
+                            id="education-tabs",
+                            active_tab="edu-tab-time",
+                            children=[
+                                dbc.Tab(label="Over Time", tab_id="edu-tab-time"),
+                                dbc.Tab(label="Across Space", tab_id="edu-tab-space"),
+                            ],
+                            style={"marginBottom": "2rem"},
+                        ),
+                        html.Div(id="education-content"),
+                    ]
+                ),
             ),
-        ),
-        dcc.Store(id="stored-data-education-total"),
-        dcc.Store(id="stored-data-education-outcome"),
-        dcc.Store(id="stored-data-education-private"),
-        dcc.Store(id="stored-data-education-sub-func"),
-        dcc.Store(id="stored-data-education-subnational"),
-    ]
-)
+            dcc.Store(id="stored-data-education-total"),
+            dcc.Store(id="stored-data-education-outcome"),
+            dcc.Store(id="stored-data-education-private"),
+            dcc.Store(id="stored-data-education-sub-func"),
+            dcc.Store(id="stored-data-education-subnational"),
+        ]
+    )
 
 
 @callback(

@@ -1,23 +1,21 @@
-import dash
 import dash_bootstrap_components as dbc
-from dash import dcc, html
-from dash.dependencies import Input, Output, State
-
-from dash.long_callback import DiskcacheLongCallbackManager
-import pandas as pd
-from queries import QueryService
-import json
 import diskcache
-from flask_login import current_user, logout_user
+import pandas as pd
+import json
 import os
 
+from dash import dcc, html, Dash, Input, Output, State, page_container, page_registry, no_update
+from dash.long_callback import DiskcacheLongCallbackManager
+from flask_login import current_user, logout_user
+from queries import QueryService
 from server import server
+from utils import get_login_path
 
 cache = diskcache.Cache("./cache")
 long_callback_manager = DiskcacheLongCallbackManager(cache)
 
 dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
-app = dash.Dash(
+app = Dash(
     __name__,
     server=server,
     external_stylesheets=[dbc.themes.QUARTZ, dbc_css],
@@ -53,9 +51,6 @@ CONTENT_STYLE = {
 
 db = QueryService.get_instance()
 
-def get_relative_path(page_name):
-    return dash.page_registry[f"pages.{page_name}"]["relative_path"]
-
 header = html.Div(
     [
         html.Div(id="user-status-header", children=[
@@ -69,6 +64,9 @@ header = html.Div(
     ],
     style=HEADER_STYLE
 )
+
+def get_relative_path(page_name):
+    return page_registry[f"pages.{page_name}"]["relative_path"]
 
 sidebar = html.Div(
     [
@@ -101,7 +99,7 @@ sidebar = html.Div(
     style=SIDEBAR_STYLE,
 )
 
-content = html.Div(dash.page_container, id="page-content", style=CONTENT_STYLE)
+content = html.Div(page_container, id="page-content", style=CONTENT_STYLE)
 
 dummy_div = html.Div(id="div-for-redirect")
 
@@ -124,18 +122,19 @@ app.layout = html.Div(
     [Input("url", "pathname"), Input("logout-button", "n_clicks")]
 )
 def display_page_or_redirect(pathname, logout_clicks):
+    login_path = get_login_path()
     if logout_clicks:
         logout_user()
-        return "/login", dash.page_container
+        return login_path, page_container
 
     if current_user.is_authenticated:
-        if pathname == "/login" or pathname is None:
-            return "/home", dash.page_container
-        return pathname, dash.page_container
+        if pathname == get_login_path() or pathname is None:
+            return "/home", page_container
+        return pathname, page_container
     else:
-        if pathname != "/login":
-            return "/login", dash.page_container
-        return pathname, dash.page_container
+        if pathname != login_path:
+            return login_path, page_container
+        return pathname, page_container
 
 
 @app.callback(
@@ -158,7 +157,7 @@ def fetch_data_once(data):
             "countries": countries,
             "expenditure_w_poverty_by_country_year": df.to_dict("records"),
         }
-    return dash.no_update
+    return no_update
 
 
 @app.callback(Output("stored-data-func", "data"), Input("stored-data-func", "data"))
@@ -170,7 +169,7 @@ def fetch_func_data_once(data):
             "expenditure_by_country_func_econ_year": func_econ_df.to_dict("records"),
             "expenditure_by_country_func_year": func_df.to_dict("records"),
         }
-    return dash.no_update
+    return no_update
 
 
 @app.callback(
@@ -201,7 +200,7 @@ def fetch_subnational_data_once(data, country_data):
             "boundaries": boundaries_geojson,
             "expenditure_by_country_geo1_year": geo1_year_df.to_dict("records"),
         }
-    return dash.no_update
+    return no_update
 
 
 @app.callback(
@@ -275,7 +274,7 @@ def fetch_country_data_once(countries, subnational_data, country_data):
             info["poverty_bounds"] = poverty_level_stats[country_income_level]
 
         return {"basic_country_info": country_info}
-    return dash.no_update
+    return no_update
 
 
 

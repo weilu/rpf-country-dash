@@ -1,7 +1,7 @@
 import dash
-from dash import html, dcc, callback, Output, Input, State
 import dash_bootstrap_components as dbc
 from auth import authenticate
+from dash import html, dcc, callback, Output, Input, State
 
 dash.register_page(__name__)
 
@@ -50,7 +50,7 @@ def layout():
 def login_button_click(n_clicks, username, password):
     if n_clicks > 0:
         if authenticate(username, password):
-            return "", dcc.Location(pathname="/home", id="home")
+            return "", dcc.Location(pathname=dash.get_relative_path("/home"), id="home")
         else:
             return dbc.Alert("Invalid credentials", color="danger", dismissable=True), dash.no_update
     return dash.no_update, dash.no_update

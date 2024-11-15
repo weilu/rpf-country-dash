@@ -13,6 +13,7 @@ from utils import (
     get_correlation_text,
     get_percentage_change_text,
     millify,
+    require_login,
 )
 import numpy as np
 import traceback
@@ -21,10 +22,8 @@ db = QueryService.get_instance()
 
 dash.register_page(__name__)
 
+@require_login
 def layout():
-    if not current_user.is_authenticated:
-        return dcc.Location(pathname="/login", id="login-redirect-home")
-    
     return html.Div(
         children=[
             dbc.Card(

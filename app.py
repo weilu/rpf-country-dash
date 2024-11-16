@@ -113,7 +113,7 @@ app.layout = html.Div(
         dcc.Store(id="stored-data"),
         dcc.Store(id="stored-basic-country-data"),
         dcc.Store(id="stored-data-subnational"),
-        dcc.Store(id="stored-data-func"),
+        dcc.Store(id="stored-data-func-econ"),
     ]
 )
 
@@ -164,16 +164,41 @@ def fetch_data_once(data):
     return no_update
 
 
-@app.callback(Output("stored-data-func", "data"), Input("stored-data-func", "data"))
+@app.callback(Output("stored-data-func-econ", "data"), Input("stored-data-func-econ", "data"))
 def fetch_func_data_once(data):
     if data is None and current_user and current_user.is_authenticated:
-        func_df = db.get_expenditure_by_country_func_year()
         func_econ_df = db.get_expenditure_by_country_func_econ_year()
+
+        agg_dict = {
+            "expenditure": "sum",
+            "real_expenditure": "sum",
+            "decentralized_expenditure": "sum",
+            "central_expenditure": "sum",
+            "per_capita_expenditure": "sum",
+            "per_capita_real_expenditure": "sum",
+        }
+
+        func_df = (
+            func_econ_df
+            .groupby(["country_name", "year", "func"], as_index=False)
+            .agg(agg_dict)
+        )
+        func_df["expenditure_decentralization"] = func_df["decentralized_expenditure"] / func_df["expenditure"]
+
+        econ_df = (
+            func_econ_df
+            .groupby(["country_name", "year", "econ"], as_index=False)
+            .agg(agg_dict)
+        )
+        econ_df["expenditure_decentralization"] = econ_df["decentralized_expenditure"] / econ_df["expenditure"]
+
         return {
             "expenditure_by_country_func_econ_year": func_econ_df.to_dict("records"),
             "expenditure_by_country_func_year": func_df.to_dict("records"),
+            "expenditure_by_country_econ_year": econ_df.to_dict("records"),
         }
     return no_update
+
 
 
 @app.callback(

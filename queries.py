@@ -61,13 +61,6 @@ class QueryService:
         df.loc[:, "decentralized_expenditure"] = df["decentralized_expenditure"].fillna(0)
         return df
 
-    def get_expenditure_by_country_func_year(self):
-        query = """
-            SELECT *
-            FROM boost.expenditure_by_country_func_year
-        """
-        return self.fetch_data(query)
-
     def get_edu_private_expenditure(self):
         query = """
             SELECT country_name, year, real_expenditure

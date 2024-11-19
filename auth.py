@@ -1,12 +1,14 @@
 import bcrypt
 import os
-from flask_login import login_user, UserMixin
+from flask_login import login_user, UserMixin, current_user
 
 USER_NAME = os.getenv("USER_NAME")
 SALTED_PASSWORD = os.getenv("SALTED_PASSWORD")
 CREDENTIAL_STORE = {
     USER_NAME: SALTED_PASSWORD
 }
+
+AUTH_ENABLED = os.getenv("AUTH_ENABLED", "True").lower() == "true"
 
 class User(UserMixin):
     def __init__(self, username):
@@ -26,3 +28,10 @@ def authenticate(username, password):
             return True
 
         return False
+
+
+def require_login():
+     return not current_user.is_authenticated and AUTH_ENABLED
+
+def show_logout_button():
+     return current_user.is_authenticated and AUTH_ENABLED

@@ -7,6 +7,7 @@ import os
 from dash import dcc, html, Dash, Input, Output, State, page_container, page_registry, no_update
 from dash.long_callback import DiskcacheLongCallbackManager
 from flask_login import current_user, logout_user
+from auth import require_login, show_logout_button
 from queries import QueryService
 from server import server
 from utils import get_login_path, get_prefixed_path
@@ -127,7 +128,7 @@ def display_page_or_redirect(pathname, logout_clicks):
         logout_user()
         return login_path, page_container
 
-    if current_user.is_authenticated:
+    if not require_login():
         if (
             pathname == get_login_path() or
             pathname is None or
@@ -146,7 +147,7 @@ def display_page_or_redirect(pathname, logout_clicks):
     Input("url", "pathname")
 )
 def update_logout_button_visibility(pathname):
-    if current_user.is_authenticated:
+    if show_logout_button():
         return {"display": "block", "text-decoration": "underline", "cursor": "pointer"}
     else:
         return {"display": "none"}
@@ -154,7 +155,7 @@ def update_logout_button_visibility(pathname):
 
 @app.callback(Output("stored-data", "data"), Input("stored-data", "data"))
 def fetch_data_once(data):
-    if data is None and current_user and current_user.is_authenticated:
+    if data is None and current_user and not require_login():
         df = db.get_expenditure_w_poverty_by_country_year()
         countries = sorted(df["country_name"].unique())
         return {
@@ -166,7 +167,7 @@ def fetch_data_once(data):
 
 @app.callback(Output("stored-data-func-econ", "data"), Input("stored-data-func-econ", "data"))
 def fetch_func_data_once(data):
-    if data is None and current_user and current_user.is_authenticated:
+    if data is None and current_user and not require_login():
         func_econ_df = db.get_expenditure_by_country_func_econ_year()
 
         agg_dict = {
@@ -207,7 +208,7 @@ def fetch_func_data_once(data):
     Input("stored-data", "data"),
 )
 def fetch_subnational_data_once(data, country_data):
-    if data is None and current_user and current_user.is_authenticated:
+    if data is None and current_user and not require_login():
         countries = country_data["countries"]
         df = db.get_adm_boundaries(countries)
 
@@ -243,7 +244,7 @@ def display_data(data):
         options[0]["selected"] = True
         return options
 
-    if data is not None and current_user and current_user.is_authenticated:
+    if data is not None and current_user and not require_login():
         countries = data["countries"]
         return get_country_select_options(countries), countries[0]
     return ["No data available"], ""
@@ -256,7 +257,7 @@ def display_data(data):
     Input("stored-basic-country-data", "data"),
 )
 def fetch_country_data_once(countries, subnational_data, country_data):
-    if country_data is None and current_user and current_user.is_authenticated:
+    if country_data is None and current_user and not require_login():
         countries = [x["label"] for x in countries]
         country_df = db.get_basic_country_data(countries)
         country_info = country_df.set_index("country_name").T.to_dict()

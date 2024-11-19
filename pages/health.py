@@ -12,7 +12,7 @@ from utils import (
     get_correlation_text,
     get_percentage_change_text,
     millify,
-    require_login,
+    require_authenticate,
 )
 import numpy as np
 import traceback
@@ -21,7 +21,7 @@ db = QueryService.get_instance()
 
 dash.register_page(__name__)
 
-@require_login
+@require_authenticate
 def layout():
     return html.Div(
         children=[

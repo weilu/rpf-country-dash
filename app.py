@@ -118,14 +118,14 @@ def layout():
                 dcc.Store(id="stored-data-subnational"),
                 dcc.Store(id="stored-data-func-econ"),])
             
-        return (
-            html.Div(
-                html_contents
-            )
+    return (
+        html.Div(
+            html_contents
         )
+    )
 
 
-app.layout = layout()
+app.layout = layout
 
 @app.callback(
     [Output("url", "pathname"), Output("page-content", "children")],

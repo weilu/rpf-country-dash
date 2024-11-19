@@ -32,10 +32,10 @@ def authenticate(username, password):
 
 def require_login():
      if not current_user:
-          return False
+          return True
      return not current_user.is_authenticated and AUTH_ENABLED
 
 def show_logout_button():
      if not current_user:
-          return False
+          return True
      return current_user.is_authenticated and AUTH_ENABLED

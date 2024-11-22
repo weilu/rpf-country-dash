@@ -6,8 +6,8 @@ import os
 
 from dash import dcc, html, Dash, Input, Output, State, page_container, page_registry, no_update
 from dash.long_callback import DiskcacheLongCallbackManager
-from flask_login import logout_user
-from auth import require_login, show_logout_button
+from flask_login import logout_user, current_user
+from auth import AUTH_ENABLED
 from queries import QueryService
 from server import server
 from utils import get_login_path, get_prefixed_path
@@ -106,18 +106,21 @@ dummy_div = html.Div(id="div-for-redirect")
 
 def layout():
     html_contents = [
-                        dcc.Location(id="url", refresh=False),
-                        header,
-                        sidebar,
-                        content,
-                        dummy_div
-                    ]
-    if not require_login():
-        html_contents.extend([dcc.Store(id="stored-data"),
-                dcc.Store(id="stored-basic-country-data"),
-                dcc.Store(id="stored-data-subnational"),
-                dcc.Store(id="stored-data-func-econ"),])
-            
+        dcc.Location(id="url", refresh=False),
+        header,
+        sidebar,
+        content,
+        dummy_div
+    ]
+
+    if not AUTH_ENABLED or current_user.is_authenticated:
+        html_contents.extend([
+            dcc.Store(id="stored-data"),
+            dcc.Store(id="stored-basic-country-data"),
+            dcc.Store(id="stored-data-subnational"),
+            dcc.Store(id="stored-data-func-econ"),
+        ])
+
     return (
         html.Div(
             html_contents
@@ -137,7 +140,7 @@ def display_page_or_redirect(pathname, logout_clicks):
         logout_user()
         return login_path, page_container
 
-    if not require_login():
+    if not AUTH_ENABLED or current_user.is_authenticated:
         if (
             pathname == get_login_path() or
             pathname is None or
@@ -156,7 +159,7 @@ def display_page_or_redirect(pathname, logout_clicks):
     Input("url", "pathname")
 )
 def update_logout_button_visibility(pathname):
-    if show_logout_button():
+    if AUTH_ENABLED and current_user.is_authenticated:
         return {"display": "block", "text-decoration": "underline", "cursor": "pointer"}
     else:
         return {"display": "none"}

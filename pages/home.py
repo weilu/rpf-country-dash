@@ -12,14 +12,14 @@ from utils import (
     filter_geojson_by_country,
     empty_plot,
     remove_accents,
-    require_authenticate,
+    require_login,
 )
 
 from components import slider, get_slider_config
 
 dash.register_page(__name__)
 
-@require_authenticate
+@require_login
 def layout():
     return html.Div(
         children=[

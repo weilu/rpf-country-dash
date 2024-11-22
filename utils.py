@@ -2,7 +2,7 @@ import plotly.graph_objects as go
 import unicodedata
 import textwrap
 
-from auth import require_login
+from auth import AUTH_ENABLED
 from constants import (
     NARRATIVE_ERROR_TEMPLATES,
     START_YEAR,
@@ -216,9 +216,9 @@ def get_prefixed_path(pathname):
 def get_login_path():
     return get_prefixed_path('login')
 
-def require_authenticate(layout_func):
+def require_login(layout_func):
     def wrapper(*args, **kwargs):
-        if not require_login():
+        if not AUTH_ENABLED or current_user.is_authenticated:
             return layout_func(*args, **kwargs)
         else:
             base_path = get_app().config.requests_pathname_prefix

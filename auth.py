@@ -1,6 +1,8 @@
 import bcrypt
 import os
-from flask_login import login_user, UserMixin
+from flask_login import login_user, UserMixin, current_user
+
+AUTH_ENABLED = os.getenv("AUTH_ENABLED", "False").lower() in ("true", "1", "yes")
 
 USER_NAME = os.getenv("USER_NAME")
 SALTED_PASSWORD = os.getenv("SALTED_PASSWORD")
@@ -26,3 +28,4 @@ def authenticate(username, password):
             return True
 
         return False
+

@@ -1172,6 +1172,7 @@ def render_subnational_spending_narrative(
 
 
 @callback(
+    Output("pefa-narrative", "children"),
     Output("pefa-overall", "figure"),
     Output("pefa-by-pillar", "figure"),
     Input("stored-data", "data"),
@@ -1189,6 +1190,7 @@ def render_pefa_overall(data, pefa_data, country):
     country_pov_df = filter_country_sort_year(all_countries_pov, country)
 
     return (
+        pefa.pefa_narrative(country_pefa_df),
         pefa.pefa_overall_figure(country_pefa_df, country_pov_df),
-        pefa.pefa_pillar_heatmap(country_pefa_df)
+        pefa.pefa_pillar_heatmap(country_pefa_df),
     )

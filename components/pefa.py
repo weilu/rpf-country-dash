@@ -1,5 +1,6 @@
 from collections import OrderedDict
 from plotly.subplots import make_subplots
+import numpy as np
 import plotly.graph_objects as go
 import textwrap
 
@@ -18,6 +19,58 @@ PILLAR_MAPPING = OrderedDict([
     ('pillar5_predictability_and_control', '5. Predictability and control'),
     ('pillar6_accounting_and_reporting', '6. Accounting and reporting'),
     ('pillar7_external_audit', '7. External audit'),
+])
+
+PILLAR_NARRARIVE_MAPPING = OrderedDict([
+    (
+        'pillar1_budget_reliability',
+        [
+            'budget being realistic and implemented as intended',
+            'aligning budget implementation with initial plans',
+        ]
+    ),
+    (
+        'pillar2_transparency',
+        [
+            'comprehensive, consistent, and accessible information on public financial management to the public',
+            'providing comprehensive, consistent, and accessible information on public financial management to the public',
+        ]
+    ),
+    (
+        'pillar3_asset_liability',
+        [
+            'that public investments provide value for money, assets are recorded and managed, fiscal risks are identified, and debts and guarantees are prudently planned, approved, and monitored',
+            'ensuring that public investments provide value for money, assets are recorded and managed, fiscal risks are identified, and debts and guarantees are prudently planned, approved, and monitored',
+        ]
+    ),
+    (
+        'pillar4_policy_based_budget',
+        [
+            'fiscal strategy and the budget being prepared with due regard to government fiscal policies, strategic plans, and adequate macroeconomic and fiscal projections',
+            'ensuring fiscal strategy and the budget is prepared with due regard to government fiscal policies, strategic plans, and adequate macroeconomic and fiscal projections',
+        ]
+    ),
+    (
+        'pillar5_predictability_and_control',
+        [
+            'budget execution within a system of effective standards, processes, and internal controls, ensuring that resources are obtained and used as intended',
+            'budget being implemented within a system of effective standards, processes, and internal controls, ensuring that resources are obtained and used as intended',
+        ]
+    ),
+    (
+        'pillar6_accounting_and_reporting',
+        [
+            'accurate and reliable records are maintained, and information is produced and disseminated at appropriate times to meet decision-making, management, and reporting needs',
+            'maintaining accurate and reliable records, producing and disseminating information at appropriate times to meet decision-making, management, and reporting needs',
+        ]
+    ),
+    (
+        'pillar7_external_audit',
+        [
+            'public finances being independently reviewed and presence of external follow-up on the implementation of recommendations for improvement by the executive',
+            'ensuring public finances is independently reviewed, and there is external follow-up on the implementation of recommendations for improvement by the executive',
+        ]
+    ),
 ])
 
 
@@ -150,3 +203,66 @@ def pefa_pillar_heatmap(df):
 
 def _score_to_grade(score):
     return SCORE_MAPPING[min(SCORE_MAPPING.keys(), key=lambda x: abs(x - score))]
+
+def pefa_narrative(df):
+    if df.empty:
+        return 'The Public Expenditure and Financial Accountability (PEFA) program provides a framework for assessing and reporting on the strengths and weaknesses of public financial management (PFM) using quantitative indicators to measure performance. Unfortunately, there is no PEFA accessment for this country to help us understand its quality of budget institutions.'
+
+    country = df.country_name.iloc[0]
+    earliest_year = df.year.min()
+    earliest = df[df.year == earliest_year]
+    latest_year = df.year.max()
+    latest = df[df.year == latest_year]
+    pillar_columns = [col for col in df.columns if col.startswith('pillar')]
+    pillar_scores = latest[pillar_columns].iloc[0]
+
+    highest_pillar = pillar_scores.idxmax()
+    highest_score = pillar_scores.max()
+    highest_grade = _score_to_grade(highest_score)
+
+    lowest_pillar = pillar_scores.idxmin()
+    lowest_score = pillar_scores.min()
+    lowest_grade = _score_to_grade(lowest_score)
+
+    text = f'''According to the latest Public Expenditure and Financial Accountability (PEFA) assessment conducted for {latest_year}, the strongest pillar of {country}’s budget institutions is "{PILLAR_MAPPING[highest_pillar]}", with an average score of {highest_score:.1f} (Grade {highest_grade}){_strength_narrative(highest_pillar, highest_score)}. On the other hand, the pillar with the most room for improvement is "{PILLAR_MAPPING[lowest_pillar]}", which scored {lowest_score:.1f} (Grade {lowest_grade}), {_weakness_narrative(lowest_pillar)}. '''
+
+    if earliest_year != latest_year:
+        improvement = (
+            latest[pillar_columns].values[0] - earliest[pillar_columns].values[0]
+        )
+
+        most_improved_pillar = pillar_columns[np.nanargmax(improvement)]
+        most_imporved_earliest_score = earliest[most_improved_pillar].iloc[0]
+        most_imporved_earliest_grade = _score_to_grade(most_imporved_earliest_score)
+        most_imporved_latest_score = latest[most_improved_pillar].iloc[0]
+        most_imporved_latest_grade = _score_to_grade(most_imporved_latest_score)
+
+        most_degraded_pillar = pillar_columns[np.nanargmin(improvement)]
+        most_degraded_earliest_score = earliest[most_degraded_pillar].iloc[0]
+        most_degraded_earliest_grade = _score_to_grade(most_degraded_earliest_score)
+        most_degraded_latest_score = latest[most_degraded_pillar].iloc[0]
+        most_degraded_latest_grade = _score_to_grade(most_degraded_latest_score)
+
+        text += f'''Over time, the pillar that improved the most is "{PILLAR_MAPPING[most_improved_pillar]}", which saw an increase from {most_imporved_earliest_score:.1f} (Grade {most_imporved_earliest_grade}) in {earliest_year} to {most_imporved_latest_score:.1f} (Grade {most_imporved_latest_grade}) in the latest assessment. Conversely, the pillar that degraded the most is "{PILLAR_MAPPING[most_degraded_pillar]}" which fell from {most_degraded_earliest_score:.1f} (Grade {most_degraded_earliest_grade}) in {earliest_year} to {most_degraded_latest_score:.1f} (Grade {most_degraded_latest_grade}) in the latest scores. '''
+
+    text += "These insights underscore areas of strength to build upon and critical weaknesses requiring targeted reforms."
+
+    return text
+
+def _strength_narrative(pillar, score):
+    narratives = PILLAR_NARRARIVE_MAPPING[pillar]
+    if score > 2.75:
+        text = ', reflecting '
+        text += narratives[0]
+    else:
+        text = '; despite being the strongest pillar, its low rating signals challenges in '
+        text += narratives[1]
+    return text
+
+def _weakness_narrative(pillar):
+    return f'indicating challenges in {PILLAR_NARRARIVE_MAPPING[pillar][1]}'
+
+def _trend_narrative():
+    text = f'''Over time, the pillar that improved the most is "Policy-based budgeting," which saw an increase from 2.5 (Grade C+) in 2016 to 3.5 (Grade B+) in the latest assessment, driven by enhanced linkage between policy priorities and budget planning. Conversely, the pillar that degraded the most is "External audit," which fell from 3.5 (Grade B+) in 2016 to 2.5 (Grade C+) in the latest scores, signaling declining effectiveness in independent audits and oversight. These trends underscore areas of strength to build upon and critical weaknesses requiring targeted reforms.'''
+    return text
+

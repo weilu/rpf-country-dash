@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
 import numpy as np
+import textwrap
 
 from utils import (
     filter_country_sort_year,
@@ -15,7 +16,12 @@ from utils import (
     require_login,
 )
 
+from collections import OrderedDict
 from components import slider, get_slider_config
+from queries import QueryService
+
+
+db = QueryService.get_instance()
 
 dash.register_page(__name__)
 
@@ -38,9 +44,23 @@ def layout():
                         html.Div(id="overview-content"),
                     ]
                 )
-            )
+            ),
+            dcc.Store(id="stored-data-pefa"),
         ]
     )
+
+@callback(
+    Output("stored-data-pefa", "data"),
+    Input("stored-data-pefa", "data"),
+    Input("stored-data", "data"),
+)
+def fetch_pefa_data_once(pefa_data, shared_data):
+    if pefa_data is None:
+        pefa = db.get_pefa(shared_data["countries"])
+        return {
+            "pefa": pefa.to_dict("records"),
+        }
+    return dash.no_update
 
 @callback(
     Output("overview-content", "children"),
@@ -161,6 +181,52 @@ def render_overview_content(tab):
                             sm={"size": 12, "offset": 0},
                             md={"size": 12, "offset": 0},
                             lg={"size": 8, "offset": 0},
+                        ),
+                    ],
+                ),
+                dbc.Row(
+                    dbc.Col(
+                        html.Hr(),
+                    )
+                ),
+                dbc.Row(
+                    dbc.Col(
+                        html.H3(
+                            children="Quality of Budget Institutions",
+                        )
+                    )
+                ),
+                dbc.Row(
+                    dbc.Col(
+                        html.P(
+                            id="pefa-narrative",
+                            children="loading...",
+                        ),
+                    ),
+                ),
+                dbc.Row(
+                    [
+                        # How did the overall quality of budget institutions change over time?
+                        dbc.Col(
+                            dcc.Graph(
+                                id="pefa-overall",
+                                config={"displayModeBar": False},
+                            ),
+                            xs={"size": 12, "offset": 0},
+                            sm={"size": 12, "offset": 0},
+                            md={"size": 12, "offset": 0},
+                            lg={"size": 5, "offset": 0},
+                        ),
+                        # How did various pillars of the budget institutions change over time?
+                        dbc.Col(
+                            dcc.Graph(
+                                id="pefa-by-pillar",
+                                config={"displayModeBar": False},
+                            ),
+                            xs={"size": 12, "offset": 0},
+                            sm={"size": 12, "offset": 0},
+                            md={"size": 12, "offset": 0},
+                            lg={"size": 7, "offset": 0},
                         ),
                     ],
                 ),
@@ -342,7 +408,7 @@ def per_capita_figure(df):
     fig.update_yaxes(
         title_text="Poverty Rate (%)",
         secondary_y=True,
-        range=[0, 100],
+        range=[-1, 100],
     )
     fig.update_layout(
         barmode="stack",
@@ -355,7 +421,7 @@ def per_capita_figure(df):
                 yref="paper",
                 x=-0.14,
                 y=-0.2,
-                text="Source: BOOST & CPI: World Bank; Population: UN, Eurostat",
+                text="Source: BOOST, CPI, Poverty Rate: World Bank; Population: UN, Eurostat",
                 showarrow=False,
                 font=dict(size=12),
             )
@@ -521,7 +587,7 @@ def format_cats_with_numbers(df, format_cat_func, format_number_func):
     elif len(items) > 2:
         return ", ".join(items[:-1]) + f", and {items[-1]}"
     elif items:
-        return items[0] 
+        return items[0]
     else:
         return ""
 
@@ -1106,3 +1172,172 @@ def render_subnational_spending_narrative(
         return subnational_spending_narrative(df_spending, df_poverty)
     except:
         return empty_plot("An error was encountered when producing this figure")
+
+
+@callback(
+    Output("pefa-overall", "figure"),
+    Output("pefa-by-pillar", "figure"),
+    Input("stored-data", "data"),
+    Input("stored-data-pefa", "data"),
+    Input("country-select", "value"),
+)
+def render_pefa_overall(data, pefa_data, country):
+    if not pefa_data or not data:
+        return
+
+    pefa_df = pd.DataFrame(pefa_data["pefa"])
+    country_pefa_df = filter_country_sort_year(pefa_df, country)
+
+    all_countries_pov = pd.DataFrame(data["expenditure_w_poverty_by_country_year"])
+    country_pov_df = filter_country_sort_year(all_countries_pov, country)
+
+    return (
+        pefa_overall_figure(country_pefa_df, country_pov_df),
+        pefa_pillar_heatmap(country_pefa_df)
+    )
+
+SCORE_MAPPING = OrderedDict([
+    (4, "A"),
+    (3, "B"), (3.5, "B+"),
+    (2, "C"), (2.5, "C+"),
+    (1, "D"), (1.5, "D+"),
+])
+
+def _score_to_grade(score):
+    return SCORE_MAPPING[min(SCORE_MAPPING.keys(), key=lambda x: abs(x - score))]
+
+def pefa_overall_figure(df, pov_df):
+    pillar_columns = [col for col in df.columns if col.startswith('pillar')]
+    overall_scores = df[pillar_columns].mean(axis=1)
+
+    overall_grades = overall_scores.map(_score_to_grade)
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    fig.add_trace(
+        go.Scatter(
+            name="Poverty Rate",
+            x=pov_df.year,
+            y=pov_df.poor215,
+            mode="lines+markers",
+            line=dict(color="darkred", shape="spline", dash="dot"),
+            connectgaps=True,
+            hovertemplate=("%{x}: %{y:.2f}%"),
+        ),
+        secondary_y=True,
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            name="PEFA Score",
+            x=df.year,
+            y=overall_scores,
+            mode="lines+markers",
+            marker_color="darkblue",
+            hovertemplate=("%{x}: %{y:.2f} (%{customdata})"),
+            customdata=overall_grades,
+        ),
+        secondary_y=False,
+    )
+
+    fig.update_xaxes(tickformat="d")
+    fig.update_yaxes(
+        title_text="Quality of Budget Institutions",
+        secondary_y=False,
+        tickvals=list(SCORE_MAPPING.keys()),
+        ticktext=list(SCORE_MAPPING.values()),
+        range=[0, 4.5],
+    )
+    fig.update_yaxes(
+        title_text="Poverty Rate (%)",
+        secondary_y=True,
+        range=[-10, 100],
+    )
+    title_text = "How did the overall quality of budget institutions change over time?"
+    wrapped_title = "<br>".join(textwrap.wrap(title_text, width=40))
+    fig.update_layout(
+        barmode="stack",
+        title={
+            'text': wrapped_title,
+            'font': {'size': 16},
+            'x': 0.5,
+            'y': 0.92,
+            'xanchor': 'center',
+        },
+        plot_bgcolor="white",
+        legend=dict(orientation="h", yanchor="bottom", y=1.03),
+        annotations=[
+            dict(
+                xref="paper",
+                yref="paper",
+                x=-0.14,
+                y=-0.2,
+                text="Source: PEFA & Poverty Rate: World Bank",
+                showarrow=False,
+                font=dict(size=12),
+            )
+        ],
+    )
+    return fig
+
+
+PILLAR_MAPPING = OrderedDict([
+    ('pillar1_budget_reliability', '1. Budget reliability'),
+    ('pillar2_transparency', '2. Transparency'),
+    ('pillar3_asset_liability', '3. Asset and liability management'),
+    ('pillar4_policy_based_budget', '4. Policy-based budgeting'),
+    ('pillar5_predictability_and_control', '5. Predictability and control'),
+    ('pillar6_accounting_and_reporting', '6. Accounting and reporting'),
+    ('pillar7_external_audit', '7. External audit'),
+])
+
+def pefa_pillar_heatmap(df):
+    heatmap_data = df.melt(
+        id_vars=['year'],
+        value_vars=[col for col in df.columns if col.startswith('pillar')],
+        var_name='pillar',
+        value_name='score'
+    )
+
+    heatmap_data['grade'] = heatmap_data['score'].map(_score_to_grade)
+    heatmap_data['pillar'] = heatmap_data['pillar'].map(PILLAR_MAPPING)
+
+    heatmap_scores = heatmap_data.pivot(index='pillar', columns='year', values='score')
+    heatmap_grades = heatmap_data.pivot(index='pillar', columns='year', values='grade')
+
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=heatmap_scores.values,
+            x=heatmap_scores.columns,
+            y=heatmap_scores.index,
+            text=heatmap_grades.values,
+            hovertemplate=(
+                "Year: %{x}<br>"
+                "Pillar: %{y}<br>"
+                "Score: %{z:.1f}<br>"
+                "Grade: %{text}<extra></extra>"
+            ),
+            colorscale='Viridis',
+            zmin=1,
+            zmax=4,
+            colorbar=dict(
+                title="PEFA Scores",
+                tickvals=list(SCORE_MAPPING.keys()),
+                ticktext=list(SCORE_MAPPING.values()),
+            ),
+        )
+    )
+
+    fig.update_layout(
+        title={
+            'text': 'How did various pillars of the budget institutions change over time?',
+            'font': {'size': 16},
+            'x': 0.5,
+            'y': 0.95,
+            'xanchor': 'center',
+        },
+        xaxis_title='',
+        yaxis_title='Pillars',
+        yaxis=dict(tickmode='linear', categoryorder="category descending"),
+    )
+    return fig

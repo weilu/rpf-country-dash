@@ -96,6 +96,8 @@ def empty_plot(message, fig_title="", max_line_length=40):
         text=wrapped_text,
         xref="paper",
         yref="paper",
+        x=0.5,
+        xanchor='center',
         showarrow=False,
         font=dict(size=14),
     )
@@ -103,7 +105,6 @@ def empty_plot(message, fig_title="", max_line_length=40):
         title=fig_title,
         xaxis={"visible": False},
         yaxis={"visible": False},
-        plot_bgcolor="white",
     )
     return fig
 

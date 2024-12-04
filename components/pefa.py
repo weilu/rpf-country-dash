@@ -1,5 +1,6 @@
 from collections import OrderedDict
 from plotly.subplots import make_subplots
+from utils import empty_plot
 import numpy as np
 import plotly.graph_objects as go
 import textwrap
@@ -75,6 +76,11 @@ PILLAR_NARRARIVE_MAPPING = OrderedDict([
 
 
 def pefa_overall_figure(df, pov_df):
+    title_text = "How did the overall quality of budget institutions change over time?"
+    wrapped_title = "<br>".join(textwrap.wrap(title_text, width=45))
+    if df.empty:
+        return empty_plot("PEFA data not available", wrapped_title)
+
     pillar_columns = [col for col in df.columns if col.startswith('pillar')]
     overall_scores = df[pillar_columns].mean(axis=1)
 
@@ -121,8 +127,6 @@ def pefa_overall_figure(df, pov_df):
         secondary_y=True,
         range=[-10, 100],
     )
-    title_text = "How did the overall quality of budget institutions change over time?"
-    wrapped_title = "<br>".join(textwrap.wrap(title_text, width=40))
     fig.update_layout(
         barmode="stack",
         title={
@@ -150,6 +154,10 @@ def pefa_overall_figure(df, pov_df):
 
 
 def pefa_pillar_heatmap(df):
+    fig_title = 'How did various pillars of the budget institutions change over time?'
+    if df.empty:
+        return empty_plot("PEFA by pillar data not available", fig_title)
+
     heatmap_data = df.melt(
         id_vars=['year'],
         value_vars=[col for col in df.columns if col.startswith('pillar')],
@@ -188,7 +196,7 @@ def pefa_pillar_heatmap(df):
 
     fig.update_layout(
         title={
-            'text': 'How did various pillars of the budget institutions change over time?',
+            'text': fig_title,
             'font': {'size': 16},
             'x': 0.5,
             'y': 0.95,

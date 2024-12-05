@@ -193,7 +193,11 @@ def pefa_pillar_heatmap(df):
             zmin=1,
             zmax=4,
             colorbar=dict(
-                title="PEFA Scores",
+                title=dict(
+                    text="PEFA Grades",
+                    side='right',
+                    font=dict(size=12),
+                ),
                 tickvals=list(SCORE_MAPPING.keys()),
                 ticktext=list(SCORE_MAPPING.values()),
             ),
@@ -208,6 +212,7 @@ def pefa_pillar_heatmap(df):
     )
 
     fig.update_yaxes(
+        ticksuffix=" ",
         tickmode='linear',
         title_text="",
         showgrid=False,
@@ -218,7 +223,7 @@ def pefa_pillar_heatmap(df):
             'text': fig_title,
             'font': {'size': 16},
             'x': 0.5,
-            'y': 0.95,
+            'y': 0.9,
             'xanchor': 'center',
         },
     )

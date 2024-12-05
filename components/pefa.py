@@ -199,6 +199,19 @@ def pefa_pillar_heatmap(df):
         )
     )
 
+    fig.update_xaxes(
+        tickvals=heatmap_scores.columns,
+        ticktext=heatmap_scores.columns,
+        title_text="",
+        showgrid=False,
+    )
+
+    fig.update_yaxes(
+        tickmode='linear',
+        title_text="",
+        showgrid=False,
+    )
+
     fig.update_layout(
         title={
             'text': fig_title,
@@ -207,9 +220,6 @@ def pefa_pillar_heatmap(df):
             'y': 0.95,
             'xanchor': 'center',
         },
-        xaxis_title='',
-        yaxis_title='Pillars',
-        yaxis=dict(tickmode='linear'),
     )
     return fig
 

@@ -3,6 +3,7 @@ from plotly.subplots import make_subplots
 from utils import empty_plot
 import numpy as np
 import plotly.graph_objects as go
+import re
 import textwrap
 
 SCORE_MAPPING = OrderedDict([
@@ -249,7 +250,7 @@ def pefa_narrative(df):
     lowest_score = pillar_scores.min()
     lowest_grade = _score_to_grade(lowest_score)
 
-    text = f'''According to the latest Public Expenditure and Financial Accountability (PEFA) assessment conducted for {latest_year}, the strongest pillar of {country}’s budget institutions is "{PILLAR_MAPPING[highest_pillar]}", with an average score of {highest_score:.1f} (Grade {highest_grade}){_strength_narrative(highest_pillar, highest_score)}. On the other hand, the pillar with the most room for improvement is "{PILLAR_MAPPING[lowest_pillar]}", which scored {lowest_score:.1f} (Grade {lowest_grade}), {_weakness_narrative(lowest_pillar)}. '''
+    text = f'''According to the latest Public Expenditure and Financial Accountability (PEFA) assessment conducted for {latest_year}, the strongest pillar of {country}’s budget institutions is "{_pillar_text(highest_pillar)}", with an average score of {highest_score:.1f} (Grade {highest_grade}){_strength_narrative(highest_pillar, highest_score)}. On the other hand, the pillar with the most room for improvement is "{_pillar_text(lowest_pillar)}", which scored {lowest_score:.1f} (Grade {lowest_grade}), {_weakness_narrative(lowest_pillar)}. '''
 
     if earliest_year != latest_year:
         improvement = (
@@ -268,7 +269,7 @@ def pefa_narrative(df):
         most_degraded_latest_score = latest[most_degraded_pillar].iloc[0]
         most_degraded_latest_grade = _score_to_grade(most_degraded_latest_score)
 
-        text += f'''Over time, the pillar that improved the most is "{PILLAR_MAPPING[most_improved_pillar]}", which saw an increase from {most_imporved_earliest_score:.1f} (Grade {most_imporved_earliest_grade}) in {earliest_year} to {most_imporved_latest_score:.1f} (Grade {most_imporved_latest_grade}) in the latest assessment. Conversely, the pillar that degraded the most is "{PILLAR_MAPPING[most_degraded_pillar]}" which fell from {most_degraded_earliest_score:.1f} (Grade {most_degraded_earliest_grade}) in {earliest_year} to {most_degraded_latest_score:.1f} (Grade {most_degraded_latest_grade}) in the latest scores. '''
+        text += f'''Over time, the pillar that improved the most is "{_pillar_text(most_improved_pillar)}", which saw an increase from {most_imporved_earliest_score:.1f} (Grade {most_imporved_earliest_grade}) in {earliest_year} to {most_imporved_latest_score:.1f} (Grade {most_imporved_latest_grade}) in the latest assessment. Conversely, the pillar that degraded the most is "{_pillar_text(most_degraded_pillar)}" which fell from {most_degraded_earliest_score:.1f} (Grade {most_degraded_earliest_grade}) in {earliest_year} to {most_degraded_latest_score:.1f} (Grade {most_degraded_latest_grade}) in the latest scores. '''
 
     text += "These insights underscore areas of strength to build upon and critical weaknesses requiring targeted reforms."
 
@@ -287,7 +288,5 @@ def _strength_narrative(pillar, score):
 def _weakness_narrative(pillar):
     return f'indicating challenges in {PILLAR_NARRARIVE_MAPPING[pillar][1]}'
 
-def _trend_narrative():
-    text = f'''Over time, the pillar that improved the most is "Policy-based budgeting," which saw an increase from 2.5 (Grade C+) in 2016 to 3.5 (Grade B+) in the latest assessment, driven by enhanced linkage between policy priorities and budget planning. Conversely, the pillar that degraded the most is "External audit," which fell from 3.5 (Grade B+) in 2016 to 2.5 (Grade C+) in the latest scores, signaling declining effectiveness in independent audits and oversight. These trends underscore areas of strength to build upon and critical weaknesses requiring targeted reforms.'''
-    return text
-
+def _pillar_text(pillar):
+    return re.sub(r'^\d+\.\s+', '', PILLAR_MAPPING[pillar])

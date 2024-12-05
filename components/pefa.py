@@ -171,17 +171,22 @@ def pefa_pillar_heatmap(df):
     heatmap_scores = heatmap_data.pivot(index='pillar', columns='year', values='score')
     heatmap_grades = heatmap_data.pivot(index='pillar', columns='year', values='grade')
 
+    heatmap_scores.sort_index(ascending=False, inplace=True)
+    heatmap_grades.sort_index(ascending=False, inplace=True)
+
+    hover_text = heatmap_scores.applymap(lambda x: f"{x:.1f}" if not np.isnan(x) else "N/A")
+    hover_text = hover_text + "<br>Grade: " + heatmap_grades.values
+
     fig = go.Figure(
         data=go.Heatmap(
             z=heatmap_scores.values,
             x=heatmap_scores.columns,
             y=heatmap_scores.index,
-            text=heatmap_grades.values,
+            text=hover_text.values,
             hovertemplate=(
                 "Year: %{x}<br>"
                 "Pillar: %{y}<br>"
-                "Score: %{z:.1f}<br>"
-                "Grade: %{text}<extra></extra>"
+                "Score: %{text}<extra></extra>"
             ),
             colorscale='Viridis',
             zmin=1,
@@ -204,12 +209,14 @@ def pefa_pillar_heatmap(df):
         },
         xaxis_title='',
         yaxis_title='Pillars',
-        yaxis=dict(tickmode='linear', categoryorder="category descending"),
+        yaxis=dict(tickmode='linear'),
     )
     return fig
 
 
 def _score_to_grade(score):
+    if np.isnan(score):
+        return "N/A"
     return SCORE_MAPPING[min(SCORE_MAPPING.keys(), key=lambda x: abs(x - score))]
 
 def pefa_narrative(df):

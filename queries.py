@@ -149,3 +149,11 @@ class QueryService:
         """
         return self.fetch_data(query)
 
+    def get_pefa(self, countries):
+        country_list = "', '".join(countries)
+        query = f"""
+            SELECT * FROM indicator.pefa_by_pillar
+            WHERE country_name IN ('{country_list}')
+            ORDER BY country_name, year
+        """
+        return self.fetch_data(query)

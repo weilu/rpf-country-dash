@@ -4,7 +4,19 @@ import pandas as pd
 import json
 import os
 
-from dash import dcc, html, Dash, Input, Output, State, page_container, page_registry, no_update
+
+from dash import (
+    dcc,
+    html,
+    Dash,
+    Input,
+    Output,
+    State,
+    page_container,
+    page_registry,
+    no_update,
+)
+import components.shared_fig_narrative  # required to register shared callbacks
 from dash.long_callback import DiskcacheLongCallbackManager
 from flask_login import logout_user, current_user
 from auth import AUTH_ENABLED
@@ -54,29 +66,30 @@ db = QueryService.get_instance()
 
 header = html.Div(
     [
-        html.Div(id="user-status-header", children=[
-            html.A(
-                children="logout",
-                n_clicks=0,
-                id="logout-button",
-                style={"display": "none"}
-            )
-        ])
+        html.Div(
+            id="user-status-header",
+            children=[
+                html.A(
+                    children="logout",
+                    n_clicks=0,
+                    id="logout-button",
+                    style={"display": "none"},
+                )
+            ],
+        )
     ],
-    style=HEADER_STYLE
+    style=HEADER_STYLE,
 )
+
 
 def get_relative_path(page_name):
     return page_registry[f"pages.{page_name}"]["relative_path"]
 
+
 sidebar = html.Div(
     [
         dbc.Row(
-            [
-                html.Img(
-                    src=app.get_asset_url("rpf_logo.png"), style={"height": "100"}
-                )
-            ]
+            [html.Img(src=app.get_asset_url("rpf_logo.png"), style={"height": "100"})]
         ),
         html.Hr(),
         dbc.Select(
@@ -104,35 +117,35 @@ content = html.Div(page_container, id="page-content", style=CONTENT_STYLE)
 
 dummy_div = html.Div(id="div-for-redirect")
 
+
 def layout():
     html_contents = [
         dcc.Location(id="url", refresh=False),
         header,
         sidebar,
         content,
-        dummy_div
+        dummy_div,
     ]
 
     if not AUTH_ENABLED or current_user.is_authenticated:
-        html_contents.extend([
-            dcc.Store(id="stored-data"),
-            dcc.Store(id="stored-basic-country-data"),
-            dcc.Store(id="stored-data-subnational"),
-            dcc.Store(id="stored-data-func-econ"),
-        ])
-
-    return (
-        html.Div(
-            html_contents
+        html_contents.extend(
+            [
+                dcc.Store(id="stored-data"),
+                dcc.Store(id="stored-basic-country-data"),
+                dcc.Store(id="stored-data-subnational"),
+                dcc.Store(id="stored-data-func-econ"),
+            ]
         )
-    )
+
+    return html.Div(html_contents)
 
 
 app.layout = layout
 
+
 @app.callback(
     [Output("url", "pathname"), Output("page-content", "children")],
-    [Input("url", "pathname"), Input("logout-button", "n_clicks")]
+    [Input("url", "pathname"), Input("logout-button", "n_clicks")],
 )
 def display_page_or_redirect(pathname, logout_clicks):
     login_path = get_login_path()
@@ -142,9 +155,9 @@ def display_page_or_redirect(pathname, logout_clicks):
 
     if not AUTH_ENABLED or current_user.is_authenticated:
         if (
-            pathname == get_login_path() or
-            pathname is None or
-            pathname == os.getenv("DEFAULT_ROOT_PATH", "/")
+            pathname == get_login_path()
+            or pathname is None
+            or pathname == os.getenv("DEFAULT_ROOT_PATH", "/")
         ):
             return get_prefixed_path("home"), page_container
         return pathname, page_container
@@ -154,10 +167,7 @@ def display_page_or_redirect(pathname, logout_clicks):
         return pathname, page_container
 
 
-@app.callback(
-    Output("logout-button", "style"),
-    Input("url", "pathname")
-)
+@app.callback(Output("logout-button", "style"), Input("url", "pathname"))
 def update_logout_button_visibility(pathname):
     if AUTH_ENABLED and current_user.is_authenticated:
         return {"display": "block", "text-decoration": "underline", "cursor": "pointer"}
@@ -177,7 +187,9 @@ def fetch_data_once(data):
     return no_update
 
 
-@app.callback(Output("stored-data-func-econ", "data"), Input("stored-data-func-econ", "data"))
+@app.callback(
+    Output("stored-data-func-econ", "data"), Input("stored-data-func-econ", "data")
+)
 def fetch_func_data_once(data):
     if data is None:
         func_econ_df = db.get_expenditure_by_country_func_econ_year()
@@ -191,27 +203,55 @@ def fetch_func_data_once(data):
             "per_capita_real_expenditure": "sum",
         }
 
-        func_df = (
-            func_econ_df
-            .groupby(["country_name", "year", "func"], as_index=False)
-            .agg(agg_dict)
+        func_df = func_econ_df.groupby(
+            ["country_name", "year", "func"], as_index=False
+        ).agg(agg_dict)
+        func_df["expenditure_decentralization"] = (
+            func_df["decentralized_expenditure"] / func_df["expenditure"]
         )
-        func_df["expenditure_decentralization"] = func_df["decentralized_expenditure"] / func_df["expenditure"]
 
-        econ_df = (
-            func_econ_df
-            .groupby(["country_name", "year", "econ"], as_index=False)
-            .agg(agg_dict)
+        econ_df = func_econ_df.groupby(
+            ["country_name", "year", "econ"], as_index=False
+        ).agg(agg_dict)
+        econ_df["expenditure_decentralization"] = (
+            econ_df["decentralized_expenditure"] / econ_df["expenditure"]
         )
-        econ_df["expenditure_decentralization"] = econ_df["decentralized_expenditure"] / econ_df["expenditure"]
+
+        prop_econ_by_func_df = (
+            func_econ_df[func_econ_df["func"].isin(["Health", "Education"])]
+            .assign(
+                econ=lambda df: df["econ"].apply(
+                    lambda x: "Employee Compensation"
+                    if x == "Wage bill"
+                    else "Goods and Services"
+                    if x == "Goods and services"
+                    else "Capital Spending"
+                    if x == "Capital expenditures"
+                    else "Operational Spending"
+                )
+            )
+            .groupby(["country_name", "year", "func", "econ"], as_index=False)
+            .agg(agg_dict)
+            .assign(
+                proportion=lambda df: (
+                    100
+                    * df["expenditure"]
+                    / df.groupby(["country_name", "year", "func"])[
+                        "expenditure"
+                    ].transform("sum")
+                ).round()
+            )
+        )
 
         return {
             "expenditure_by_country_func_econ_year": func_econ_df.to_dict("records"),
             "expenditure_by_country_func_year": func_df.to_dict("records"),
             "expenditure_by_country_econ_year": econ_df.to_dict("records"),
+            "econ_expenditure_prop_by_func_country_year": prop_econ_by_func_df.to_dict(
+                "records"
+            ),
         }
     return no_update
-
 
 
 @app.callback(
@@ -311,13 +351,11 @@ def fetch_country_data_once(countries, subnational_data, country_data):
             country_info[country]["poverty_years"] = years
 
         for country, info in country_info.items():
-
             country_income_level = info["income_level"]
             info["poverty_bounds"] = poverty_level_stats[country_income_level]
 
         return {"basic_country_info": country_info}
     return no_update
-
 
 
 if __name__ == "__main__":

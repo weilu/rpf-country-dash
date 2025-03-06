@@ -9,6 +9,7 @@ from queries import QueryService
 from utils import (
     empty_plot,
     filter_country_sort_year,
+    filter_geojson_by_country,
     generate_error_prompt,
     get_correlation_text,
     get_percentage_change_text,
@@ -19,11 +20,12 @@ from utils import (
 import numpy as np
 import traceback
 from components.year_slider import slider, get_slider_config
-
+from components.shared_fig_narrative import generate_econ_figure, format_econ_narrative
 
 db = QueryService.get_instance()
 
 dash.register_page(__name__)
+
 
 @require_login
 def layout():
@@ -61,7 +63,6 @@ def layout():
 )
 def fetch_edu_total_data_once(edu_data, shared_data):
     if edu_data is None:
-
         # filter shared data down to education specific
         exp_by_func = pd.DataFrame(shared_data["expenditure_by_country_func_year"])
         pub_exp = exp_by_func[exp_by_func.func == "Education"]
@@ -146,142 +147,121 @@ def render_education_content(tab):
                     )
                 ),
                 dbc.Row(
-                    dbc.Col([
-                        html.P(
-                            id="education-public-private-narrative",
-                            children="loading...",
-                        ),
-                        html.P(
-                            id="education-narrative",
-                        ),
-                    ])
-                ),
-                dbc.Row([
-                    dbc.Col(
-                        dcc.Graph(
-                            id="education-public-private",
-                            config={"displayModeBar": False},
-                        ),
-                        xs={"size": 12, "offset": 0},
-                        sm={"size": 12, "offset": 0},
-                        md={"size": 12, "offset": 0},
-                        lg={"size": 6, "offset": 0},
-                    ),
-                    dbc.Col(
-                        dcc.Graph(
-                            id="education-total",
-                            config={"displayModeBar": False},
-                        ),
-                        xs={"size": 12, "offset": 0},
-                        sm={"size": 12, "offset": 0},
-                        md={"size": 12, "offset": 0},
-                        lg={"size": 6, "offset": 0},
-                    ),
-                ]),
-                dbc.Row(
-                    dbc.Col(
-                        html.Hr(),
-                    )
-                ),
-                dbc.Row(
-                    dbc.Col([
-                        html.H3(
-                            children="Public Spending & Education Outcome",
-                        ),
-                    ])
-                ),
-                dbc.Row([
-                    dbc.Col(
-                        dcc.Graph(
-                            id="education-outcome",
-                            config={"displayModeBar": False},
-                        ),
-                        xs={"size": 12, "offset": 0},
-                        sm={"size": 12, "offset": 0},
-                        md={"size": 12, "offset": 0},
-                        lg={"size": 7, "offset": 0},
-                    ),
                     dbc.Col(
                         [
                             html.P(
-                                children="Generally, while education outcomes related to access can be conceptually linked to the availability of public finance, results related to quality have a more complex chain of causality.",
-                            ),
-                            html.P(
-                                id="education-outcome-measure",
-                                children="",
-                            ),
-                            html.P(
-                                id="education-outcome-narrative",
+                                id="education-public-private-narrative",
                                 children="loading...",
                             ),
-                        ],
-                        xs={"size": 12, "offset": 0},
-                        sm={"size": 12, "offset": 0},
-                        md={"size": 12, "offset": 0},
-                        lg={"size": 5, "offset": 0},
-                    ),
-                ]),
-                dbc.Row(
-                    dbc.Col(
-                        html.Hr(),
-                    )
-                ),
-                dbc.Row(
-                    dbc.Col(
-                        html.H3(
-                            children="Public Spending Breakdown by Education Sector",
-                        )
+                            html.P(
+                                id="education-narrative",
+                            ),
+                        ]
                     )
                 ),
                 dbc.Row(
                     [
-                        # How much did the government spend on different levels of education
                         dbc.Col(
                             dcc.Graph(
-                                id="education-sub-func",
+                                id="education-public-private",
                                 config={"displayModeBar": False},
                             ),
                             xs={"size": 12, "offset": 0},
                             sm={"size": 12, "offset": 0},
                             md={"size": 12, "offset": 0},
-                            lg={"size": 8, "offset": 0},
+                            lg={"size": 6, "offset": 0},
                         ),
                         dbc.Col(
-                            html.P(
-                                id="education-sub-func-narrative",
-                                children="loading...",
+                            dcc.Graph(
+                                id="education-total",
+                                config={"displayModeBar": False},
                             ),
                             xs={"size": 12, "offset": 0},
                             sm={"size": 12, "offset": 0},
                             md={"size": 12, "offset": 0},
-                            lg={"size": 4, "offset": 0},
+                            lg={"size": 6, "offset": 0},
                         ),
-                    ],
+                    ]
+                ),
+                dbc.Row(
+                    dbc.Col(
+                        html.Hr(),
+                    )
+                ),
+                dbc.Row(
+                    dbc.Col(
+                        [
+                            html.H3(
+                                children="Public Spending & Education Outcome",
+                            ),
+                        ]
+                    )
+                ),
+                dbc.Row(
+                    [
+                        dbc.Col(
+                            dcc.Graph(
+                                id="education-outcome",
+                                config={"displayModeBar": False},
+                            ),
+                            xs={"size": 12, "offset": 0},
+                            sm={"size": 12, "offset": 0},
+                            md={"size": 12, "offset": 0},
+                            lg={"size": 7, "offset": 0},
+                        ),
+                        dbc.Col(
+                            [
+                                html.P(
+                                    children="Generally, while education outcomes related to access can be conceptually linked to the availability of public finance, results related to quality have a more complex chain of causality.",
+                                ),
+                                html.P(
+                                    id="education-outcome-measure",
+                                    children="",
+                                ),
+                                html.P(
+                                    id="education-outcome-narrative",
+                                    children="loading...",
+                                ),
+                            ],
+                            xs={"size": 12, "offset": 0},
+                            sm={"size": 12, "offset": 0},
+                            md={"size": 12, "offset": 0},
+                            lg={"size": 5, "offset": 0},
+                        ),
+                    ]
+                ),
+                dbc.Row(
+                    dbc.Col(
+                        html.Hr(),
+                    )
+                ),
+                dbc.Row(
+                    dbc.Col(
+                        [
+                            html.H3(
+                                children="Operational Vs Capital Spending",
+                            ),
+                        ]
+                    )
+                ),
+                dbc.Row(
+                    [
+                        dbc.Col(
+                            dcc.Store(id="page-selector", data="Education"), width=0
+                        ),
+                        dbc.Row(
+                            [
+                                dbc.Col(id="econ-breakdown-func-narrative", width=6),
+                                dbc.Col(dcc.Graph(id="econ-breakdown-func"), width=6),
+                            ]
+                        ),
+                    ]
                 ),
             ]
         )
     elif tab == "edu-tab-space":
         return html.Div(
             [
-                dbc.Row(
-                    dbc.Col(
-                        html.H3(
-                            id="education-subnational-title",
-                            children="How does spending on education vary across regions?",
-                        )
-                    )
-                ),
-                dbc.Row(
-                    dbc.Col(
-                        [
-                            html.P(
-                                id="education-subnational-narrative",
-                                children="loading...",
-                            ),
-                        ]
-                    )
-                ),
-                dbc.Row(style={"height": "20px"}),
                 dbc.Row(
                     [
                         dbc.Col(width=1),
@@ -300,6 +280,92 @@ def render_education_content(tab):
                         ),
                     ]
                 ),
+                dbc.Row(style={"height": "20px"}),
+                dbc.Row(
+                    dbc.Col(
+                        html.H3(
+                            children="Where Does Education Funding Come From, and How is it Allocated?",
+                        )
+                    )
+                ),
+                dbc.Row(
+                    [
+                        dbc.Col(dcc.Graph(id="education-central-vs-regional"), width=6),
+                        dbc.Col(dcc.Graph(id="education-sub-func"), width=6),
+                    ]
+                ),
+                dbc.Row(style={"height": "20px"}),
+                dbc.Row(
+                    dbc.Col(html.Div(id="education-sub-func-narrative"), width=12),
+                ),
+                dbc.Row(style={"height": "20px"}),
+                dbc.Row(
+                    dbc.Col(
+                        html.H3(
+                            id="education-subnational-title",
+                            children="How Does Education Spending and Outcomes Vary Across Regions?",
+                        )
+                    )
+                ),
+                dbc.Row(
+                    dbc.Col(
+                        dbc.RadioItems(
+                            id="education-expenditure-type",
+                            options=[
+                                {
+                                    "label": "Per capita education expenditure",
+                                    "value": "per_capita_expenditure",
+                                },
+                                {
+                                    "label": "Total education expenditure",
+                                    "value": "expenditure",
+                                },
+                            ],
+                            value="per_capita_expenditure",
+                            inline=True,
+                            style={"padding": "10px"},
+                            labelStyle={
+                                "margin-right": "20px",
+                            },
+                        ),
+                    ),
+                ),
+                dbc.Row(
+                    [
+                        dbc.Col(
+                            dcc.Graph(
+                                id="education-expenditure-map",
+                                config={"displayModeBar": False},
+                            ),
+                            xs=12,
+                            sm=12,
+                            md=6,
+                            lg=6,
+                        ),
+                        dbc.Col(
+                            dcc.Graph(
+                                id="education-outcome-map",
+                                config={"displayModeBar": False},
+                            ),
+                            xs=12,
+                            sm=12,
+                            md=6,
+                            lg=6,
+                        ),
+                    ]
+                ),
+                dbc.Row(style={"height": "20px"}),
+                dbc.Row(
+                    dbc.Col(
+                        [
+                            html.P(
+                                id="education-subnational-narrative",
+                                children="loading...",
+                            ),
+                        ]
+                    )
+                ),
+                dbc.Row(style={"height": "20px"}),
                 dbc.Row(
                     [
                         dbc.Col(
@@ -377,19 +443,19 @@ def total_edu_figure(df):
 def education_narrative(data, country):
     spending = pd.DataFrame(data["edu_public_expenditure"])
     spending = filter_country_sort_year(spending, country)
-    spending.dropna(
-        subset=["real_expenditure", "central_expenditure"], inplace=True
-    )
+    spending.dropna(subset=["real_expenditure", "central_expenditure"], inplace=True)
 
     start_year = spending.year.min()
     end_year = spending.year.max()
     start_value = spending[spending.year == start_year].real_expenditure.values[0]
     end_value = spending[spending.year == end_year].real_expenditure.values[0]
-    spending_growth_rate = ((end_value - start_value) / start_value)
-    trend = 'increased' if end_value > start_value else 'decreased'
+    spending_growth_rate = (end_value - start_value) / start_value
+    trend = "increased" if end_value > start_value else "decreased"
     text = f"Between {start_year} and {end_year} after adjusting for inflation, total public spending on education in {country} has {trend} from ${millify(start_value)} to ${millify(end_value)}, reflecting a growth rate of {spending_growth_rate:.0%}. "
 
-    spending['real_central_expenditure'] = spending.real_expenditure / spending.expenditure * spending.central_expenditure
+    spending["real_central_expenditure"] = (
+        spending.real_expenditure / spending.expenditure * spending.central_expenditure
+    )
     start_value_central = spending[
         spending.year == start_year
     ].real_central_expenditure.values[0]
@@ -398,15 +464,19 @@ def education_narrative(data, country):
     ].real_central_expenditure.values[0]
 
     spending_growth_rate_central = (
-        (end_value_central - start_value_central) / start_value_central
-    )
+        end_value_central - start_value_central
+    ) / start_value_central
 
     text += f"In this time period, the central government's inflation-adjusted spending has {get_percentage_change_text(spending_growth_rate_central)} "
 
     if not np.isnan(
         spending[spending.year == start_year].decentralized_expenditure.values[0]
     ):
-        spending['real_decentralized_expenditure'] = spending.real_expenditure / spending.expenditure * spending.decentralized_expenditure
+        spending["real_decentralized_expenditure"] = (
+            spending.real_expenditure
+            / spending.expenditure
+            * spending.decentralized_expenditure
+        )
         start_value_decentralized = spending[
             spending.year == start_year
         ].real_decentralized_expenditure.values[0]
@@ -415,9 +485,8 @@ def education_narrative(data, country):
         ].real_decentralized_expenditure.values[0]
 
         spending_growth_rate_decentralized = (
-            (end_value_decentralized - start_value_decentralized)
-            / start_value_decentralized
-        )
+            end_value_decentralized - start_value_decentralized
+        ) / start_value_decentralized
         spending_change_regional = f"while the subnational government's inflation-adjusted spending has {get_percentage_change_text(spending_growth_rate_decentralized)}. "
     else:
         spending_change_regional = (
@@ -426,11 +495,13 @@ def education_narrative(data, country):
 
     text += spending_change_regional
 
-    decentralization = spending[spending.year == end_year].expenditure_decentralization.values[0]
+    decentralization = spending[
+        spending.year == end_year
+    ].expenditure_decentralization.values[0]
     if pd.isna(decentralization) or decentralization == 0:
         spending_decentralization = "The extent of education spending decentralization is unknown due to a lack of subnational public expenditure data."
     else:
-        spending_decentralization = f'By {end_year}, {decentralization:.1%} of education spending has been decentralized.'
+        spending_decentralization = f"By {end_year}, {decentralization:.1%} of education spending has been decentralized."
     text += spending_decentralization
 
     return text
@@ -466,7 +537,7 @@ def public_private_narrative(df, country):
     try:
         latest_gov_share = df[df.year == latest_year].public_percentage.values[0]
         earliest_gov_share = df[df.year == earliest_year].public_percentage.values[0]
-        trend = 'increased' if latest_gov_share > earliest_gov_share else 'decreased'
+        trend = "increased" if latest_gov_share > earliest_gov_share else "decreased"
         household_ratio = (
             df[df.year == latest_year].real_expenditure_private.values[0]
             / df.real_expenditure_public.values[0]
@@ -509,18 +580,20 @@ def render_public_private_figure(private_data, public_data, country):
         how="inner",
         suffixes=["_private", "_public"],
     )
-    merged = merged.dropna(subset=["real_expenditure_public", "real_expenditure_private"])
+    merged = merged.dropna(
+        subset=["real_expenditure_public", "real_expenditure_private"]
+    )
 
     if merged.empty:
         if public.empty:
             prompt = generate_error_prompt(
                 "DATA_UNAVAILABLE_DATASET_NAME",
-                dataset_name="Education public spending"
+                dataset_name="Education public spending",
             )
         elif private.empty:
             prompt = generate_error_prompt(
                 "DATA_UNAVAILABLE_DATASET_NAME",
-                dataset_name="Education private spending"
+                dataset_name="Education private spending",
             )
         else:
             prompt = "Available public and private spending data on education do not have an overlapping time period."
@@ -593,8 +666,10 @@ def render_public_private_figure(private_data, public_data, country):
     narrative = public_private_narrative(merged, country)
     return fig, narrative
 
+
 def outcome_measure(country):
     return f"To check if this is the case for {country}, we can use inflation-adjusted per capita public spending as a measure for public financial resource allocation per person on education, use school attendance rate of 6-17 year-old children to proximate access to education, and use learning poverty rate as an indicator for education quality."
+
 
 def outcome_narrative(outcome_df, pov_df, expenditure_df, country):
     try:
@@ -602,15 +677,27 @@ def outcome_narrative(outcome_df, pov_df, expenditure_df, country):
         end_year = expenditure_df.year.max()
 
         merged = pd.merge(outcome_df, expenditure_df, on=["year"], how="inner")
-        x_col = {"display": "6-17 year-old school attendance", "col_name": "attendance_6to17yo"}
-        y_col = {"display": "per capita public spending", "col_name": "per_capita_real_expenditure"}
+        x_col = {
+            "display": "6-17 year-old school attendance",
+            "col_name": "attendance_6to17yo",
+        }
+        y_col = {
+            "display": "per capita public spending",
+            "col_name": "per_capita_real_expenditure",
+        }
         PCC = get_correlation_text(merged, x_col, y_col)
 
         text = f"From {start_year} to {end_year}, {PCC}"
 
         merged = pd.merge(pov_df, expenditure_df, on=["year"], how="inner")
-        x_col = {"display": "learning poverty rate", "col_name": "learning_poverty_rate"}
-        y_col = {"display": "per capita public spending", "col_name": "per_capita_real_expenditure"}
+        x_col = {
+            "display": "learning poverty rate",
+            "col_name": "learning_poverty_rate",
+        }
+        y_col = {
+            "display": "per capita public spending",
+            "col_name": "per_capita_real_expenditure",
+        }
         PCC = get_correlation_text(merged, x_col, y_col)
 
         text += f" Meanwhile, {PCC}"
@@ -696,7 +783,7 @@ def render_education_outcome(outcome_data, total_data, country):
             y=0.95,
             x=0.5,
             xanchor="center",
-            yanchor="top"
+            yanchor="top",
         ),
         annotations=[
             dict(
@@ -716,26 +803,48 @@ def render_education_outcome(outcome_data, total_data, country):
     fig.update_yaxes(
         range=[0, max(pub_exp.per_capita_real_expenditure) * 1.2], secondary_y=False
     )
-    fig.update_yaxes(range=[0, 1.2], tickformat='.0%', secondary_y=True)
+    fig.update_yaxes(range=[0, 1.2], tickformat=".0%", secondary_y=True)
 
     measure = outcome_measure(country)
-    narrative = outcome_narrative(
-        indicator, learning_poverty, pub_exp, country
-    )
+    narrative = outcome_narrative(indicator, learning_poverty, pub_exp, country)
     return fig, measure, narrative
 
 
 def education_sub_func_narrative(data, country):
     try:
+        # Identify the highest spending education sector
         max_row = data.loc[data["real_expenditure"].idxmax()]
         max_sector = max_row.func_sub
         max_amount = max_row.real_expenditure
+        total_spending = data["real_expenditure"].sum()
+        percentage = (max_amount / total_spending) * 100
 
-        percentage = (max_amount / data["real_expenditure"].sum()) * 100
+        # Breakdown of spending by sector
+        sector_shares = (
+            data.groupby("func_sub")["real_expenditure"]
+            .sum()
+            .apply(lambda x: (x / total_spending) * 100)
+            .to_dict()
+        )
 
+        # Construct text dynamically based on available sectors
+        sector_text = ". ".join(
+            [
+                f"{sector}: {share:.1f}%"
+                for sector, share in sorted(sector_shares.items(), key=lambda x: -x[1])
+            ]
+        )
+
+        # Generate the narrative
         text = f"""
-            In {country}, the government spent the most on {max_sector}, totalling {millify(max_amount)}. This is {percentage:.2f}% of the total education expenditure.
-    """
+        In {country}, the largest share of education expenditure is allocated to {max_sector}, 
+        amounting to {millify(max_amount)}, which represents {percentage:.2f}% of the total education budget.\n
+
+
+        These allocations reflect government priorities in expanding access and improving education quality. 
+        Understanding how resources are distributed across different levels of education helps assess their impact 
+        on outcomes such as school attendance.
+        """
     except:
         return generate_error_prompt("GENERIC_ERROR")
 
@@ -743,79 +852,98 @@ def education_sub_func_narrative(data, country):
 
 
 @callback(
+    Output("education-central-vs-regional", "figure"),
     Output("education-sub-func", "figure"),
     Output("education-sub-func-narrative", "children"),
     Input("stored-data-education-sub-func", "data"),
     Input("country-select", "value"),
+    Input("year_slider_edu", "value"),
 )
-def render_education_sub_func(sub_func_data, country):
+def render_education_sub_func(sub_func_data, country, selected_year):
     try:
         if not sub_func_data or not country:
             return
 
         data = pd.DataFrame(sub_func_data["expenditure_by_country_sub_func_year"])
-        data = data.loc[(data.func == "Education") & (data.year == data.latest_year)]
+        data = data.loc[(data.func == "Education") & (data.year == selected_year)]
         data = filter_country_sort_year(data, country)
 
-        fig = go.Figure()
-        ids = ["total"]
-        parents = [""]
-        labels = ["Total"]
-        real_expenditures = [data["real_expenditure"].sum()]
-        data["func_sub"] = data["func_sub"].fillna(value="Others")
+        central_vs_regional = (
+            data.groupby("admin0").sum(numeric_only=True).reset_index()
+        )
+        fig1 = go.Figure(
+            data=[
+                go.Pie(
+                    labels=central_vs_regional["admin0"],
+                    values=central_vs_regional["real_expenditure"],
+                    hole=0.5,
+                    marker=dict(colors=["rgb(17, 141, 255)", "rgb(160, 209, 255)"]),
+                    customdata=[
+                        millify(x)
+                        for x in np.stack(central_vs_regional["real_expenditure"])
+                    ],
+                    hovertemplate="<b>Real expenditure</b>: $%{customdata}<br>"
+                    + "<extra></extra>",
+                )
+            ]
+        )
+        fig1.update_layout(
+            title="Who Funds Education?",
+            showlegend=True,
+            plot_bgcolor="white",
+        )
         parents_values = data.groupby("func_sub").sum(numeric_only=True).reset_index()
-        customData = [millify(real_expenditures[0])]
-        for _, row in parents_values.iterrows():
-            parents.append("total")
-            ids.append(row["func_sub"] + "-" + "all")
+
+        fig2 = go.Figure()
+        education_values = data.groupby("func_sub").sum(numeric_only=True).reset_index()
+        ids = []
+        parents = []
+        labels = []
+        values = []
+        for _, row in education_values.iterrows():
+            ids.append(row["func_sub"])
+            parents.append("")
             labels.append(row["func_sub"])
-            real_expenditures.append(row["real_expenditure"])
-            customData.append(millify(row["real_expenditure"]))
+            values.append(row["real_expenditure"])
 
-        for _, row in data.iterrows():
-            ids.append(row["admin0"] + "-" + row["func_sub"])
-            parents.append(row["func_sub"] + "-" + "all")
+        data_grouped = (
+            data.groupby(["func_sub", "admin0"]).sum(numeric_only=True).reset_index()
+        )
+
+        for _, row in data_grouped.iterrows():
+            ids.append(f"{row['func_sub']} - {row['admin0']}")
+            parents.append(row["func_sub"])
             labels.append(row["admin0"])
-            real_expenditures.append(row["real_expenditure"])
-            customData.append(millify(row["real_expenditure"]))
-
-        fig.add_trace(
-            go.Icicle(
+            values.append(row["real_expenditure"])
+        formatted_values = [millify(v) for v in values]
+        fig2.add_trace(
+            go.Treemap(
                 ids=ids,
-                labels=labels,
+                labels=[f"{l}<br>{v}" for l, v in zip(labels, formatted_values)],
                 parents=parents,
-                values=real_expenditures,
+                values=values,
                 branchvalues="total",
-                root_color="lightgrey",
-                customdata=np.stack(customData),
-                hovertemplate="<b>Real expenditure</b>: $%{customdata}<br>"
-                + "<extra></extra>",
+                textinfo="label",
+                hovertemplate="<b>%{label}</b><br>Real expenditure: %{label}<extra></extra>",
             )
         )
-        source = f"Calculated from the latest available year: {data.year.values[0]}"
-        fig.update_layout(
+
+        fig2.update_layout(
+            autosize=True,
             plot_bgcolor="white",
-            title="How much did the gov spend on different levels of education?",
-            annotations=[
-                dict(
-                    xref="paper",
-                    yref="paper",
-                    x=-0,
-                    y=-0.25,
-                    text=source,
-                    showarrow=False,
-                    font=dict(size=12),
-                )
-            ],
+            title="How is Education Spending Distributed?",
+            margin=dict(l=10, r=10, t=70, b=10),
         )
+
     except:
-        return empty_plot("No data available for this period"), generate_error_prompt(
-            "DATA_UNAVAILABLE"
+        return (
+            empty_plot("No data available for this period"),
+            empty_plot("No data available for this period"),
+            generate_error_prompt("DATA_UNAVAILABLE"),
         )
 
     narrative = education_sub_func_narrative(parents_values, country)
-    return fig, narrative
-
+    return fig1, fig2, narrative
 
 
 @callback(
@@ -923,7 +1051,6 @@ def render_education_sub_outcome(subnational_outcome_data, country, base_year):
 
 
 def education_sub_narrative(year, data):
-
     data["ROI"] = data.attendance / data.per_capita_expenditure
     PCC = get_correlation_text(
         data,
@@ -957,7 +1084,7 @@ def update_education_year_range(data, country):
     data = data.loc[(data.func == "Education")]
 
     data = filter_country_sort_year(data, country)
-    
+
     if data.empty:
         return {"display": "block"}, {}, 0, 0, 0, {}
 
@@ -965,3 +1092,231 @@ def update_education_year_range(data, country):
     data = data[data["attendance"].notna()]
     outcome_years = list(data.year.astype("int").unique())
     return get_slider_config(expenditure_years, outcome_years)
+
+
+@callback(
+    Output("education-expenditure-map", "figure"),
+    Input("stored-data-education-subnational", "data"),
+    Input("stored-data-subnational", "data"),
+    Input("stored-basic-country-data", "data"),
+    Input("country-select", "value"),
+    Input("year_slider_edu", "value"),
+    Input("education-expenditure-type", "value"),
+)
+def update_education_expenditure_map(
+    edu_subnational_data,
+    subnational_data,
+    country_data,
+    country,
+    year,
+    expenditure_type,
+):
+    if (
+        not edu_subnational_data
+        or not subnational_data
+        or not country_data
+        or not country
+        or year is None
+    ):
+        return empty_plot("Data not available")
+
+    df = pd.DataFrame(edu_subnational_data["edu_subnational_expenditure"])
+    df = df[(df["country_name"] == country) & (df["year"] == year)]
+
+    if df.empty:
+        return empty_plot("No data available for the selected year")
+
+    if expenditure_type not in df.columns:
+        return empty_plot(f"{expenditure_type} data not available")
+
+    geojson = subnational_data["boundaries"]
+    filtered_geojson = filter_geojson_by_country(geojson, country)
+
+    lat, lon = [
+        country_data["basic_country_info"][country].get(k)
+        for k in ["display_lat", "display_lon"]
+    ]
+    zoom = country_data["basic_country_info"][country]["zoom"]
+
+    # Identify regions without data
+    all_regions = [
+        feature["properties"]["region"] for feature in filtered_geojson["features"]
+    ]
+    regions_without_data = [r for r in all_regions if r not in df.adm1_name.values]
+    df_no_data = pd.DataFrame({"region_name": regions_without_data})
+    df_no_data["adm1_name"] = None
+
+    fig = px.choropleth_mapbox(
+        df,
+        geojson=filtered_geojson,
+        color=expenditure_type,
+        locations="adm1_name",
+        featureidkey="properties.region",
+        center={"lat": lat, "lon": lon},
+        zoom=zoom,
+        mapbox_style="carto-positron",
+    )
+
+    fig.add_trace(
+        px.choropleth_mapbox(
+            df_no_data,
+            geojson=filtered_geojson,
+            color_discrete_sequence=["rgba(211, 211, 211, 0.3)"],
+            locations="region_name",
+            featureidkey="properties.region",
+            zoom=zoom,
+        ).data[0]
+    )
+
+    hover_template_str = (
+        "<b>Region:</b> %{location}<br>"
+        f"<b>{expenditure_type.replace('_', ' ').title()}:</b> %{{z:,.2f}}<br>"
+        "<extra></extra>"
+    )
+
+    fig.update_traces(hovertemplate=hover_template_str)
+
+    fig.update_layout(
+        title="Subnational Education Spending",
+        plot_bgcolor="white",
+        coloraxis_colorbar=dict(
+            title="",
+            orientation="v",
+            thickness=10,
+        ),
+        annotations=[
+            dict(
+                xref="paper",
+                yref="paper",
+                x=0,
+                y=-0.13,
+                xanchor="left",
+                text=f"Displaying data from {year}",
+                showarrow=False,
+                font=dict(size=12),
+            ),
+            dict(
+                xref="paper",
+                yref="paper",
+                x=0,
+                y=-0.2,
+                xanchor="left",
+                text="Source: BOOST Database, World Bank",
+                showarrow=False,
+                font=dict(size=12),
+            ),
+        ],
+    )
+
+    return fig
+
+
+@callback(
+    Output("education-outcome-map", "figure"),
+    Input("stored-data-education-subnational", "data"),
+    Input("stored-data-subnational", "data"),
+    Input("stored-basic-country-data", "data"),
+    Input("country-select", "value"),
+    Input("year_slider_edu", "value"),
+)
+def update_education_index_map(
+    edu_outcome_data, subnational_data, country_data, country, year
+):
+    if (
+        not edu_outcome_data
+        or not subnational_data
+        or not country_data
+        or not country
+        or year is None
+    ):
+        return empty_plot("Data not available")
+
+    print(
+        f"[DEBUG]: {pd.DataFrame(edu_outcome_data['edu_subnational_expenditure']).columns}"
+    )
+
+    df = pd.DataFrame(edu_outcome_data["edu_subnational_expenditure"])
+    df = df[(df["country_name"] == country) & (df["year"] == year)]
+
+    if df.empty:
+        return empty_plot("No data available for the selected year")
+
+    geojson = subnational_data["boundaries"]
+    filtered_geojson = filter_geojson_by_country(geojson, country)
+
+    lat, lon = [
+        country_data["basic_country_info"][country].get(k)
+        for k in ["display_lat", "display_lon"]
+    ]
+    zoom = country_data["basic_country_info"][country]["zoom"]
+
+    # Identify regions without data
+    all_regions = [
+        feature["properties"]["region"] for feature in filtered_geojson["features"]
+    ]
+    regions_without_data = [r for r in all_regions if r not in df.adm1_name.values]
+    df_no_data = pd.DataFrame({"region_name": regions_without_data})
+    df_no_data["adm1_name"] = None
+
+    # Create the choropleth for education index
+    fig = px.choropleth_mapbox(
+        df,
+        geojson=filtered_geojson,
+        color="attendance",
+        locations="adm1_name",
+        featureidkey="properties.region",
+        center={"lat": lat, "lon": lon},
+        zoom=zoom,
+        mapbox_style="carto-positron",
+    )
+
+    fig.add_trace(
+        px.choropleth_mapbox(
+            df_no_data,
+            geojson=filtered_geojson,
+            color_discrete_sequence=["rgba(211, 211, 211, 0.3)"],
+            locations="region_name",
+            featureidkey="properties.region",
+            zoom=zoom,
+        ).data[0]
+    )
+
+    fig.update_traces(
+        hovertemplate="<b>Region:</b> %{location}<br>"
+        + "<b>Attendance:</b> %{z}<br>"
+        + "<extra></extra>"
+    )
+
+    fig.update_layout(
+        title="Subnational Attendance",
+        plot_bgcolor="white",
+        coloraxis_colorbar=dict(
+            title="",
+            orientation="v",
+            thickness=10,
+        ),
+        annotations=[
+            dict(
+                xref="paper",
+                yref="paper",
+                x=0,
+                y=-0.13,
+                xanchor="left",
+                text=f"Displaying data from {year}",
+                showarrow=False,
+                font=dict(size=12),
+            ),
+            dict(
+                xref="paper",
+                yref="paper",
+                x=0,
+                y=-0.2,
+                xanchor="left",
+                text="Source: BOOST Database, World Bank",
+                showarrow=False,
+                font=dict(size=12),
+            ),
+        ],
+    )
+
+    return fig

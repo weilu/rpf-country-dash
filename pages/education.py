@@ -239,7 +239,7 @@ def render_education_content(tab):
                     dbc.Col(
                         [
                             html.H3(
-                                children="Operational Vs Capital Spending",
+                                children="Operational vs. Capital Spending",
                             ),
                         ]
                     )

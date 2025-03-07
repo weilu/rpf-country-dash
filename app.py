@@ -16,7 +16,7 @@ from dash import (
     page_registry,
     no_update,
 )
-import components.shared_fig_narrative  # required to register shared callbacks
+from components.shared_fig_narrative import *  # required to register shared callbacks
 from dash.long_callback import DiskcacheLongCallbackManager
 from flask_login import logout_user, current_user
 from auth import AUTH_ENABLED
@@ -217,31 +217,7 @@ def fetch_func_data_once(data):
             econ_df["decentralized_expenditure"] / econ_df["expenditure"]
         )
 
-        prop_econ_by_func_df = (
-            func_econ_df[func_econ_df["func"].isin(["Health", "Education"])]
-            .assign(
-                econ=lambda df: df["econ"].apply(
-                    lambda x: "Employee Compensation"
-                    if x == "Wage bill"
-                    else "Goods and Services"
-                    if x == "Goods and services"
-                    else "Capital Spending"
-                    if x == "Capital expenditures"
-                    else "Operational Spending"
-                )
-            )
-            .groupby(["country_name", "year", "func", "econ"], as_index=False)
-            .agg(agg_dict)
-            .assign(
-                proportion=lambda df: (
-                    100
-                    * df["expenditure"]
-                    / df.groupby(["country_name", "year", "func"])[
-                        "expenditure"
-                    ].transform("sum")
-                ).round()
-            )
-        )
+        prop_econ_by_func_df = prepare_prop_econ_by_func_df(func_econ_df, agg_dict)
 
         return {
             "expenditure_by_country_func_econ_year": func_econ_df.to_dict("records"),

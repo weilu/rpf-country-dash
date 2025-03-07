@@ -2,6 +2,35 @@ from dash import Output, Input, callback, html
 import pandas as pd
 import plotly.graph_objects as go
 
+OP_WAGE_BILL = "Ops: Wage bill"
+OP_GOOD_SERVICES = "Ops: Goods and Services"
+CAPEX = "Capital expenditures"
+OTHER = "Other Spending"
+
+def prepare_prop_econ_by_func_df(func_econ_df, agg_dict):
+    filtered_df = func_econ_df[func_econ_df["func"].isin(["Health", "Education"])]
+    econ_mapping = {
+        "Wage bill": OP_WAGE_BILL,
+        "Goods and services": OP_GOOD_SERVICES,
+        "Capital expenditures": CAPEX,
+    }
+    filtered_df = filtered_df.assign(
+        econ=filtered_df["econ"].map(econ_mapping).fillna(OTHER)
+    )
+    prop_econ_by_func_df = (
+        filtered_df
+        .groupby(["country_name", "year", "func", "econ"], as_index=False)
+        .agg(agg_dict)
+        .assign(
+            proportion=lambda df: (
+                100
+                * df["real_expenditure"]
+                / df.groupby(["country_name", "year", "func"])[ "real_expenditure" ].transform("sum")
+            )
+        )
+    )
+    return prop_econ_by_func_df
+
 
 def format_econ_narrative(data, country_name, category):
     data = data.sort_values("year")
@@ -9,23 +38,22 @@ def format_econ_narrative(data, country_name, category):
 
     latest_data = data[data["year"] == latest_year].squeeze()
     start_data = data[data["year"] == start_year].squeeze()
-    cap_spending_pct = latest_data["Capital Spending"]
-    op_spenging_pct = latest_data["Operational Spending"]
-    gs_spending_pct = latest_data["Goods and Services"]
-    emp_comp_pct = latest_data["Employee Compensation"]
+    cap_spending_pct = latest_data[CAPEX]
+    gs_spending_pct = latest_data[OP_GOOD_SERVICES]
+    emp_comp_pct = latest_data[OP_WAGE_BILL]
+    op_spenging_pct = gs_spending_pct + emp_comp_pct
     categories = [
-        "Operational Spending",
-        "Employee Compensation",
-        "Goods and Services",
-        "Capital Spending",
+        OTHER,
+        OP_WAGE_BILL,
+        OP_GOOD_SERVICES,
+        CAPEX,
     ]
-    emp_comp_threshold = 5
-    near_zero_threshold = 1
+    stable_threshold = 5
     changes = {cat: latest_data[cat] - start_data[cat] for cat in categories}
     trends = {
         cat: (
             "remained stable"
-            if abs(changes[cat]) < near_zero_threshold
+            if abs(changes[cat]) < stable_threshold
             else "increased"
             if changes[cat] > 0
             else "decreased"
@@ -50,12 +78,12 @@ def format_econ_narrative(data, country_name, category):
     }
     employee_compensation_narrative = (
         f" This indicates that a significant portion of spending is directed towards salaries and benefits, leaving limited room for non-salary operational costs such as {operational_resources[category]} and facility maintenance."
-        if latest_data["Employee Compensation"] > 70
-        else " This indicates a balanced allocation between salaries and operational resources, potentially enabling enhanced investment in resources and services that directly impact service delivery."
+        if latest_data[OP_WAGE_BILL] > 70
+        else " This indicates a balanced allocation between salaries and other operational resources to support service delivery, potentially enabling enhanced investment in resources and services that directly impact service delivery."
     )
 
     capital_spending_narrative = (
-        f"Meanwhile, capital spending represented {cap_spending_pct}% of total {category} spending in {latest_year}, "
+        f"Meanwhile, capital spending represented {cap_spending_pct:.0f}% of total {category} spending in {latest_year}, "
         + (
             "indicating potential under-investment in long-term infrastructure, which could affect future service delivery."
             if cap_spending_pct < 10
@@ -66,40 +94,40 @@ def format_econ_narrative(data, country_name, category):
     )
 
     capital_spending_change_narrative = (
-        f"Capital spending has {trends['Capital Spending']}"
+        f"Capital spending has {trends[CAPEX]}"
         + (
             "."
-            if trends["Capital Spending"] == "remained stable"
-            else f" by {abs(changes['Capital Spending'])}%, "
+            if trends[CAPEX] == "remained stable"
+            else f" by {abs(changes[CAPEX]):.0f}%, "
             + (
                 f"reflecting reduced investment in {capital_investment_targets[category]} and infrastructure."
-                if changes["Capital Spending"] < 0
+                if changes[CAPEX] < 0
                 else f"suggesting a stronger commitment to expanding and upgrading {category} facilities."
             )
         )
     )
     emp_comp_spending_change_narrative = (
-        f"Employee compensation has {trends['Employee Compensation']}"
+        f"Employee compensation has {trends[OP_WAGE_BILL]}"
         + (
             "."
-            if trends["Employee Compensation"] == "remained stable"
-            else f" by {abs(changes['Employee Compensation'])}%, "
+            if trends[OP_WAGE_BILL] == "remained stable"
+            else f" by {abs(changes[OP_WAGE_BILL]):.0f}%, "
             + (
                 "possibly driven by wage increases and workforce expansion."
-                if changes["Employee Compensation"] > emp_comp_threshold
+                if changes[OP_WAGE_BILL] > stable_threshold
                 else "remaining stable relative to overall spending trends."
             )
         )
     )
     gs_spending_change_narrative = (
-        f"Goods and services spending has {trends['Goods and Services']}"
+        f"Goods and services spending has {trends[OP_GOOD_SERVICES]}"
         + (
             "."
-            if trends["Goods and Services"] == "remained stable"
-            else f" by {abs(changes['Goods and Services'])}%, "
+            if trends[OP_GOOD_SERVICES] == "remained stable"
+            else f" by {abs(changes[OP_GOOD_SERVICES]):.0f}%, "
             + (
                 f"potentially affecting the availability of {essential_resources[category]}."
-                if changes["Goods and Services"] < 0
+                if changes[OP_GOOD_SERVICES] < 0
                 else f"allowing for enhanced support for {support_materials[category]} and maintenance needs."
             )
         )
@@ -108,13 +136,13 @@ def format_econ_narrative(data, country_name, category):
     return html.Div(
         [
             html.P(
-                f"In {country_name}, operational spending accounted for {op_spenging_pct}% of total {category.lower()} spending in {latest_year}, "
-                f"with {emp_comp_pct}% allocated to employee compensation and {gs_spending_pct}% to goods and services."
+                f"In {country_name}, operational spending accounted for {op_spenging_pct:.0f}% of total {category.lower()} spending in {latest_year}, "
+                f"with {emp_comp_pct:.0f}% allocated to employee compensation and {gs_spending_pct:.0f}% to goods and services."
                 f"{employee_compensation_narrative}"
             ),
             html.P(f"{capital_spending_narrative}"),
             html.P(
-                f"Between {start_year} and {latest_year}, the earliest and latest year for which data is available, spending patterns have changed:"
+                f"Between {start_year} and {latest_year}, the earliest and latest year for which data is available, spending patterns are as follows:"
             ),
             html.Ul(
                 [
@@ -150,9 +178,8 @@ def generate_econ_figure(data, category):
     fig.update_layout(
         barmode="stack",
         hovermode="x unified",
-        title=f"How have expenditure priorities within {category} changed over time?",
+        title=f"How have expenditure priorities changed?",
         plot_bgcolor="white",
-        xaxis_title="Year",
         yaxis_title=f"Percentage of total {category.lower()} expenditure",
         legend=dict(
             orientation="h",
@@ -174,6 +201,9 @@ def generate_econ_figure(data, category):
                 font=dict(size=12, color="grey"),
             ),
         ],
+    )
+    fig.update_traces(
+            hovertemplate="%{y:.2f}%"
     )
     return fig
 

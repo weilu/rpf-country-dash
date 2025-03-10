@@ -4,6 +4,8 @@ import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import numpy as np
+import traceback
 from queries import QueryService
 from utils import (
     empty_plot,
@@ -14,8 +16,7 @@ from utils import (
     millify,
     require_login,
 )
-import numpy as np
-import traceback
+from components.func_operational_vs_capital_spending import render_econ_breakdown
 
 db = QueryService.get_instance()
 
@@ -224,8 +225,8 @@ def render_health_content(tab):
                         dbc.Col(dcc.Store(id="page-selector", data="Health"), width=0),
                         dbc.Row(
                             [
-                                dbc.Col(id="econ-breakdown-func-narrative", width=6),
-                                dbc.Col(dcc.Graph(id="econ-breakdown-func"), width=6),
+                                dbc.Col(id="econ-breakdown-func-narrative-health", width=6),
+                                dbc.Col(dcc.Graph(id="econ-breakdown-func-health"), width=6),
                             ]
                         ),
                     ]
@@ -626,3 +627,16 @@ def render_health_outcome(outcome_data, total_data, country):
 
     narrative = outcome_narrative(uhc, pub_exp, country)
     return fig, outcome_measure(), narrative
+
+
+@callback(
+    [
+        Output("econ-breakdown-func-health", "figure"),
+        Output("econ-breakdown-func-narrative-health", "children"),
+        Input("stored-data-func-econ", "data"),
+        Input("country-select", "value"),
+        Input("page-selector", "data"),
+    ],
+)
+def render_operational_vs_capital_breakdown(data, country_name, page_func):
+    return render_econ_breakdown(data, country_name, page_func)

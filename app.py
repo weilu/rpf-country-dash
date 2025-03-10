@@ -16,7 +16,7 @@ from dash import (
     page_registry,
     no_update,
 )
-from components.shared_fig_narrative import *  # required to register shared callbacks
+from components.func_operational_vs_capital_spending import prepare_prop_econ_by_func_df
 from dash.long_callback import DiskcacheLongCallbackManager
 from flask_login import logout_user, current_user
 from auth import AUTH_ENABLED

@@ -20,7 +20,7 @@ from utils import (
 import numpy as np
 import traceback
 from components.year_slider import slider, get_slider_config
-from components.shared_fig_narrative import generate_econ_figure, format_econ_narrative
+from components.func_operational_vs_capital_spending import render_econ_breakdown
 
 db = QueryService.get_instance()
 
@@ -251,8 +251,8 @@ def render_education_content(tab):
                         ),
                         dbc.Row(
                             [
-                                dbc.Col(id="econ-breakdown-func-narrative", width=6),
-                                dbc.Col(dcc.Graph(id="econ-breakdown-func"), width=6),
+                                dbc.Col(id="econ-breakdown-func-narrative-edu", width=6),
+                                dbc.Col(dcc.Graph(id="econ-breakdown-func-edu"), width=6),
                             ]
                         ),
                     ]
@@ -1320,3 +1320,16 @@ def update_education_index_map(
     )
 
     return fig
+
+
+@callback(
+    [
+        Output("econ-breakdown-func-edu", "figure"),
+        Output("econ-breakdown-func-narrative-edu", "children"),
+        Input("stored-data-func-econ", "data"),
+        Input("country-select", "value"),
+        Input("page-selector", "data"),
+    ],
+)
+def render_operational_vs_capital_breakdown(data, country_name, page_func):
+    return render_econ_breakdown(data, country_name, page_func)

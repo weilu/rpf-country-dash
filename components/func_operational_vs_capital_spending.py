@@ -1,4 +1,4 @@
-from dash import Output, Input, callback, html
+from dash import html
 import pandas as pd
 import plotly.graph_objects as go
 
@@ -32,7 +32,7 @@ def prepare_prop_econ_by_func_df(func_econ_df, agg_dict):
     return prop_econ_by_func_df
 
 
-def format_econ_narrative(data, country_name, category):
+def _format_econ_narrative(data, country_name, func):
     data = data.sort_values("year")
     start_year, latest_year = data["year"].iloc[0], data["year"].iloc[-1]
 
@@ -77,13 +77,13 @@ def format_econ_narrative(data, country_name, category):
         "Health": "treatment support materials",
     }
     employee_compensation_narrative = (
-        f" This indicates that a significant portion of spending is directed towards salaries and benefits, leaving limited room for non-salary operational costs such as {operational_resources[category]} and facility maintenance."
+        f" This indicates that a significant portion of spending is directed towards salaries and benefits, leaving limited room for non-salary operational costs such as {operational_resources[func]} and facility maintenance."
         if latest_data[OP_WAGE_BILL] > 70
         else " This indicates a balanced allocation between salaries and other operational resources to support service delivery, potentially enabling enhanced investment in resources and services that directly impact service delivery."
     )
 
     capital_spending_narrative = (
-        f"Meanwhile, capital spending represented {cap_spending_pct:.0f}% of total {category} spending in {latest_year}, "
+        f"Meanwhile, capital spending represented {cap_spending_pct:.0f}% of total {func} spending in {latest_year}, "
         + (
             "indicating potential under-investment in long-term infrastructure, which could affect future service delivery."
             if cap_spending_pct < 10
@@ -100,9 +100,9 @@ def format_econ_narrative(data, country_name, category):
             if trends[CAPEX] == "remained stable"
             else f" by {abs(changes[CAPEX]):.0f}%, "
             + (
-                f"reflecting reduced investment in {capital_investment_targets[category]} and infrastructure."
+                f"reflecting reduced investment in {capital_investment_targets[func]} and infrastructure."
                 if changes[CAPEX] < 0
-                else f"suggesting a stronger commitment to expanding and upgrading {category} facilities."
+                else f"suggesting a stronger commitment to expanding and upgrading {func} facilities."
             )
         )
     )
@@ -126,9 +126,9 @@ def format_econ_narrative(data, country_name, category):
             if trends[OP_GOOD_SERVICES] == "remained stable"
             else f" by {abs(changes[OP_GOOD_SERVICES]):.0f}%, "
             + (
-                f"potentially affecting the availability of {essential_resources[category]}."
+                f"potentially affecting the availability of {essential_resources[func]}."
                 if changes[OP_GOOD_SERVICES] < 0
-                else f"allowing for enhanced support for {support_materials[category]} and maintenance needs."
+                else f"allowing for enhanced support for {support_materials[func]} and maintenance needs."
             )
         )
     )
@@ -136,7 +136,7 @@ def format_econ_narrative(data, country_name, category):
     return html.Div(
         [
             html.P(
-                f"In {country_name}, operational spending accounted for {op_spenging_pct:.0f}% of total {category.lower()} spending in {latest_year}, "
+                f"In {country_name}, operational spending accounted for {op_spenging_pct:.0f}% of total {func.lower()} spending in {latest_year}, "
                 f"with {emp_comp_pct:.0f}% allocated to employee compensation and {gs_spending_pct:.0f}% to goods and services."
                 f"{employee_compensation_narrative}"
             ),
@@ -155,7 +155,7 @@ def format_econ_narrative(data, country_name, category):
     )
 
 
-def generate_econ_figure(data, category):
+def _generate_econ_figure(data, func):
     fig = go.Figure()
     for econ_category in data.columns[1:]:
         fig.add_trace(
@@ -180,7 +180,7 @@ def generate_econ_figure(data, category):
         hovermode="x unified",
         title=f"How have expenditure priorities changed?",
         plot_bgcolor="white",
-        yaxis_title=f"Percentage of total {category.lower()} expenditure",
+        yaxis_title=f"Percentage of total {func.lower()} expenditure",
         legend=dict(
             orientation="h",
             yanchor="bottom",
@@ -208,25 +208,16 @@ def generate_econ_figure(data, category):
     return fig
 
 
-@callback(
-    [
-        Output("econ-breakdown-func", "figure"),
-        Output("econ-breakdown-func-narrative", "children"),
-        Input("stored-data-func-econ", "data"),
-        Input("country-select", "value"),
-        Input("page-selector", "data"),
-    ],
-)
-def render_econ_breakdown(data, country_name, page_category):
+def render_econ_breakdown(data, country_name, page_func):
     df = pd.DataFrame(data["econ_expenditure_prop_by_func_country_year"])
     filtered_df = df[
-        (df["country_name"] == country_name) & (df["func"] == page_category)
+        (df["country_name"] == country_name) & (df["func"] == page_func)
     ]
     pivot_df = filtered_df.pivot_table(
         index="year", columns="econ", values="proportion", aggfunc="sum", fill_value=0
     ).reset_index()
 
-    fig = generate_econ_figure(pivot_df, page_category)
-    narrative = format_econ_narrative(pivot_df, country_name, page_category)
+    fig = _generate_econ_figure(pivot_df, page_func)
+    narrative = _format_econ_narrative(pivot_df, country_name, page_func)
 
     return fig, narrative

@@ -93,8 +93,8 @@ class QueryService:
 
     def get_expenditure_by_country_sub_func_year(self):
         query = """
-            SELECT country_name, admin0, year, func, latest_year, func_sub, expenditure, real_expenditure
-            FROM prd_mega.boost.expenditure_by_country_admin0_func_sub_year
+            SELECT country_name, geo0, year, func, latest_year, func_sub, expenditure, real_expenditure
+            FROM prd_mega.boost.expenditure_by_country_geo0_func_sub_year
         """
         return self.fetch_data(query)
 

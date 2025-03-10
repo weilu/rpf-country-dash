@@ -284,14 +284,14 @@ def render_education_content(tab):
                 dbc.Row(
                     dbc.Col(
                         html.H3(
-                            children="Where Does Education Funding Come From, and How is it Allocated?",
+                            children="Centrally vs. Geographically Allocated Education Spending",
                         )
                     )
                 ),
                 dbc.Row(
                     [
-                        dbc.Col(dcc.Graph(id="education-central-vs-regional"), width=6),
-                        dbc.Col(dcc.Graph(id="education-sub-func"), width=6),
+                        dbc.Col(dcc.Graph(id="education-central-vs-regional"), width=4),
+                        dbc.Col(dcc.Graph(id="education-sub-func"), width=8),
                     ]
                 ),
                 dbc.Row(style={"height": "20px"}),
@@ -869,12 +869,12 @@ def render_education_sub_func(sub_func_data, country, selected_year):
         data = filter_country_sort_year(data, country)
 
         central_vs_regional = (
-            data.groupby("admin0").sum(numeric_only=True).reset_index()
+            data.groupby("geo0").sum(numeric_only=True).reset_index()
         )
         fig1 = go.Figure(
             data=[
                 go.Pie(
-                    labels=central_vs_regional["admin0"],
+                    labels=central_vs_regional["geo0"],
                     values=central_vs_regional["real_expenditure"],
                     hole=0.5,
                     marker=dict(colors=["rgb(17, 141, 255)", "rgb(160, 209, 255)"]),
@@ -888,7 +888,7 @@ def render_education_sub_func(sub_func_data, country, selected_year):
             ]
         )
         fig1.update_layout(
-            title="Who Funds Education?",
+            title="Where was education spending directed?",
             showlegend=True,
             plot_bgcolor="white",
         )
@@ -907,13 +907,13 @@ def render_education_sub_func(sub_func_data, country, selected_year):
             values.append(row["real_expenditure"])
 
         data_grouped = (
-            data.groupby(["func_sub", "admin0"]).sum(numeric_only=True).reset_index()
+            data.groupby(["func_sub", "geo0"]).sum(numeric_only=True).reset_index()
         )
 
         for _, row in data_grouped.iterrows():
-            ids.append(f"{row['func_sub']} - {row['admin0']}")
+            ids.append(f"{row['func_sub']} - {row['geo0']}")
             parents.append(row["func_sub"])
-            labels.append(row["admin0"])
+            labels.append(row["geo0"])
             values.append(row["real_expenditure"])
         formatted_values = [millify(v) for v in values]
         fig2.add_trace(
@@ -931,8 +931,8 @@ def render_education_sub_func(sub_func_data, country, selected_year):
         fig2.update_layout(
             autosize=True,
             plot_bgcolor="white",
-            title="How is Education Spending Distributed?",
-            margin=dict(l=10, r=10, t=70, b=10),
+            title="How much did the gov spend on different levels of education?",
+            margin=dict(l=15, r=15, b=15),
         )
 
     except:

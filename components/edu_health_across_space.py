@@ -486,10 +486,12 @@ def render_func_subnat_rank(subnational_outcome_data, country, base_year):
 
 
 def _func_subnat_rank_narrative(year, data):
-    data["ROI"] = data.outcome_index / data.per_capita_expenditure
     PCC = get_correlation_text(
         data,
-        {"col_name": "ROI", "display": "ROI"},
+        {
+            "col_name": "outcome_index",
+            "display": "6-17yo school attendance"
+        },
         {
             "col_name": "per_capita_expenditure",
             "display": "per capita expenditure on education",
@@ -497,6 +499,7 @@ def _func_subnat_rank_narrative(year, data):
     )
 
     narrative = f"In {year}, {PCC}"
+    data["ROI"] = data.outcome_index / data.per_capita_expenditure
     best_ROI = data[data["ROI"] == data.ROI.max()].adm1_name.values[0]
     worst_ROI = data[data["ROI"] == data.ROI.min()].adm1_name.values[0]
 

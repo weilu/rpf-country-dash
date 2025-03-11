@@ -317,8 +317,21 @@ def render_education_content(tab):
                     dbc.Col(
                         html.H3(
                             id="education-subnational-title",
-                            children="How Does Education Spending and Outcomes Vary Across Regions?",
+                            children="Public Spending vs. Education Outcomes across Regions",
                         )
+                    )
+                ),
+                dbc.Row(
+                    dbc.Col(
+                        [
+                            html.P(
+                                children="Since primary and secondary education are more directly linked to school attendance among children aged 6-17, disparities in their funding at the regional level may have a stronger impact on access to education. Understanding how these resources translate into education access is critical for assessing whether public spending effectively supports equitable opportunities for children. If funding is unevenly distributed, it may contribute to disparities in school attendance across regions.",
+                            ),
+                            html.P(
+                                id="education-subnational-motivation",
+                                children="loading...",
+                            ),
+                        ]
                     )
                 ),
                 dbc.Row(
@@ -379,7 +392,6 @@ def render_education_content(tab):
                         ]
                     )
                 ),
-                dbc.Row(style={"height": "20px"}),
                 dbc.Row(
                     [
                         dbc.Col(
@@ -914,3 +926,12 @@ def update_education_index_map(
 )
 def render_operational_vs_capital_breakdown(data, country_name, page_func):
     return render_econ_breakdown(data, country_name, page_func)
+
+@callback(
+    Output("education-subnational-motivation", "children"),
+    Input("country-select", "value"),
+    Input("year_slider_edu", "value"),
+)
+def update_education_subnational_motivation_narrative(country_name, year):
+    narrative = f'To examine this for {country_name}, we analyze per capita public spending on education in {year} as a measure of financial resource allocation at the subnational level and use the school attendance rate of 6-17-year-old children to approximate access to education.'
+    return narrative

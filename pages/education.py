@@ -293,16 +293,26 @@ def render_education_content(tab):
                     )
                 ),
                 dbc.Row(
+                    dbc.Col(
+                        [
+                            html.P(
+                                id="education-sub-func-narrative",
+                                children="loading...",
+                            ),
+                        ]
+                    )
+                ),
+                dbc.Row(
                     [
-                        dbc.Col(dcc.Graph(id="education-central-vs-regional"), width=4),
-                        dbc.Col(dcc.Graph(id="education-sub-func"), width=8),
+                        dbc.Col(dcc.Graph(id="education-central-vs-regional"), width=5),
+                        dbc.Col(dcc.Graph(id="education-sub-func"), width=7),
                     ]
                 ),
-                dbc.Row(style={"height": "20px"}),
                 dbc.Row(
-                    dbc.Col(html.Div(id="education-sub-func-narrative"), width=12),
+                    dbc.Col(
+                        html.Hr(),
+                    )
                 ),
-                dbc.Row(style={"height": "20px"}),
                 dbc.Row(
                     dbc.Col(
                         html.H3(
@@ -392,7 +402,6 @@ def total_edu_figure(df):
     fig = go.Figure()
 
     if df is None:
-        print()
         return fig
     fig.add_trace(
         go.Scatter(
@@ -818,12 +827,13 @@ def render_education_outcome(outcome_data, total_data, country):
     Output("education-central-vs-regional", "figure"),
     Output("education-sub-func", "figure"),
     Output("education-sub-func-narrative", "children"),
+    Input("stored-data-education-total", "data"),
     Input("stored-data-education-sub-func", "data"),
     Input("country-select", "value"),
     Input("year_slider_edu", "value"),
 )
-def render_education_subnat_overview(sub_func_data, country, selected_year):
-    return render_func_subnat_overview(sub_func_data, country, selected_year)
+def render_education_subnat_overview(func_data, sub_func_data, country, selected_year):
+    return render_func_subnat_overview(func_data, sub_func_data, country, selected_year)
 
 
 @callback(
@@ -857,7 +867,7 @@ def update_education_year_range(data, country):
         return {"display": "block"}, {}, 0, 0, 0, {}
 
     expenditure_years = list(data.year.astype("int").unique())
-    data = data[data["attendance"].notna()]
+    data = data[data["outcome_index"].notna()]
     outcome_years = list(data.year.astype("int").unique())
     return get_slider_config(expenditure_years, outcome_years)
 

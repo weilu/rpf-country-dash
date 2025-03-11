@@ -12,6 +12,7 @@ from utils import (
     empty_plot,
     remove_accents,
     require_login,
+    calculate_cagr,
 )
 
 from components import slider, get_slider_config, pefa
@@ -21,6 +22,7 @@ from queries import QueryService
 db = QueryService.get_instance()
 
 dash.register_page(__name__)
+
 
 @require_login
 def layout():
@@ -34,7 +36,9 @@ def layout():
                             active_tab="overview-tab-time",
                             children=[
                                 dbc.Tab(label="Over Time", tab_id="overview-tab-time"),
-                                dbc.Tab(label="Across Space", tab_id="overview-tab-space"),
+                                dbc.Tab(
+                                    label="Across Space", tab_id="overview-tab-space"
+                                ),
                             ],
                             style={"marginBottom": "2rem"},
                         ),
@@ -45,6 +49,7 @@ def layout():
             dcc.Store(id="stored-data-pefa"),
         ]
     )
+
 
 @callback(
     Output("stored-data-pefa", "data"),
@@ -58,6 +63,7 @@ def fetch_pefa_data_once(pefa_data, shared_data):
             "pefa": pefa.to_dict("records"),
         }
     return dash.no_update
+
 
 @callback(
     Output("overview-content", "children"),
@@ -115,7 +121,7 @@ def render_overview_content(tab):
                 dbc.Row(
                     dbc.Col(
                         html.H3(
-                            children="Functional Spending",
+                            children="Spending by Functional Categories",
                         )
                     )
                 ),
@@ -143,6 +149,14 @@ def render_overview_content(tab):
                             lg={"size": 4, "offset": 0},
                         ),
                     ],
+                ),
+                dbc.Row(style={"height": "20px"}),
+                dbc.Row(dbc.Col(dcc.Graph(id="func-growth"), width=12)),
+                dbc.Row(style={"height": "20px"}),
+                dbc.Row(
+                    dbc.Col(
+                        id="func-growth-narrative",
+                    )
                 ),
                 dbc.Row(
                     dbc.Col(
@@ -542,7 +556,7 @@ def functional_narrative(df):
         if len(missing_cats) == 1:
             text += f"The cartegory we do not have data on is {list(missing_cats)[0]}. "
         else:
-            text += f'The cartegories we do not have data on include {", ".join(missing_cats)}. '
+            text += f"The cartegories we do not have data on include {', '.join(missing_cats)}. "
 
     mean_percentage = df.groupby("func")["percentage"].mean().reset_index()
     n = 3
@@ -570,8 +584,10 @@ def functional_narrative(df):
 
     return text
 
+
 def format_func_cats_with_numbers(df, format_number_func):
     return format_cats_with_numbers(df, format_func_cat, format_number_func)
+
 
 def format_cats_with_numbers(df, format_cat_func, format_number_func):
     items = [
@@ -588,14 +604,17 @@ def format_cats_with_numbers(df, format_cat_func, format_number_func):
     else:
         return ""
 
+
 def format_percentage(num):
-    return f'{num:.1f}%'
+    return f"{num:.1f}%"
+
 
 def format_std(num):
-    return f'std={num:.1f}'
+    return f"std={num:.1f}"
+
 
 def format_func_cat(row):
-    return row['func']
+    return row["func"]
 
 
 def subnational_spending_narrative(
@@ -768,7 +787,6 @@ def regional_percapita_spending_choropleth(geojson, df, zmin, zmax, lat, lon, zo
 
 
 def subnational_poverty_choropleth(geojson, df, zmin, zmax, lat, lon, zoom):
-
     if df[df.region_name != "National"].empty:
         return empty_plot("Sub-national poverty data not available")
     # TODO align accents across all datasets
@@ -880,6 +898,7 @@ def render_overview_func_figure(data, country):
 
     return functional_figure(func_df), functional_narrative(func_df)
 
+
 @callback(
     Output("economic-breakdown", "figure"),
     Output("economic-narrative", "children"),
@@ -910,8 +929,11 @@ ECON_CAT_MAP = {
 }
 ECON_PALETTE = px.colors.qualitative.Dark2
 ECON_COLORS = {
-    cat: FUNC_PALETTE[i % len(FUNC_PALETTE)] for i, cat in enumerate(ECON_CAT_MAP.keys())
+    cat: FUNC_PALETTE[i % len(FUNC_PALETTE)]
+    for i, cat in enumerate(ECON_CAT_MAP.keys())
 }
+
+
 def economic_figure(df):
     categories = sorted(df.econ.unique(), reverse=True)
 
@@ -955,6 +977,7 @@ def economic_figure(df):
 
     return fig
 
+
 def economic_narrative(df):
     country = df.country_name.iloc[0]
     categories = df.econ.unique().tolist()
@@ -966,7 +989,7 @@ def economic_narrative(df):
         if len(missing_cats) == 1:
             text += f"The cartegory we do not have data on is {missing_cats[0]}. "
         else:
-            text += f'The cartegories we do not have data on include {", ".join(missing_cats)}. '
+            text += f"The cartegories we do not have data on include {', '.join(missing_cats)}. "
 
     mean_percentage = df.groupby("econ")["percentage"].mean().reset_index()
     n = 3
@@ -994,11 +1017,13 @@ def economic_narrative(df):
 
     return text
 
+
 def format_econ_cats_with_numbers(df, format_number_func):
     return format_cats_with_numbers(df, format_econ_cat, format_number_func)
 
+
 def format_econ_cat(row):
-    return ECON_CAT_MAP[row['econ']]
+    return ECON_CAT_MAP[row["econ"]]
 
 
 @callback(
@@ -1041,7 +1066,7 @@ def render_subnational_spending_figures(data, country_data, country, plot_type, 
             country_data["basic_country_info"][country].get(k)
             for k in ["display_lat", "display_lon"]
         ]
-        zoom = country_data["basic_country_info"][country]['zoom']
+        zoom = country_data["basic_country_info"][country]["zoom"]
 
         filtered_geojson = filter_geojson_by_country(geojson, country)
         df = pd.DataFrame(data["expenditure_by_country_geo1_year"])
@@ -1068,7 +1093,7 @@ def render_subnational_spending_figures(data, country_data, country, plot_type, 
                 legend_percapita_max,
                 lat,
                 lon,
-                zoom
+                zoom,
             )
         else:
             return regional_spending_choropleth(
@@ -1078,7 +1103,7 @@ def render_subnational_spending_figures(data, country_data, country, plot_type, 
                 legend_expenditure_max,
                 lat,
                 lon,
-                zoom
+                zoom,
             )
     except:
         return empty_plot("An error was encountered when producing this figure")
@@ -1093,7 +1118,6 @@ def render_subnational_spending_figures(data, country_data, country, plot_type, 
 )
 def render_subnational_poverty_figure(subnational_data, country_data, country, year):
     try:
-
         if year is None or not subnational_data or not country_data or not country:
             return empty_plot("Data not available")
 
@@ -1109,7 +1133,7 @@ def render_subnational_poverty_figure(subnational_data, country_data, country, y
             country_data["basic_country_info"][country].get(k)
             for k in ["display_lat", "display_lon"]
         ]
-        zoom = country_data["basic_country_info"][country]['zoom']
+        zoom = country_data["basic_country_info"][country]["zoom"]
 
         available_years = country_data["basic_country_info"][country].get(
             "poverty_years", []
@@ -1126,7 +1150,7 @@ def render_subnational_poverty_figure(subnational_data, country_data, country, y
             legend_max,
             lat,
             lon,
-            zoom
+            zoom,
         )
     except:
         return empty_plot("An error was encountered when producing this figure")
@@ -1194,3 +1218,136 @@ def render_pefa_overall(data, pefa_data, country):
         pefa.pefa_overall_figure(country_pefa_df, country_pov_df),
         pefa.pefa_pillar_heatmap(country_pefa_df),
     )
+
+
+def format_budget_increment_narrative(func_cagr_dict, num_years=5, threshold=0.75):
+    if not func_cagr_dict or "Overall Budget" not in func_cagr_dict:
+        return "Insufficient data to generate a meaningful budget growth narrative."
+
+    budget_cagr = func_cagr_dict["Overall Budget"]
+    func_cagr_filtered = {
+        k: v for k, v in func_cagr_dict.items() if k != "Overall Budget"
+    }
+
+    highest_func = max(func_cagr_filtered, key=func_cagr_filtered.get)
+    lowest_func = min(func_cagr_filtered, key=func_cagr_filtered.get)
+
+    highest_cagr = func_cagr_filtered[highest_func]
+    lowest_cagr = func_cagr_filtered[lowest_func]
+    if lowest_cagr < 0:
+        lowest_phrase = f"declined by {abs(lowest_cagr):.1f}%"
+    else:
+        lowest_phrase = f"grew at a modest rate of {lowest_cagr:.1f}%"
+
+    if highest_cagr > 10:
+        highest_phrase = f"expanded significantly at {highest_cagr:.1f}%"
+    else:
+        highest_phrase = f"grew at a steady rate of {highest_cagr:.1f}%"
+
+    if abs(highest_cagr - lowest_cagr) < threshold:
+        func_comparison = (
+            f"Both the {highest_func} and {lowest_func} categories have grown at similar rates, "
+            f"with {highest_func} growing at {highest_cagr:.1f}% and {lowest_func} at {lowest_cagr:.1f}% per year."
+        )
+    elif highest_cagr > lowest_cagr:
+        func_comparison = (
+            f"The {highest_func} category {highest_phrase}, "
+            f"while the {lowest_func} category {lowest_phrase}. "
+            "This suggests a policy shift towards prioritizing this functional category, if resource deployment is in line with public policy priorities."
+        )
+    else:
+        func_comparison = (
+            f"The {lowest_func} category {lowest_phrase}, "
+            f"outpacing the {highest_func} category, which {highest_phrase}. "
+            "This suggests a greater focus on this functional category, if resource deployment is in line with public policy priorities."
+        )
+
+    return html.Div(
+        [
+            html.P(
+                (
+                    f"Over the past {num_years} years, the national budget has grown at an average rate of {budget_cagr:.1f}% per year in real terms. "
+                    f"{func_comparison}"
+                )
+            ),
+            html.P(
+                "This analysis excludes external financing as it tends to be volatile."
+            ),
+        ]
+    )
+
+
+@callback(
+    Output("func-growth", "figure"),
+    Output("func-growth-narrative", "children"),
+    Input("stored-data-func-econ", "data"),
+    Input("country-select", "value"),
+)
+def render_budget_func_changes(data, country, num_years=5):
+    budget_changes_df = pd.DataFrame(data["budget_by_country_year_func_agg"]).dropna(
+        subset=["yoy_sector_growth"]
+    )
+    country_budget_changes_df = filter_country_sort_year(budget_changes_df, country)
+    end_year = country_budget_changes_df["year"].max()
+    start_year = end_year - num_years
+    country_budget_changes_df = country_budget_changes_df[
+        (country_budget_changes_df["year"] >= start_year - 1)
+        & (country_budget_changes_df["year"] <= end_year)
+    ]
+    print(country_budget_changes_df.head(20))
+    avg_growth = country_budget_changes_df.groupby("func")["yoy_sector_growth"].mean()
+    highest_growth_func = avg_growth.idxmax()
+    lowest_growth_func = avg_growth.idxmin()
+
+    TOP_GROWTH_COLOR = "rgba(30, 136, 229, 0.8)"
+    BOTTOM_GROWTH_COLOR = "rgba(244, 67, 54, 0.8)"
+    GENERAL_GROWTH_COLOR = "rgba(150, 150, 150, 0.8)"
+    OVERALL_BUDGET_COLOR = "rgba(67, 160, 71, 0.8)"
+
+    color_mapping = {
+        func: GENERAL_GROWTH_COLOR
+        for func in country_budget_changes_df["func"].unique()
+    }
+    color_mapping[highest_growth_func] = TOP_GROWTH_COLOR
+    color_mapping[lowest_growth_func] = BOTTOM_GROWTH_COLOR
+    color_mapping["Overall Budget"] = OVERALL_BUDGET_COLOR
+
+    country_budget_changes_df = country_budget_changes_df.dropna(
+        subset=["yoy_sector_growth"]
+    )
+
+    fig = go.Figure()
+
+    for func, group in country_budget_changes_df.groupby("func"):
+        fig.add_trace(
+            go.Scatter(
+                x=group["year"],
+                y=group["yoy_sector_growth"],
+                mode="lines+markers",
+                name=func,
+                line=dict(color=color_mapping.get(func, "gray"), width=2),
+                marker=dict(size=4, opacity=0.8),
+                hovertemplate=f"<b>Functional Category:</b> {func}<br>"
+                "<b>Year:</b> %{x}<br>"
+                "<b>Growth Rate:</b> %{y:.1f}%",
+            )
+        )
+
+    fig.update_layout(
+        title="How do budgets for functional categories fluctuate over time?",
+        yaxis_title="Year-on-year functional category growth rate (%)",
+        legend_title_text="",
+        hovermode="closest",
+        template="plotly_white",
+    )
+
+    func_cagr_dict = {}
+
+    for func, group in country_budget_changes_df.groupby("func"):
+        start_budget = group[group["year"] == start_year]["real_expenditure"].sum()
+        end_budget = group[group["year"] == end_year]["real_expenditure"].sum()
+        func_cagr_dict[func] = calculate_cagr(start_budget, end_budget, num_years)
+
+    narrative = format_budget_increment_narrative(func_cagr_dict, num_years)
+
+    return fig, narrative

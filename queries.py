@@ -6,6 +6,8 @@ SERVER_HOSTNAME = os.getenv("SERVER_HOSTNAME")
 HTTP_PATH = os.getenv("HTTP_PATH")
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 PUBLIC_ONLY = os.getenv("PUBLIC_ONLY", "False").lower() in ("true", "1", "yes")
+BOOST_SCHEMA = os.getenv('BOOST_SCHEMA', 'boost')
+INDICATOR_SCHEMA = os.getenv('INDICATOR_SCHEMA', 'indicator')
 
 
 class QueryService:
@@ -20,9 +22,9 @@ class QueryService:
     def __init__(self):
         self.country_whitelist = None
         if PUBLIC_ONLY:
-            query = """
+            query = f"""
                 SELECT country_name
-                FROM prd_mega.boost.data_availability
+                FROM prd_mega.{BOOST_SCHEMA}.data_availability
                 WHERE boost_public = 'Yes'
             """
             self.country_whitelist = self.execute_query(query)["country_name"].tolist()
@@ -53,9 +55,9 @@ class QueryService:
         return df
 
     def get_expenditure_w_poverty_by_country_year(self):
-        query = """
+        query = f"""
             SELECT *
-            FROM prd_mega.boost.pov_expenditure_by_country_year
+            FROM prd_mega.{BOOST_SCHEMA}.pov_expenditure_by_country_year
         """
         df = self.fetch_data(query)
         df.loc[:, "decentralized_expenditure"] = df["decentralized_expenditure"].fillna(
@@ -64,37 +66,37 @@ class QueryService:
         return df
 
     def get_edu_private_expenditure(self):
-        query = """
+        query = f"""
             SELECT country_name, year, real_expenditure
-            FROM prd_mega.boost.edu_private_expenditure_by_country_year
+            FROM prd_mega.{BOOST_SCHEMA}.edu_private_expenditure_by_country_year
         """
         return self.fetch_data(query)
 
     def get_hd_index(self, countries):
         country_list = "', '".join(countries)
         query = f"""
-            SELECT * FROM prd_mega.indicator.global_data_lab_hd_index
+            SELECT * FROM prd_mega.{INDICATOR_SCHEMA}.global_data_lab_hd_index
             WHERE country_name IN ('{country_list}')
             ORDER BY country_name, year
         """
         return self.fetch_data(query)
 
     def get_learning_poverty_rate(self):
-        query = """
-            SELECT * FROM prd_mega.indicator.learning_poverty_rate
+        query = f"""
+            SELECT * FROM prd_mega.{INDICATOR_SCHEMA}.learning_poverty_rate
         """
         return self.fetch_data(query)
 
     def get_expenditure_by_country_func_econ_year(self):
-        query = """
-            SELECT * FROM prd_mega.boost.expenditure_by_country_func_econ_year
+        query = f"""
+            SELECT * FROM prd_mega.{BOOST_SCHEMA}.expenditure_by_country_func_econ_year
         """
         return self.fetch_data(query)
 
     def get_expenditure_by_country_sub_func_year(self):
-        query = """
+        query = f"""
             SELECT country_name, geo0, year, func, latest_year, func_sub, expenditure, real_expenditure
-            FROM prd_mega.boost.expenditure_by_country_geo0_func_sub_year
+            FROM prd_mega.{BOOST_SCHEMA}.expenditure_by_country_geo0_func_sub_year
         """
         return self.fetch_data(query)
 
@@ -102,15 +104,15 @@ class QueryService:
         country_list = "', '".join(countries)
         query = f"""
             SELECT country_name, display_lon, display_lat, zoom, income_level
-            FROM prd_mega.indicator.country
+            FROM prd_mega.{INDICATOR_SCHEMA}.country
             WHERE country_name IN ('{country_list}')
         """
         return self.fetch_data(query)
 
     def get_expenditure_by_country_geo1_year(self):
-        query = """
+        query = f"""
             SELECT country_name, year, adm1_name, expenditure, per_capita_expenditure
-            FROM prd_mega.boost.expenditure_by_country_geo1_year
+            FROM prd_mega.{BOOST_SCHEMA}.expenditure_by_country_geo1_year
         """
         return self.fetch_data(query)
 
@@ -118,7 +120,7 @@ class QueryService:
         country_list = "', '".join(countries)
         query = f"""
             SELECT country_name, admin1_region, boundary
-            FROM prd_mega.indicator.admin1_boundaries_gold
+            FROM prd_mega.{INDICATOR_SCHEMA}.admin1_boundaries_gold
             WHERE country_name IN ('{country_list}')
             ORDER BY country_name
         """
@@ -127,34 +129,34 @@ class QueryService:
     def get_subnational_poverty_index(self, countries):
         country_list = "', '".join(countries)
         query = f"""
-            SELECT * FROM prd_mega.indicator.subnational_poverty_index
+            SELECT * FROM prd_mega.{INDICATOR_SCHEMA}.subnational_poverty_index
             WHERE country_name IN ('{country_list}')
         """
         return self.fetch_data(query)
 
     def get_universal_health_coverage_index(self):
-        query = """
-            SELECT * FROM prd_mega.indicator.universal_health_coverage_index_gho
+        query = f"""
+            SELECT * FROM prd_mega.{INDICATOR_SCHEMA}.universal_health_coverage_index_gho
         """
         return self.fetch_data(query)
 
     def get_health_private_expenditure(self):
-        query = """
+        query = f"""
             SELECT country_name, year, real_expenditure
-            FROM prd_mega.boost.health_private_expenditure_by_country_year
+            FROM prd_mega.{BOOST_SCHEMA}.health_private_expenditure_by_country_year
         """
         return self.fetch_data(query)
 
     def expenditure_and_outcome_by_country_geo1_func_year(self):
-        query = """
-            SELECT * FROM prd_mega.boost.expenditure_and_outcome_by_country_geo1_func_year
+        query = f"""
+            SELECT * FROM prd_mega.{BOOST_SCHEMA}.expenditure_and_outcome_by_country_geo1_func_year
         """
         return self.fetch_data(query)
 
     def get_pefa(self, countries):
         country_list = "', '".join(countries)
         query = f"""
-            SELECT * FROM prd_mega.indicator.pefa_by_pillar
+            SELECT * FROM prd_mega.{INDICATOR_SCHEMA}.pefa_by_pillar
             WHERE country_name IN ('{country_list}')
             ORDER BY country_name, year
         """

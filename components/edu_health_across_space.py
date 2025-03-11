@@ -191,8 +191,9 @@ def update_func_expenditure_map(
     ):
         return empty_plot("Data not available")
 
-    df = pd.DataFrame(edu_subnational_data["edu_subnational_expenditure"])
-    df = df[(df["country_name"] == country) & (df["year"] == year)]
+    df = _subset_data(
+        edu_subnational_data['edu_subnational_expenditure'], year, country, 'Education'
+    )
 
     if df.empty:
         return empty_plot("No data available for the selected year")

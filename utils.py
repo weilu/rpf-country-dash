@@ -1,6 +1,8 @@
 import plotly.graph_objects as go
 import unicodedata
 import textwrap
+import math
+
 
 from auth import AUTH_ENABLED
 from constants import (
@@ -26,15 +28,13 @@ def filter_country_sort_year(df, country, start_year=START_YEAR):
 
     df = df[df.year >= start_year]
     if not df.empty:
-        earliest_year = df['year'].min()
-        df['earliest_year'] = earliest_year
+        earliest_year = df["year"].min()
+        df["earliest_year"] = earliest_year
 
     df = df.sort_values(["year"], ascending=False)
 
     return df
 
-
-import math
 
 millnames = ["", " K", " M", " B", " T"]
 
@@ -97,7 +97,7 @@ def empty_plot(message, fig_title="", max_line_length=40):
         xref="paper",
         yref="paper",
         x=0.5,
-        xanchor='center',
+        xanchor="center",
         showarrow=False,
         font=dict(size=14),
     )
@@ -111,7 +111,7 @@ def empty_plot(message, fig_title="", max_line_length=40):
 
 def get_percentage_change_text(percent):
     if abs(percent) < 0.01:
-        return 'mostly remained unchanged'
+        return "mostly remained unchanged"
     elif percent > 0:
         return f"increased by {percent:.0%}"
     else:
@@ -132,7 +132,7 @@ def get_correlation_text(df, x_col, y_col):
     y_display_name = y_col["display"]
 
     if isnan(pcc):
-        return f'the correlation between {x_display_name} and {y_display_name} is unknown due to limited data availability or variability.'
+        return f"the correlation between {x_display_name} and {y_display_name} is unknown due to limited data availability or variability."
 
     if pcc > 0:
         direction = "positive "
@@ -202,6 +202,7 @@ zoom = {
     "Pakistan": 3.7,
     "Paraguay": 4.4,
     "Tunisia": 4.5,
+    "Chile": 1,
 }
 
 
@@ -210,12 +211,15 @@ def add_opacity(rgb, opacity):
     rgba = (first + "," + str(opacity) + ")").replace("rgb", "rgba")
     return rgba
 
+
 def get_prefixed_path(pathname):
     base_path = get_app().config.requests_pathname_prefix
     return f"{base_path.rstrip('/')}/{pathname}"
 
+
 def get_login_path():
-    return get_prefixed_path('login')
+    return get_prefixed_path("login")
+
 
 def require_login(layout_func):
     def wrapper(*args, **kwargs):
@@ -224,4 +228,11 @@ def require_login(layout_func):
         else:
             base_path = get_app().config.requests_pathname_prefix
             return dcc.Location(pathname=get_login_path(), id="redirect-to-login")
+
     return wrapper
+
+
+def calculate_cagr(start_value, end_value, num_years):
+    if start_value > 0 and num_years > 0:
+        return ((end_value / start_value) ** (1 / num_years) - 1) * 100
+    return None

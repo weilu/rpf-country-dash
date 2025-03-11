@@ -157,3 +157,9 @@ class QueryService:
             ORDER BY country_name, year
         """
         return self.fetch_data(query)
+
+    def get_budget_by_country_year_func_non_foreign_agg(self):
+        query = """
+            SELECT * FROM prd_mega.boost.budget_by_country_year_func_non_foreign_agg
+        """
+        return self.fetch_data(query)

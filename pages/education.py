@@ -20,6 +20,7 @@ import traceback
 from components.year_slider import slider, get_slider_config
 from components.func_operational_vs_capital_spending import render_econ_breakdown
 from components.edu_health_across_space import (
+    update_year_slider,
     render_func_subnat_overview,
     update_func_expenditure_map,
     update_hd_index_map,
@@ -830,18 +831,7 @@ def render_operational_vs_capital_breakdown(data, country_name, page_func):
     Input("country-select", "value"),
 )
 def update_education_year_range(data, country):
-    data = pd.DataFrame(data["expenditure_and_outcome_by_country_geo1_func_year"])
-    data = data.loc[(data.func == "Education")]
-
-    data = filter_country_sort_year(data, country)
-
-    if data.empty:
-        return {"display": "block"}, {}, 0, 0, 0, {}
-
-    expenditure_years = list(data.year.astype("int").unique())
-    data = data[data["outcome_index"].notna()]
-    outcome_years = list(data.year.astype("int").unique())
-    return get_slider_config(expenditure_years, outcome_years)
+    return update_year_slider(data, country, 'Education')
 
 
 @callback(

@@ -5,6 +5,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import traceback
 from dash import html
+from components.year_slider import get_slider_config
 from utils import (
     empty_plot,
     filter_country_sort_year,
@@ -14,6 +15,21 @@ from utils import (
     millify,
     add_opacity,
 )
+
+
+def update_year_slider(data, country, func):
+    data = pd.DataFrame(data["expenditure_and_outcome_by_country_geo1_func_year"])
+    data = data.loc[(data.func == func)]
+
+    data = filter_country_sort_year(data, country)
+
+    if data.empty:
+        return {"display": "block"}, {}, 0, 0, 0, {}
+
+    expenditure_years = list(data.year.astype("int").unique())
+    data = data[data["outcome_index"].notna()]
+    outcome_years = list(data.year.astype("int").unique())
+    return get_slider_config(expenditure_years, outcome_years)
 
 
 def render_func_subnat_overview(func_data, sub_func_data, country, selected_year):

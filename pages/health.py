@@ -17,6 +17,13 @@ from utils import (
     require_login,
 )
 from components.func_operational_vs_capital_spending import render_econ_breakdown
+from components.edu_health_across_space import (
+    update_year_slider,
+    render_func_subnat_overview,
+    update_func_expenditure_map,
+    update_hd_index_map,
+    render_func_subnat_rank,
+)
 
 db = QueryService.get_instance()
 
@@ -234,7 +241,150 @@ def render_health_content(tab):
             ]
         )
     elif tab == "health-tab-space":
-        return html.Div("Preparing spatial analysis for health data...")
+        return html.Div(
+            [
+                dbc.Row(
+                    [
+                        dbc.Col(width=1),
+                        html.Div(
+                            id="year_slider_health_container",
+                            children=[
+                                dcc.Slider(
+                                    id="year_slider_health",
+                                    min=0,
+                                    max=0,
+                                    value=None,
+                                    step=None,
+                                    included=False,
+                                ),
+                            ],
+                        ),
+                    ]
+                ),
+                dbc.Row(style={"height": "20px"}),
+                dbc.Row(
+                    dbc.Col(
+                        html.H3(
+                            children="Centrally vs. Geographically Allocated health Spending",
+                        )
+                    )
+                ),
+                dbc.Row(
+                    dbc.Col(
+                        [
+                            html.P(
+                                id="health-sub-func-narrative",
+                                children="loading...",
+                            ),
+                        ]
+                    )
+                ),
+                dbc.Row(
+                    [
+                        dbc.Col(dcc.Graph(id="health-central-vs-regional"), width=5),
+                        dbc.Col(dcc.Graph(id="health-sub-func"), width=7),
+                    ]
+                ),
+                dbc.Row(
+                    dbc.Col(
+                        html.Hr(),
+                    )
+                ),
+                dbc.Row(
+                    dbc.Col(
+                        html.H3(
+                            id="health-subnational-title",
+                            children="Public Spending vs. health Outcomes across Regions",
+                        )
+                    )
+                ),
+                dbc.Row(
+                    dbc.Col(
+                        [
+                            html.P(
+                                children="Disparities in public health spending across regions can impact Universal Health Coverage (UHC) by creating gaps in service access and financial protection. Since primary healthcare is central to UHC, regions with lower per capita health spending may struggle to provide essential services, leading to weaker coverage in maternal health, infectious disease control, and chronic disease management. Analyzing subnational disparities in geographically allocated health spending helps assess whether resources align with UHC goals and identify regions at risk of inadequate healthcare access.",
+                            ),
+                            html.P(
+                                id="health-subnational-motivation",
+                                children="loading...",
+                            ),
+                        ]
+                    )
+                ),
+                dbc.Row(
+                    dbc.Col(
+                        dbc.RadioItems(
+                            id="health-expenditure-type",
+                            options=[
+                                {
+                                    "label": "Per capita health expenditure",
+                                    "value": "per_capita_expenditure",
+                                },
+                                {
+                                    "label": "Total health expenditure",
+                                    "value": "expenditure",
+                                },
+                            ],
+                            value="per_capita_expenditure",
+                            inline=True,
+                            style={"padding": "10px"},
+                            labelStyle={
+                                "margin-right": "20px",
+                            },
+                        ),
+                    ),
+                ),
+                dbc.Row(
+                    [
+                        dbc.Col(
+                            dcc.Graph(
+                                id="health-expenditure-map",
+                                config={"displayModeBar": False},
+                            ),
+                            xs=12,
+                            sm=12,
+                            md=6,
+                            lg=6,
+                        ),
+                        dbc.Col(
+                            dcc.Graph(
+                                id="health-outcome-map",
+                                config={"displayModeBar": False},
+                            ),
+                            xs=12,
+                            sm=12,
+                            md=6,
+                            lg=6,
+                        ),
+                    ]
+                ),
+                dbc.Row(style={"height": "20px"}),
+                dbc.Row(
+                    dbc.Col(
+                        [
+                            html.P(
+                                id="health-subnational-narrative",
+                                children="loading...",
+                            ),
+                        ]
+                    )
+                ),
+                dbc.Row(
+                    [
+                        dbc.Col(
+                            dcc.Graph(
+                                id="health-subnational",
+                                config={"displayModeBar": False},
+                            ),
+                            xs={"size": 12, "offset": 0},
+                            sm={"size": 12, "offset": 0},
+                            md={"size": 12, "offset": 0},
+                            lg={"size": 12, "offset": 0},
+                        )
+                    ]
+                ),
+            ],
+        )
 
 
 def total_health_figure(df):
@@ -640,3 +790,17 @@ def render_health_outcome(outcome_data, total_data, country):
 )
 def render_operational_vs_capital_breakdown(data, country_name, page_func):
     return render_econ_breakdown(data, country_name, page_func)
+
+
+@callback(
+    Output("year_slider_health_container", "style"),
+    Output("year_slider_health", "marks"),
+    Output("year_slider_health", "value"),
+    Output("year_slider_health", "min"),
+    Output("year_slider_health", "max"),
+    Output("year_slider_health", "tooltip"),
+    Input("stored-data-subnational", "data"),
+    Input("country-select", "value"),
+)
+def update_health_year_range(data, country):
+    return update_year_slider(data, country, 'Health')

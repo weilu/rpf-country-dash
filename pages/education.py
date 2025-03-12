@@ -245,7 +245,7 @@ def render_education_content(tab):
                             id="year_slider_edu_container",
                             children=[
                                 dcc.Slider(
-                                    id="year_slider_edu",
+                                    id="year-slider-edu",
                                     min=0,
                                     max=0,
                                     value=None,
@@ -822,11 +822,11 @@ def render_operational_vs_capital_breakdown(data, country_name, page_func):
 
 @callback(
     Output("year_slider_edu_container", "style"),
-    Output("year_slider_edu", "marks"),
-    Output("year_slider_edu", "value"),
-    Output("year_slider_edu", "min"),
-    Output("year_slider_edu", "max"),
-    Output("year_slider_edu", "tooltip"),
+    Output("year-slider-edu", "marks"),
+    Output("year-slider-edu", "value"),
+    Output("year-slider-edu", "min"),
+    Output("year-slider-edu", "max"),
+    Output("year-slider-edu", "tooltip"),
     Input("stored-data-subnational", "data"),
     Input("country-select", "value"),
 )
@@ -841,7 +841,7 @@ def update_education_year_range(data, country):
     Input("stored-data-func-econ", "data"),
     Input("stored-data-subnational", "data"),
     Input("country-select", "value"),
-    Input("year_slider_edu", "value"),
+    Input("year-slider-edu", "value"),
 )
 def render_education_subnat_overview(func_econ_data, sub_func_data, country, selected_year):
     return render_func_subnat_overview(
@@ -852,7 +852,7 @@ def render_education_subnat_overview(func_econ_data, sub_func_data, country, sel
 @callback(
     Output("education-subnational-motivation", "children"),
     Input("country-select", "value"),
-    Input("year_slider_edu", "value"),
+    Input("year-slider-edu", "value"),
 )
 def update_education_subnational_motivation_narrative(country_name, year):
     narrative = f'To examine this for {country_name}, we analyze per capita public spending on education in {year} as a measure of financial resource allocation at the subnational level and use the school attendance rate of 6-17-year-old children to approximate access to education.'
@@ -864,7 +864,7 @@ def update_education_subnational_motivation_narrative(country_name, year):
     Input("stored-data-subnational", "data"),
     Input("stored-basic-country-data", "data"),
     Input("country-select", "value"),
-    Input("year_slider_edu", "value"),
+    Input("year-slider-edu", "value"),
     Input("education-expenditure-type", "value"),
 )
 def update_education_expenditure_map(
@@ -880,7 +880,7 @@ def update_education_expenditure_map(
     Input("stored-data-subnational", "data"),
     Input("stored-basic-country-data", "data"),
     Input("country-select", "value"),
-    Input("year_slider_edu", "value"),
+    Input("year-slider-edu", "value"),
 )
 def update_education_index_map(
     subnational_data, country_data, country, year
@@ -893,7 +893,7 @@ def update_education_index_map(
     Output("education-subnational-narrative", "children"),
     Input("stored-data-subnational", "data"),
     Input("country-select", "value"),
-    Input("year_slider_edu", "value"),
+    Input("year-slider-edu", "value"),
 )
 def render_education_subnat_rank(subnational_data, country, base_year):
     return render_func_subnat_rank(subnational_data, country, base_year, 'Education')

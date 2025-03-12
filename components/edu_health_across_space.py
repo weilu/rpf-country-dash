@@ -200,6 +200,7 @@ def update_func_expenditure_map(
     country,
     year,
     expenditure_type,
+    func,
 ):
     if (
         not subnational_data
@@ -211,7 +212,7 @@ def update_func_expenditure_map(
 
     df = _subset_data(
         subnational_data['expenditure_and_outcome_by_country_geo1_func_year'],
-        year, country, 'Education'
+        year, country, func
     )
 
     if df.empty:
@@ -268,7 +269,7 @@ def update_func_expenditure_map(
     fig.update_traces(hovertemplate=hover_template_str)
 
     fig.update_layout(
-        title="Subnational Education Spending",
+        title=f"Subnational {func} Spending",
         plot_bgcolor="white",
         coloraxis_colorbar=dict(
             title="",
@@ -301,8 +302,12 @@ def update_func_expenditure_map(
 
     return fig
 
+FUNC_OUTCOME_MAP = {
+    'Education': 'School Attendance',
+    'Health': 'UHC Index',
+}
 def update_hd_index_map(
-    subnational_data, country_data, country, year
+    subnational_data, country_data, country, year, func,
 ):
     if (
         not subnational_data
@@ -312,7 +317,6 @@ def update_hd_index_map(
     ):
         return empty_plot("Data not available")
 
-    func = 'Education'
     df = _subset_data(
         subnational_data["expenditure_and_outcome_by_country_geo1_func_year"],
         year, country, func
@@ -361,14 +365,15 @@ def update_hd_index_map(
         ).data[0]
     )
 
+    outcome_name = FUNC_OUTCOME_MAP[func]
     fig.update_traces(
         hovertemplate="<b>Region:</b> %{location}<br>"
-        + "<b>Attendance:</b> %{z}<br>"
+        + f"<b>{outcome_name}:</b> " + "%{z}<br>"
         + "<extra></extra>"
     )
 
     fig.update_layout(
-        title="Subnational School Attendance",
+        title=f"Subnational {outcome_name}",
         plot_bgcolor="white",
         coloraxis_colorbar=dict(
             title="",

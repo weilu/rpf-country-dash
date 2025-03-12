@@ -250,7 +250,7 @@ def render_health_content(tab):
                             id="year_slider_health_container",
                             children=[
                                 dcc.Slider(
-                                    id="year_slider_health",
+                                    id="year-slider-health",
                                     min=0,
                                     max=0,
                                     value=None,
@@ -358,31 +358,31 @@ def render_health_content(tab):
                         ),
                     ]
                 ),
-                dbc.Row(style={"height": "20px"}),
-                dbc.Row(
-                    dbc.Col(
-                        [
-                            html.P(
-                                id="health-subnational-narrative",
-                                children="loading...",
-                            ),
-                        ]
-                    )
-                ),
-                dbc.Row(
-                    [
-                        dbc.Col(
-                            dcc.Graph(
-                                id="health-subnational",
-                                config={"displayModeBar": False},
-                            ),
-                            xs={"size": 12, "offset": 0},
-                            sm={"size": 12, "offset": 0},
-                            md={"size": 12, "offset": 0},
-                            lg={"size": 12, "offset": 0},
-                        )
-                    ]
-                ),
+                # dbc.Row(style={"height": "20px"}),
+                # dbc.Row(
+                #     dbc.Col(
+                #         [
+                #             html.P(
+                #                 id="health-subnational-narrative",
+                #                 children="loading...",
+                #             ),
+                #         ]
+                #     )
+                # ),
+                # dbc.Row(
+                #     [
+                #         dbc.Col(
+                #             dcc.Graph(
+                #                 id="health-subnational",
+                #                 config={"displayModeBar": False},
+                #             ),
+                #             xs={"size": 12, "offset": 0},
+                #             sm={"size": 12, "offset": 0},
+                #             md={"size": 12, "offset": 0},
+                #             lg={"size": 12, "offset": 0},
+                #         )
+                #     ]
+                # ),
             ],
         )
 
@@ -794,11 +794,11 @@ def render_operational_vs_capital_breakdown(data, country_name, page_func):
 
 @callback(
     Output("year_slider_health_container", "style"),
-    Output("year_slider_health", "marks"),
-    Output("year_slider_health", "value"),
-    Output("year_slider_health", "min"),
-    Output("year_slider_health", "max"),
-    Output("year_slider_health", "tooltip"),
+    Output("year-slider-health", "marks"),
+    Output("year-slider-health", "value"),
+    Output("year-slider-health", "min"),
+    Output("year-slider-health", "max"),
+    Output("year-slider-health", "tooltip"),
     Input("stored-data-subnational", "data"),
     Input("country-select", "value"),
 )
@@ -813,9 +813,58 @@ def update_health_year_range(data, country):
     Input("stored-data-func-econ", "data"),
     Input("stored-data-subnational", "data"),
     Input("country-select", "value"),
-    Input("year_slider_health", "value"),
+    Input("year-slider-health", "value"),
 )
 def render_health_subnat_overview(func_data, sub_func_data, country, selected_year):
     return render_func_subnat_overview(
         func_data, sub_func_data, country, selected_year, 'Health'
     )
+
+@callback(
+    Output("health-subnational-motivation", "children"),
+    Input("country-select", "value"),
+    Input("year-slider-health", "value"),
+)
+def update_health_subnational_motivation_narrative(country_name, year):
+    narrative = f'To examine this for {country_name}, we analyze per capita public health spending in {year} as a measure of financial resource allocation at the subnational level and use the UHC index as an indicator of Universal Health Coverage.'
+    return narrative
+
+
+@callback(
+    Output("health-expenditure-map", "figure"),
+    Input("stored-data-subnational", "data"),
+    Input("stored-basic-country-data", "data"),
+    Input("country-select", "value"),
+    Input("year-slider-health", "value"),
+    Input("health-expenditure-type", "value"),
+)
+def update_health_expenditure_map(
+    subnational_data, country_data, country, year, expenditure_type,
+):
+    return update_func_expenditure_map(
+        subnational_data, country_data, country, year, expenditure_type, 'Health'
+    )
+
+
+@callback(
+    Output("health-outcome-map", "figure"),
+    Input("stored-data-subnational", "data"),
+    Input("stored-basic-country-data", "data"),
+    Input("country-select", "value"),
+    Input("year-slider-health", "value"),
+)
+def update_health_index_map(
+    subnational_data, country_data, country, year
+):
+    return update_hd_index_map(subnational_data, country_data, country, year, 'Health')
+
+
+# @callback(
+#     Output("health-subnational", "figure"),
+#     Output("health-subnational-narrative", "children"),
+#     Input("stored-data-health-subnational", "data"),
+#     Input("country-select", "value"),
+#     Input("year-slider-health", "value"),
+# )
+# def render_health_subnat_rank(subnational_outcome_data, country, base_year):
+#     return render_func_subnat_rank(subnational_outcome_data, country, base_year)

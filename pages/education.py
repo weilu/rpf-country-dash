@@ -850,14 +850,13 @@ def render_education_subnat_overview(func_econ_data, sub_func_data, country, sel
 
 
 @callback(
-    Output("education-subnational", "figure"),
-    Output("education-subnational-narrative", "children"),
-    Input("stored-data-subnational", "data"),
+    Output("education-subnational-motivation", "children"),
     Input("country-select", "value"),
     Input("year_slider_edu", "value"),
 )
-def render_education_subnat_rank(subnational_data, country, base_year):
-    return render_func_subnat_rank(subnational_data, country, base_year)
+def update_education_subnational_motivation_narrative(country_name, year):
+    narrative = f'To examine this for {country_name}, we analyze per capita public spending on education in {year} as a measure of financial resource allocation at the subnational level and use the school attendance rate of 6-17-year-old children to approximate access to education.'
+    return narrative
 
 
 @callback(
@@ -872,7 +871,7 @@ def update_education_expenditure_map(
     subnational_data, country_data, country, year, expenditure_type,
 ):
     return update_func_expenditure_map(
-        subnational_data, country_data, country, year, expenditure_type,
+        subnational_data, country_data, country, year, expenditure_type, 'Education'
     )
 
 
@@ -886,14 +885,15 @@ def update_education_expenditure_map(
 def update_education_index_map(
     subnational_data, country_data, country, year
 ):
-    return update_hd_index_map(subnational_data, country_data, country, year)
+    return update_hd_index_map(subnational_data, country_data, country, year, 'Education')
 
 
 @callback(
-    Output("education-subnational-motivation", "children"),
+    Output("education-subnational", "figure"),
+    Output("education-subnational-narrative", "children"),
+    Input("stored-data-subnational", "data"),
     Input("country-select", "value"),
     Input("year_slider_edu", "value"),
 )
-def update_education_subnational_motivation_narrative(country_name, year):
-    narrative = f'To examine this for {country_name}, we analyze per capita public spending on education in {year} as a measure of financial resource allocation at the subnational level and use the school attendance rate of 6-17-year-old children to approximate access to education.'
-    return narrative
+def render_education_subnat_rank(subnational_data, country, base_year):
+    return render_func_subnat_rank(subnational_data, country, base_year)

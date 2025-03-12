@@ -1220,7 +1220,9 @@ def render_pefa_overall(data, pefa_data, country):
     )
 
 
-def format_budget_increment_narrative(func_cagr_dict, num_years=5, threshold=0.75):
+def format_budget_increment_narrative(
+    func_cagr_dict, foreign_funding_isnull, num_years=5, threshold=0.75
+):
     if not func_cagr_dict or "Overall Budget" not in func_cagr_dict:
         return "Insufficient data to generate a meaningful budget growth narrative."
 
@@ -1262,6 +1264,16 @@ def format_budget_increment_narrative(func_cagr_dict, num_years=5, threshold=0.7
             "This suggests a greater focus on this functional category, if resource deployment is in line with public policy priorities."
         )
 
+    if foreign_funding_isnull:
+        external_financing_note = (
+            "This analysis currently includes external financing as the budget data used has limited granularity. "
+            "It would ideally exclude external financing due to its volatility."
+        )
+    else:
+        external_financing_note = (
+            "This analysis excludes external financing as it tends to be volatile."
+        )
+
     return html.Div(
         [
             html.P(
@@ -1270,9 +1282,7 @@ def format_budget_increment_narrative(func_cagr_dict, num_years=5, threshold=0.7
                     f"{func_comparison}"
                 )
             ),
-            html.P(
-                "This analysis excludes external financing as it tends to be volatile."
-            ),
+            html.P(f"{external_financing_note}"),
         ]
     )
 
@@ -1288,7 +1298,9 @@ def render_budget_func_changes(data, country, num_years=5):
         subset=["yoy_sector_growth"]
     )
     country_budget_changes_df = filter_country_sort_year(budget_changes_df, country)
+    foreign_funding_isnull = country_budget_changes_df["is_all_null"].iloc[0]
     end_year = country_budget_changes_df["year"].max()
+
     start_year = end_year - num_years
     country_budget_changes_df = country_budget_changes_df[
         (country_budget_changes_df["year"] >= start_year - 1)
@@ -1348,6 +1360,8 @@ def render_budget_func_changes(data, country, num_years=5):
         end_budget = group[group["year"] == end_year]["real_expenditure"].sum()
         func_cagr_dict[func] = calculate_cagr(start_budget, end_budget, num_years)
 
-    narrative = format_budget_increment_narrative(func_cagr_dict, num_years)
+    narrative = format_budget_increment_narrative(
+        func_cagr_dict, foreign_funding_isnull, num_years=num_years
+    )
 
     return fig, narrative

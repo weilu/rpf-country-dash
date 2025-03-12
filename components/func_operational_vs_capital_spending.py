@@ -2,16 +2,14 @@ from dash import html
 import pandas as pd
 import plotly.graph_objects as go
 
-OP_WAGE_BILL = "Ops: Wage bill"
-OP_GOOD_SERVICES = "Ops: Goods and Services"
+OP_WAGE_BILL = "Wage bill"
 CAPEX = "Capital expenditures"
-OTHER = "Other Spending"
+OTHER = "Non-wage recurrent"
 
 def prepare_prop_econ_by_func_df(func_econ_df, agg_dict):
     filtered_df = func_econ_df[func_econ_df["func"].isin(["Health", "Education"])]
     econ_mapping = {
         "Wage bill": OP_WAGE_BILL,
-        "Goods and services": OP_GOOD_SERVICES,
         "Capital expenditures": CAPEX,
     }
     filtered_df = filtered_df.assign(
@@ -39,13 +37,11 @@ def _format_econ_narrative(data, country_name, func):
     latest_data = data[data["year"] == latest_year].squeeze()
     start_data = data[data["year"] == start_year].squeeze()
     cap_spending_pct = latest_data[CAPEX]
-    gs_spending_pct = latest_data[OP_GOOD_SERVICES]
     emp_comp_pct = latest_data[OP_WAGE_BILL]
-    op_spenging_pct = gs_spending_pct + emp_comp_pct
+    other_pct = 100 - cap_spending_pct - emp_comp_pct
     categories = [
         OTHER,
         OP_WAGE_BILL,
-        OP_GOOD_SERVICES,
         CAPEX,
     ]
     stable_threshold = 5
@@ -119,15 +115,15 @@ def _format_econ_narrative(data, country_name, func):
             )
         )
     )
-    gs_spending_change_narrative = (
-        f"Goods and services spending has {trends[OP_GOOD_SERVICES]}"
+    other_spending_change_narrative = (
+        f"Non-wage recurrent spending has {trends[OTHER]}"
         + (
             "."
-            if trends[OP_GOOD_SERVICES] == "remained stable"
-            else f" by {abs(changes[OP_GOOD_SERVICES]):.0f}%, "
+            if trends[OTHER] == "remained stable"
+            else f" by {abs(changes[OTHER]):.0f}%, "
             + (
                 f"potentially affecting the availability of {essential_resources[func]}."
-                if changes[OP_GOOD_SERVICES] < 0
+                if changes[OTHER] < 0
                 else f"allowing for enhanced support for {support_materials[func]} and maintenance needs."
             )
         )
@@ -136,8 +132,7 @@ def _format_econ_narrative(data, country_name, func):
     return html.Div(
         [
             html.P(
-                f"In {country_name}, operational spending accounted for {op_spenging_pct:.0f}% of total {func.lower()} spending in {latest_year}, "
-                f"with {emp_comp_pct:.0f}% allocated to employee compensation and {gs_spending_pct:.0f}% to goods and services."
+                f"In {country_name}, {emp_comp_pct:.0f}% of {func.lower()} spending was allocated to employee compensation and {other_pct:.0f}% to non-wage recurrent expenditures in {latest_year}."
                 f"{employee_compensation_narrative}"
             ),
             html.P(f"{capital_spending_narrative}"),
@@ -148,7 +143,7 @@ def _format_econ_narrative(data, country_name, func):
                 [
                     html.Li(f"{capital_spending_change_narrative}"),
                     html.Li(f"{emp_comp_spending_change_narrative}"),
-                    html.Li(f"{gs_spending_change_narrative}"),
+                    html.Li(f"{other_spending_change_narrative}"),
                 ]
             ),
         ]

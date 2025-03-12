@@ -265,7 +265,7 @@ def render_health_content(tab):
                 dbc.Row(
                     dbc.Col(
                         html.H3(
-                            children="Centrally vs. Geographically Allocated health Spending",
+                            children="Centrally vs. Geographically Allocated Health Spending",
                         )
                     )
                 ),
@@ -294,7 +294,7 @@ def render_health_content(tab):
                     dbc.Col(
                         html.H3(
                             id="health-subnational-title",
-                            children="Public Spending vs. health Outcomes across Regions",
+                            children="Public Spending vs. Health Outcomes across Regions",
                         )
                     )
                 ),
@@ -804,3 +804,18 @@ def render_operational_vs_capital_breakdown(data, country_name, page_func):
 )
 def update_health_year_range(data, country):
     return update_year_slider(data, country, 'Health')
+
+
+@callback(
+    Output("health-central-vs-regional", "figure"),
+    Output("health-sub-func", "figure"),
+    Output("health-sub-func-narrative", "children"),
+    Input("stored-data-func-econ", "data"),
+    Input("stored-data-subnational", "data"),
+    Input("country-select", "value"),
+    Input("year_slider_health", "value"),
+)
+def render_health_subnat_overview(func_data, sub_func_data, country, selected_year):
+    return render_func_subnat_overview(
+        func_data, sub_func_data, country, selected_year, 'Health'
+    )

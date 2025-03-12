@@ -838,13 +838,15 @@ def update_education_year_range(data, country):
     Output("education-central-vs-regional", "figure"),
     Output("education-sub-func", "figure"),
     Output("education-sub-func-narrative", "children"),
-    Input("stored-data-education-total", "data"),
+    Input("stored-data-func-econ", "data"),
     Input("stored-data-subnational", "data"),
     Input("country-select", "value"),
     Input("year_slider_edu", "value"),
 )
-def render_education_subnat_overview(func_data, sub_func_data, country, selected_year):
-    return render_func_subnat_overview(func_data, sub_func_data, country, selected_year)
+def render_education_subnat_overview(func_econ_data, sub_func_data, country, selected_year):
+    return render_func_subnat_overview(
+        func_econ_data, sub_func_data, country, selected_year, 'Education'
+    )
 
 
 @callback(

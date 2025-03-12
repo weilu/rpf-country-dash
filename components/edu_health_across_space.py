@@ -32,32 +32,32 @@ def update_year_slider(data, country, func):
     return get_slider_config(expenditure_years, outcome_years)
 
 
-def render_func_subnat_overview(func_data, sub_func_data, country, selected_year):
-    if not func_data or not sub_func_data or not country:
+def render_func_subnat_overview(func_econ_data, sub_func_data, country, selected_year, func):
+    if not func_econ_data or not sub_func_data or not country:
         return
 
-    func = "Education"
-
-    total_data = _subset_data(
-        func_data['edu_public_expenditure'], selected_year, country, func
+    data_by_func_admin0 = _subset_data(
+        func_econ_data['expenditure_by_country_func_year'], selected_year, country, func
     )
 
-    data = _subset_data(
+    data_by_func_sub_geo0 = _subset_data(
         sub_func_data["expenditure_by_country_sub_func_year"], 
         selected_year, country, func
     ).sort_values(by='func_sub')
 
-    if total_data.empty and data.empty:
+    if data_by_func_admin0.empty and data_by_func_sub_geo0.empty:
         return (
             empty_plot("No data available for this period"),
             empty_plot("No data available for this period"),
             generate_error_prompt("DATA_UNAVAILABLE"),
         )
 
-    fig1 = _central_vs_regional_fig(data)
-    fig2 = _sub_func_fig(data)
+    fig1 = _central_vs_regional_fig(data_by_func_sub_geo0, func)
+    fig2 = _sub_func_fig(data_by_func_sub_geo0, func)
 
-    narrative = _education_sub_func_narrative(total_data, data, country, selected_year)
+    narrative = _sub_func_narrative(
+        data_by_func_admin0, data_by_func_sub_geo0, country, selected_year, func
+    )
     return fig1, fig2, narrative
 
 def _subset_data(stored_data, year, country, func):
@@ -65,8 +65,8 @@ def _subset_data(stored_data, year, country, func):
     data = filter_country_sort_year(data, country)
     return data.loc[(data.func == func) & (data.year == year)]
 
-def _central_vs_regional_fig(data):
-    fig_title = "Where was education spending directed?"
+def _central_vs_regional_fig(data, func):
+    fig_title = f"Where was {func.lower()} spending directed?"
     central_vs_regional = (
         data.groupby("geo0").sum(numeric_only=True).reset_index()
     )
@@ -96,8 +96,8 @@ def _central_vs_regional_fig(data):
     )
     return fig
 
-def _sub_func_fig(data):
-    fig_title = "How much did the gov spend on different levels of education?"
+def _sub_func_fig(data, func):
+    fig_title = f"How much did the gov spend on different levels of {func.lower()}?"
     education_values = data.groupby("func_sub", sort=False).sum(numeric_only=True).reset_index()
  
     if education_values.empty:
@@ -158,20 +158,24 @@ def _sub_func_fig(data):
 
     return fig
 
-def _education_sub_func_narrative(total_data, data, country, selected_year):
+def _sub_func_narrative(data_by_func_admin0, data_by_func_sub_geo0, country, selected_year, func):
     try:
-        total_spending = data["real_expenditure"].sum()
-        regional_spending = data[data.geo0 == 'Regional'].real_expenditure.sum()
+        total_spending = data_by_func_sub_geo0["real_expenditure"].sum()
+        regional_spending = data_by_func_sub_geo0[
+            data_by_func_sub_geo0.geo0 == 'Regional'
+        ].real_expenditure.sum()
         geo_tagged = regional_spending / total_spending * 100
-        decentralization = total_data.expenditure_decentralization.values[0] * 100
+        decentralization = data_by_func_admin0.expenditure_decentralization.values[0] * 100
+
+        func_name = func.lower()
 
         text = f"In {country}, as of {selected_year}, "
 
-        subnat_exp_available_text = f"{decentralization:.1f}% of education spending is executed by regional or local governments (decentralized spending)"
-        subnat_exp_not_available_text = "we do not have data on education spending executed by regional or local governments (decentralized spending)"
+        subnat_exp_available_text = f"{decentralization:.1f}% of {func_name} spending is executed by regional or local governments (decentralized spending)"
+        subnat_exp_not_available_text = f"we do not have data on {func_name} spending executed by regional or local governments (decentralized spending)"
 
-        geo_exp_available_text = f", while {geo_tagged:.1f}% of education spending is geographically allocated, meaning it may be funded either centrally or regionally but is directed toward specific regions. To explore disparities in spending and education outcomes across subnational regions, we will focus on geographically allocated spending, as it provides a more complete picture of resources benefiting each region."
-        geo_exp_not_available_text = ". However, data on geographically allocated spending—which would capture both central and regional spending benefiting specific locations—is not available. Ideally, we would use geographically allocated spending to analyze subnational disparities, but due to data limitations, we will use decentralized spending as a proxy."
+        geo_exp_available_text = f", while {geo_tagged:.1f}% of {func_name} spending is geographically allocated, meaning it may be funded either centrally or regionally but is directed toward specific regions. To explore disparities in spending and {func_name} outcomes across subnational regions, we will focus on geographically allocated spending, as it provides a more complete picture of resources benefiting each region."
+        geo_exp_not_available_text = ". However, data on geographically allocated spending – which would capture both central and regional spending benefiting specific locations — is not available. Ideally, we would use geographically allocated spending to analyze subnational disparities, but due to data limitations, we will use decentralized spending as a proxy."
 
         subnat_exp_available = not math.isnan(decentralization) and not math.isclose(decentralization, 0)
         geo_exp_available =  not math.isnan(geo_tagged) and not math.isclose(geo_tagged, decentralization)
@@ -182,7 +186,7 @@ def _education_sub_func_narrative(total_data, data, country, selected_year):
         elif not subnat_exp_available and geo_exp_available:
             text += subnat_exp_not_available_text + geo_exp_available_text
         else:
-            text += "we do not have education spending at subnational level."
+            text += f"we do not have {func_name} spending at subnational level."
     except:
         traceback.print_exc()
         return generate_error_prompt("GENERIC_ERROR")

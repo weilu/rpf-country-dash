@@ -4,6 +4,8 @@ import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import numpy as np
+import traceback
 from queries import QueryService
 from utils import (
     empty_plot,
@@ -14,12 +16,12 @@ from utils import (
     millify,
     require_login,
 )
-import numpy as np
-import traceback
+from components.func_operational_vs_capital_spending import render_econ_breakdown
 
 db = QueryService.get_instance()
 
 dash.register_page(__name__)
+
 
 @require_login
 def layout():
@@ -33,7 +35,9 @@ def layout():
                             active_tab="health-tab-time",
                             children=[
                                 dbc.Tab(label="Over Time", tab_id="health-tab-time"),
-                                dbc.Tab(label="Across Space", tab_id="health-tab-space"),
+                                dbc.Tab(
+                                    label="Across Space", tab_id="health-tab-space"
+                                ),
                             ],
                             style={"marginBottom": "2rem"},
                         ),
@@ -56,7 +60,6 @@ def layout():
 )
 def fetch_health_total_data_once(health_data, shared_data):
     if health_data is None:
-
         # filter shared data down to health specific
         exp_by_func = pd.DataFrame(shared_data["expenditure_by_country_func_year"])
         pub_exp = exp_by_func[exp_by_func.func == "Health"]
@@ -123,82 +126,110 @@ def render_health_content(tab):
                     )
                 ),
                 dbc.Row(
-                    dbc.Col([
-                        html.P(
-                            id="health-public-private-narrative",
-                            children="loading...",
-                        ),
-                        html.P(
-                            id="health-narrative",
-                        ),
-                    ])
-                ),
-                dbc.Row([
-                    dbc.Col(
-                        dcc.Graph(
-                            id="health-public-private",
-                            config={"displayModeBar": False},
-                        ),
-                        xs={"size": 12, "offset": 0},
-                        sm={"size": 12, "offset": 0},
-                        md={"size": 12, "offset": 0},
-                        lg={"size": 6, "offset": 0},
-                    ),
-                    dbc.Col(
-                        dcc.Graph(
-                            id="health-total",
-                            config={"displayModeBar": False},
-                        ),
-                        xs={"size": 12, "offset": 0},
-                        sm={"size": 12, "offset": 0},
-                        md={"size": 12, "offset": 0},
-                        lg={"size": 6, "offset": 0},
-                    ),
-                ]),
-                dbc.Row(
-                    dbc.Col(
-                        html.Hr(),
-                    )
-                ),
-                dbc.Row(
-                    dbc.Col([
-                        html.H3(
-                            children="Public Spending & Health Outcome",
-                        ),
-                    ])
-                ),
-                dbc.Row([
-                    dbc.Col(
-                        dcc.Graph(
-                            id="health-outcome",
-                            config={"displayModeBar": False},
-                        ),
-                        xs={"size": 12, "offset": 0},
-                        sm={"size": 12, "offset": 0},
-                        md={"size": 12, "offset": 0},
-                        lg={"size": 7, "offset": 0},
-                    ),
                     dbc.Col(
                         [
                             html.P(
-                                id="health-outcome-measure",
-                                children="",
-                            ),
-                            html.P(
-                                id="health-outcome-narrative",
+                                id="health-public-private-narrative",
                                 children="loading...",
                             ),
-                        ],
-                        xs={"size": 12, "offset": 0},
-                        sm={"size": 12, "offset": 0},
-                        md={"size": 12, "offset": 0},
-                        lg={"size": 5, "offset": 0},
-                    ),
-                ]),
+                            html.P(
+                                id="health-narrative",
+                            ),
+                        ]
+                    )
+                ),
+                dbc.Row(
+                    [
+                        dbc.Col(
+                            dcc.Graph(
+                                id="health-public-private",
+                                config={"displayModeBar": False},
+                            ),
+                            xs={"size": 12, "offset": 0},
+                            sm={"size": 12, "offset": 0},
+                            md={"size": 12, "offset": 0},
+                            lg={"size": 6, "offset": 0},
+                        ),
+                        dbc.Col(
+                            dcc.Graph(
+                                id="health-total",
+                                config={"displayModeBar": False},
+                            ),
+                            xs={"size": 12, "offset": 0},
+                            sm={"size": 12, "offset": 0},
+                            md={"size": 12, "offset": 0},
+                            lg={"size": 6, "offset": 0},
+                        ),
+                    ]
+                ),
                 dbc.Row(
                     dbc.Col(
                         html.Hr(),
                     )
+                ),
+                dbc.Row(
+                    dbc.Col(
+                        [
+                            html.H3(
+                                children="Public Spending & Health Outcome",
+                            ),
+                        ]
+                    )
+                ),
+                dbc.Row(
+                    [
+                        dbc.Col(
+                            dcc.Graph(
+                                id="health-outcome",
+                                config={"displayModeBar": False},
+                            ),
+                            xs={"size": 12, "offset": 0},
+                            sm={"size": 12, "offset": 0},
+                            md={"size": 12, "offset": 0},
+                            lg={"size": 7, "offset": 0},
+                        ),
+                        dbc.Col(
+                            [
+                                html.P(
+                                    id="health-outcome-measure",
+                                    children="",
+                                ),
+                                html.P(
+                                    id="health-outcome-narrative",
+                                    children="loading...",
+                                ),
+                            ],
+                            xs={"size": 12, "offset": 0},
+                            sm={"size": 12, "offset": 0},
+                            md={"size": 12, "offset": 0},
+                            lg={"size": 5, "offset": 0},
+                        ),
+                    ]
+                ),
+                dbc.Row(
+                    dbc.Col(
+                        html.Hr(),
+                    )
+                ),
+                dbc.Row(
+                    dbc.Col(
+                        [
+                            html.H3(
+                                children="Operational vs. Capital Spending",
+                            ),
+                        ]
+                    )
+                ),
+                dbc.Row(
+                    [
+                        dbc.Col(dcc.Store(id="page-selector", data="Health"), width=0),
+                        dbc.Row(
+                            [
+                                dbc.Col(id="econ-breakdown-func-narrative-health", width=6),
+                                dbc.Col(dcc.Graph(id="econ-breakdown-func-health"), width=6),
+                            ]
+                        ),
+                    ]
                 ),
             ]
         )
@@ -264,19 +295,19 @@ def total_health_figure(df):
 def health_narrative(data, country):
     spending = pd.DataFrame(data["health_public_expenditure"])
     spending = filter_country_sort_year(spending, country)
-    spending.dropna(
-        subset=["real_expenditure", "central_expenditure"], inplace=True
-    )
+    spending.dropna(subset=["real_expenditure", "central_expenditure"], inplace=True)
 
     start_year = spending.year.min()
     end_year = spending.year.max()
     start_value = spending[spending.year == start_year].real_expenditure.values[0]
     end_value = spending[spending.year == end_year].real_expenditure.values[0]
-    spending_growth_rate = ((end_value - start_value) / start_value)
-    trend = 'increased' if end_value > start_value else 'decreased'
+    spending_growth_rate = (end_value - start_value) / start_value
+    trend = "increased" if end_value > start_value else "decreased"
     text = f"Between {start_year} and {end_year} after adjusting for inflation, total public spending on health in {country} has {trend} from ${millify(start_value)} to ${millify(end_value)}, reflecting a growth rate of {spending_growth_rate:.0%}. "
 
-    spending['real_central_expenditure'] = spending.real_expenditure / spending.expenditure * spending.central_expenditure
+    spending["real_central_expenditure"] = (
+        spending.real_expenditure / spending.expenditure * spending.central_expenditure
+    )
     start_value_central = spending[
         spending.year == start_year
     ].real_central_expenditure.values[0]
@@ -285,15 +316,19 @@ def health_narrative(data, country):
     ].real_central_expenditure.values[0]
 
     spending_growth_rate_central = (
-        (end_value_central - start_value_central) / start_value_central
-    )
+        end_value_central - start_value_central
+    ) / start_value_central
 
     text += f"In this time period, the central government's inflation-adjusted spending has {get_percentage_change_text(spending_growth_rate_central)} "
 
     if not np.isnan(
         spending[spending.year == start_year].decentralized_expenditure.values[0]
     ):
-        spending['real_decentralized_expenditure'] = spending.real_expenditure / spending.expenditure * spending.decentralized_expenditure
+        spending["real_decentralized_expenditure"] = (
+            spending.real_expenditure
+            / spending.expenditure
+            * spending.decentralized_expenditure
+        )
         start_value_decentralized = spending[
             spending.year == start_year
         ].real_decentralized_expenditure.values[0]
@@ -302,9 +337,8 @@ def health_narrative(data, country):
         ].real_decentralized_expenditure.values[0]
 
         spending_growth_rate_decentralized = (
-            (end_value_decentralized - start_value_decentralized)
-            / start_value_decentralized
-        )
+            end_value_decentralized - start_value_decentralized
+        ) / start_value_decentralized
         spending_change_regional = f"while the subnational government's inflation-adjusted spending has {get_percentage_change_text(spending_growth_rate_decentralized)}. "
     else:
         spending_change_regional = (
@@ -313,11 +347,13 @@ def health_narrative(data, country):
 
     text += spending_change_regional
 
-    decentralization = spending[spending.year == end_year].expenditure_decentralization.values[0]
+    decentralization = spending[
+        spending.year == end_year
+    ].expenditure_decentralization.values[0]
     if pd.isna(decentralization) or decentralization == 0:
         spending_decentralization = "The extent of health spending decentralization is unknown due to a lack of subnational public expenditure data."
     else:
-        spending_decentralization = f'By {end_year}, {decentralization:.1%} of health spending has been decentralized.'
+        spending_decentralization = f"By {end_year}, {decentralization:.1%} of health spending has been decentralized."
     text += spending_decentralization
 
     return text
@@ -353,7 +389,7 @@ def public_private_narrative(df, country):
     try:
         latest_gov_share = df[df.year == latest_year].public_percentage.values[0]
         earliest_gov_share = df[df.year == earliest_year].public_percentage.values[0]
-        trend = 'increased' if latest_gov_share > earliest_gov_share else 'decreased'
+        trend = "increased" if latest_gov_share > earliest_gov_share else "decreased"
         household_ratio = (
             df[df.year == latest_year].real_expenditure_private.values[0]
             / df.real_expenditure_public.values[0]
@@ -396,18 +432,18 @@ def render_public_private_figure(private_data, public_data, country):
         how="inner",
         suffixes=["_private", "_public"],
     )
-    merged = merged.dropna(subset=["real_expenditure_public", "real_expenditure_private"])
+    merged = merged.dropna(
+        subset=["real_expenditure_public", "real_expenditure_private"]
+    )
 
     if merged.empty:
         if public.empty:
             prompt = generate_error_prompt(
-                "DATA_UNAVAILABLE_DATASET_NAME",
-                dataset_name="health public spending"
+                "DATA_UNAVAILABLE_DATASET_NAME", dataset_name="health public spending"
             )
         elif private.empty:
             prompt = generate_error_prompt(
-                "DATA_UNAVAILABLE_DATASET_NAME",
-                dataset_name="health private spending"
+                "DATA_UNAVAILABLE_DATASET_NAME", dataset_name="health private spending"
             )
         else:
             prompt = "Available public and private spending data on health do not have an overlapping time period."
@@ -480,8 +516,10 @@ def render_public_private_figure(private_data, public_data, country):
     narrative = public_private_narrative(merged, country)
     return fig, narrative
 
+
 def outcome_measure():
     return f"We use inflation-adjusted per capita public spending as a measure for public financial resource allocation per person on health and universal health coverage index as an indicator for health outcome."
+
 
 def outcome_narrative(outcome_df, expenditure_df, country):
     try:
@@ -489,8 +527,14 @@ def outcome_narrative(outcome_df, expenditure_df, country):
         end_year = expenditure_df.year.max()
 
         merged = pd.merge(outcome_df, expenditure_df, on=["year"], how="inner")
-        x_col = {"display": "universal health coverage index", "col_name": "universal_health_coverage_index"}
-        y_col = {"display": "per capita public spending", "col_name": "per_capita_real_expenditure"}
+        x_col = {
+            "display": "universal health coverage index",
+            "col_name": "universal_health_coverage_index",
+        }
+        y_col = {
+            "display": "per capita public spending",
+            "col_name": "per_capita_real_expenditure",
+        }
         PCC = get_correlation_text(merged, x_col, y_col)
 
         text = f"From {start_year} to {end_year}, {PCC}"
@@ -560,7 +604,7 @@ def render_health_outcome(outcome_data, total_data, country):
             y=0.95,
             x=0.5,
             xanchor="center",
-            yanchor="top"
+            yanchor="top",
         ),
         annotations=[
             dict(
@@ -583,3 +627,16 @@ def render_health_outcome(outcome_data, total_data, country):
 
     narrative = outcome_narrative(uhc, pub_exp, country)
     return fig, outcome_measure(), narrative
+
+
+@callback(
+    [
+        Output("econ-breakdown-func-health", "figure"),
+        Output("econ-breakdown-func-narrative-health", "children"),
+        Input("stored-data-func-econ", "data"),
+        Input("country-select", "value"),
+        Input("page-selector", "data"),
+    ],
+)
+def render_operational_vs_capital_breakdown(data, country_name, page_func):
+    return render_econ_breakdown(data, country_name, page_func)

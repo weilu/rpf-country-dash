@@ -4,6 +4,7 @@ import pandas as pd
 import json
 import os
 
+
 from dash import (
     dcc,
     html,
@@ -15,6 +16,8 @@ from dash import (
     page_registry,
     no_update,
 )
+
+from components.func_operational_vs_capital_spending import prepare_prop_econ_by_func_df
 from dash.long_callback import DiskcacheLongCallbackManager
 from flask_login import logout_user, current_user
 from auth import AUTH_ENABLED
@@ -218,11 +221,16 @@ def fetch_func_data_once(data):
             db.get_budget_by_country_year_func_non_foreign_agg()
         )
 
+        prop_econ_by_func_df = prepare_prop_econ_by_func_df(func_econ_df, agg_dict)
+
         return {
             "expenditure_by_country_func_econ_year": func_econ_df.to_dict("records"),
             "expenditure_by_country_func_year": func_df.to_dict("records"),
             "expenditure_by_country_econ_year": econ_df.to_dict("records"),
             "budget_by_country_year_func_agg": budget_by_country_year_func_agg.to_dict(
+                "records"
+            ),
+            "econ_expenditure_prop_by_func_country_year": prop_econ_by_func_df.to_dict(
                 "records"
             ),
         }

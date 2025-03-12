@@ -175,7 +175,6 @@ def _education_sub_func_narrative(total_data, data, country, selected_year):
 
 
 def update_func_expenditure_map(
-    edu_subnational_data,
     subnational_data,
     country_data,
     country,
@@ -183,8 +182,7 @@ def update_func_expenditure_map(
     expenditure_type,
 ):
     if (
-        not edu_subnational_data
-        or not subnational_data
+        not subnational_data
         or not country_data
         or not country
         or year is None
@@ -192,7 +190,8 @@ def update_func_expenditure_map(
         return empty_plot("Data not available")
 
     df = _subset_data(
-        edu_subnational_data['edu_subnational_expenditure'], year, country, 'Education'
+        subnational_data['expenditure_and_outcome_by_country_geo1_func_year'],
+        year, country, 'Education'
     )
 
     if df.empty:
@@ -283,23 +282,21 @@ def update_func_expenditure_map(
     return fig
 
 def update_hd_index_map(
-    edu_outcome_data, subnational_data, country_data, country, year
+    subnational_data, country_data, country, year
 ):
     if (
-        not edu_outcome_data
-        or not subnational_data
+        not subnational_data
         or not country_data
         or not country
         or year is None
     ):
         return empty_plot("Data not available")
 
-    print(
-        f"[DEBUG]: {pd.DataFrame(edu_outcome_data['edu_subnational_expenditure']).columns}"
+    func = 'Education'
+    df = _subset_data(
+        subnational_data["expenditure_and_outcome_by_country_geo1_func_year"],
+        year, country, func
     )
-
-    df = pd.DataFrame(edu_outcome_data["edu_subnational_expenditure"])
-    df = df[(df["country_name"] == country) & (df["year"] == year)]
 
     if df.empty:
         return empty_plot("No data available for the selected year")
@@ -385,14 +382,17 @@ def update_hd_index_map(
     return fig
 
 
-def render_func_subnat_rank(subnational_outcome_data, country, base_year):
-    if not subnational_outcome_data or not country:
+def render_func_subnat_rank(subnational_data, country, base_year):
+    if not subnational_data or not country:
         return
 
-    data = pd.DataFrame(subnational_outcome_data["edu_subnational_expenditure"])
-    data = filter_country_sort_year(data, country)
+    func = 'Education'
+    data = _subset_data(
+        subnational_data["expenditure_and_outcome_by_country_geo1_func_year"], 
+        base_year, country, func
+    )
     data = data[data["outcome_index"].notna()]
-    data = data.loc[(data.func == "Education") & (data.year == base_year)]
+    data = filter_country_sort_year(data, country)
     if data.empty:
         return empty_plot(
             "No attendance data available for this period"

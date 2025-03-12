@@ -896,4 +896,4 @@ def update_education_index_map(
     Input("year_slider_edu", "value"),
 )
 def render_education_subnat_rank(subnational_data, country, base_year):
-    return render_func_subnat_rank(subnational_data, country, base_year)
+    return render_func_subnat_rank(subnational_data, country, base_year, 'Education')

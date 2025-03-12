@@ -358,31 +358,31 @@ def render_health_content(tab):
                         ),
                     ]
                 ),
-                # dbc.Row(style={"height": "20px"}),
-                # dbc.Row(
-                #     dbc.Col(
-                #         [
-                #             html.P(
-                #                 id="health-subnational-narrative",
-                #                 children="loading...",
-                #             ),
-                #         ]
-                #     )
-                # ),
-                # dbc.Row(
-                #     [
-                #         dbc.Col(
-                #             dcc.Graph(
-                #                 id="health-subnational",
-                #                 config={"displayModeBar": False},
-                #             ),
-                #             xs={"size": 12, "offset": 0},
-                #             sm={"size": 12, "offset": 0},
-                #             md={"size": 12, "offset": 0},
-                #             lg={"size": 12, "offset": 0},
-                #         )
-                #     ]
-                # ),
+                dbc.Row(style={"height": "20px"}),
+                dbc.Row(
+                    dbc.Col(
+                        [
+                            html.P(
+                                id="health-subnational-narrative",
+                                children="loading...",
+                            ),
+                        ]
+                    )
+                ),
+                dbc.Row(
+                    [
+                        dbc.Col(
+                            dcc.Graph(
+                                id="health-subnational",
+                                config={"displayModeBar": False},
+                            ),
+                            xs={"size": 12, "offset": 0},
+                            sm={"size": 12, "offset": 0},
+                            md={"size": 12, "offset": 0},
+                            lg={"size": 12, "offset": 0},
+                        )
+                    ]
+                ),
             ],
         )
 
@@ -859,12 +859,12 @@ def update_health_index_map(
     return update_hd_index_map(subnational_data, country_data, country, year, 'Health')
 
 
-# @callback(
-#     Output("health-subnational", "figure"),
-#     Output("health-subnational-narrative", "children"),
-#     Input("stored-data-health-subnational", "data"),
-#     Input("country-select", "value"),
-#     Input("year-slider-health", "value"),
-# )
-# def render_health_subnat_rank(subnational_outcome_data, country, base_year):
-#     return render_func_subnat_rank(subnational_outcome_data, country, base_year)
+@callback(
+    Output("health-subnational", "figure"),
+    Output("health-subnational-narrative", "children"),
+    Input("stored-data-subnational", "data"),
+    Input("country-select", "value"),
+    Input("year-slider-health", "value"),
+)
+def render_health_subnat_rank(subnational_data, country, base_year):
+    return render_func_subnat_rank(subnational_data, country, base_year, 'Health')

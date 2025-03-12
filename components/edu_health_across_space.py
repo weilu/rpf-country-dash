@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import re
 import traceback
 from dash import html
 from components.year_slider import get_slider_config
@@ -303,8 +304,16 @@ def update_func_expenditure_map(
     return fig
 
 FUNC_OUTCOME_MAP = {
-    'Education': 'School Attendance',
-    'Health': 'UHC Index',
+    'Education': [
+        'School Attendance for Age 6-17',
+        lambda value: value * 100,
+        lambda value: f"{value:.1f}%",
+    ],
+    'Health': [
+        'UHC Index',
+        lambda value: value,
+        lambda value: f"{value:.2f}",
+    ],
 }
 def update_hd_index_map(
     subnational_data, country_data, country, year, func,
@@ -324,6 +333,9 @@ def update_hd_index_map(
 
     if df.empty:
         return empty_plot("No data available for the selected year")
+
+    outcome_name, transform_fn, format_fn = FUNC_OUTCOME_MAP[func]
+    df['outcome_index'] = df['outcome_index'].map(transform_fn)
 
     geojson = subnational_data["boundaries"]
     filtered_geojson = filter_geojson_by_country(geojson, country)
@@ -365,11 +377,12 @@ def update_hd_index_map(
         ).data[0]
     )
 
-    outcome_name = FUNC_OUTCOME_MAP[func]
+    formatted_outcome_index = df['outcome_index'].map(format_fn).values
     fig.update_traces(
+        customdata=formatted_outcome_index,
         hovertemplate="<b>Region:</b> %{location}<br>"
-        + f"<b>{outcome_name}:</b> " + "%{z}<br>"
-        + "<extra></extra>"
+            + f"<b>{outcome_name}:</b> " + "%{customdata}<br>"
+            + "<extra></extra>",
     )
 
     fig.update_layout(
@@ -407,30 +420,30 @@ def update_hd_index_map(
     return fig
 
 
-def render_func_subnat_rank(subnational_data, country, base_year):
+def render_func_subnat_rank(subnational_data, country, base_year, func):
     if not subnational_data or not country:
         return
 
-    func = 'Education'
     data = _subset_data(
         subnational_data["expenditure_and_outcome_by_country_geo1_func_year"], 
         base_year, country, func
     )
-    data = data[data["outcome_index"].notna()]
+    data = data[data["outcome_index"].notna() & data["per_capita_expenditure"].notna()]
     data = filter_country_sort_year(data, country)
     if data.empty:
         return empty_plot(
-            "No attendance data available for this period"
+            "No outcome data available for this period"
         ), generate_error_prompt("DATA_UNAVAILABLE")
 
-    data['attendance'] = data.outcome_index * 100
+    outcome_name, transform_fn, format_fn = FUNC_OUTCOME_MAP[func]
+    data['outcome_index'] = data['outcome_index'].map(transform_fn)
 
     n = data.shape[0]
     data_expenditure_sorted = data[["adm1_name", "per_capita_expenditure"]].sort_values(
         "per_capita_expenditure", ascending=False
     )
-    data_outcome_sorted = data[["attendance", "adm1_name"]].sort_values(
-        "attendance", ascending=False
+    data_outcome_sorted = data[["outcome_index", "adm1_name"]].sort_values(
+        "outcome_index", ascending=False
     )
     source = list(data_expenditure_sorted.adm1_name)
     dest = list(data_outcome_sorted.adm1_name)
@@ -443,7 +456,7 @@ def render_func_subnat_rank(subnational_data, country, base_year):
     ]
     node_custom_data += [
         (
-            f"{'{:.2f}'.format(data_outcome_sorted.iloc[i]['attendance'])}%",
+            format_fn(data_outcome_sorted.iloc[i]['outcome_index']),
             data_outcome_sorted.iloc[i]["adm1_name"],
         )
         for i in range(n)
@@ -478,7 +491,9 @@ def render_func_subnat_rank(subnational_data, country, base_year):
                 target=[data.shape[0] + dest.index(source[i]) for i in range(n)],
                 color=node_colors_opaque,
                 value=[1 for i in range(n)],
-                hovertemplate="Expenditure: %{source.customdata[0]} <br /> Attendance: %{target.customdata[0]}<extra></extra>",
+                hovertemplate="<b>Expenditure:</b> %{source.customdata[0]}<br>"
+                + f"<b>{outcome_name}:</b> " + "%{target.customdata[0]}<br>"
+                + "<extra></extra>",
             ),
         )
     )
@@ -487,13 +502,13 @@ def render_func_subnat_rank(subnational_data, country, base_year):
         x=0.1,
         y=1,
         arrowcolor="rgba(0, 0, 0, 0)",
-        text=f"<b>Per Capita Expenditure on Education</b><br> <b>{base_year}</b>",
+        text=f"<b>Per Capita Expenditure on {func}</b><br> <b>{base_year}</b>",
     )
     fig.add_annotation(
         x=0.9,
         y=1,
         arrowcolor="rgba(0, 0, 0, 0)",
-        text=f"<b>Attendance</b> <br> <b>{base_year}</b>",
+        text=f"<b>{outcome_name}</b> <br> <b>{base_year}</b>",
     )
 
     rank_mapping = {0: "1st", 10: "10th", 20: "20th", 30: "30th", 40: "40th"}
@@ -506,20 +521,25 @@ def render_func_subnat_rank(subnational_data, country, base_year):
             showarrow=False,
         )
 
-    narrative = _func_subnat_rank_narrative(base_year, data)
+    narrative = _func_subnat_rank_narrative(base_year, func, data)
     return fig, narrative
 
 
-def _func_subnat_rank_narrative(year, data):
+def _func_subnat_rank_narrative(year, func, data):
+    func_lower = func.lower()
+
+    outcome_name, _, _ = FUNC_OUTCOME_MAP[func]
+    outcome_name = re.sub(r'\buhc\b', 'UHC', outcome_name.lower(), flags=re.IGNORECASE)
+
     PCC = get_correlation_text(
         data,
         {
             "col_name": "outcome_index",
-            "display": "6-17yo school attendance"
+            "display": outcome_name,
         },
         {
             "col_name": "per_capita_expenditure",
-            "display": "per capita expenditure on education",
+            "display": f"per capita expenditure on {func_lower}",
         },
     )
 
@@ -528,7 +548,7 @@ def _func_subnat_rank_narrative(year, data):
     best_ROI = data[data["ROI"] == data.ROI.max()].adm1_name.values[0]
     worst_ROI = data[data["ROI"] == data.ROI.min()].adm1_name.values[0]
 
-    narrative += f" Among the subnational regions, in terms of return on public spending on education measured by attendance, {best_ROI} had the highest return on investment (ROI) while {worst_ROI} had the lowest."
+    narrative += f" Among the subnational regions, in terms of return on public spending on {func_lower} measured by {outcome_name}, {best_ROI} had the highest return on investment (ROI) while {worst_ROI} had the lowest."
     return narrative
 
 

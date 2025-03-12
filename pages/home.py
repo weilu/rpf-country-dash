@@ -150,14 +150,14 @@ def render_overview_content(tab):
                         ),
                     ],
                 ),
-                dbc.Row(style={"height": "20px"}),
-                dbc.Row(dbc.Col(dcc.Graph(id="func-growth"), width=12)),
-                dbc.Row(style={"height": "20px"}),
+                dbc.Row(style={"height": "40px"}),
                 dbc.Row(
-                    dbc.Col(
-                        id="func-growth-narrative",
-                    )
+                    [
+                        dbc.Col(dcc.Markdown(id="func-growth-narrative"), width=4),
+                        dbc.Col(dcc.Graph(id="func-growth"), width=8),
+                    ]
                 ),
+                dbc.Row(style={"height": "20px"}),
                 dbc.Row(
                     dbc.Col(
                         html.Hr(),
@@ -174,16 +174,6 @@ def render_overview_content(tab):
                     [
                         # How much was spent on each economic category?
                         dbc.Col(
-                            html.P(
-                                id="economic-narrative",
-                                children="loading...",
-                            ),
-                            xs={"size": 12, "offset": 0},
-                            sm={"size": 12, "offset": 0},
-                            md={"size": 12, "offset": 0},
-                            lg={"size": 4, "offset": 0},
-                        ),
-                        dbc.Col(
                             dcc.Graph(
                                 id="economic-breakdown",
                                 config={"displayModeBar": False},
@@ -192,6 +182,16 @@ def render_overview_content(tab):
                             sm={"size": 12, "offset": 0},
                             md={"size": 12, "offset": 0},
                             lg={"size": 8, "offset": 0},
+                        ),
+                        dbc.Col(
+                            html.P(
+                                id="economic-narrative",
+                                children="loading...",
+                            ),
+                            xs={"size": 12, "offset": 0},
+                            sm={"size": 12, "offset": 0},
+                            md={"size": 12, "offset": 0},
+                            lg={"size": 4, "offset": 0},
                         ),
                     ],
                 ),
@@ -844,7 +844,7 @@ def subnational_poverty_choropleth(geojson, df, zmin, zmax, lat, lon, zoom):
                 x=0,
                 y=-0.2,
                 xanchor="left",
-                text=f"Poverty rate at $2.15 (2017 PPP). Source: SPID and GSAP, World Bank",
+                text="Poverty rate at $2.15 (2017 PPP). Source: SPID and GSAP, World Bank",
                 showarrow=False,
                 font=dict(size=12),
             ),
@@ -1221,21 +1221,14 @@ def render_pefa_overall(data, pefa_data, country):
 
 
 def format_budget_increment_narrative(
-    func_cagr_dict, foreign_funding_isnull, num_years=5, threshold=0.75
+    data, foreign_funding_isnull, num_years=5, threshold=0.75
 ):
-    if not func_cagr_dict or "Overall Budget" not in func_cagr_dict:
+    if not data or "Overall Budget" not in data:
         return "Insufficient data to generate a meaningful budget growth narrative."
 
-    budget_cagr = func_cagr_dict["Overall Budget"]
-    func_cagr_filtered = {
-        k: v for k, v in func_cagr_dict.items() if k != "Overall Budget"
-    }
-
-    highest_func = max(func_cagr_filtered, key=func_cagr_filtered.get)
-    lowest_func = min(func_cagr_filtered, key=func_cagr_filtered.get)
-
-    highest_cagr = func_cagr_filtered[highest_func]
-    lowest_cagr = func_cagr_filtered[lowest_func]
+    budget_cagr = data["Overall Budget"]
+    highest_func, highest_cagr = data["highest"]
+    lowest_func, lowest_cagr = data["lowest"]
     if lowest_cagr < 0:
         lowest_phrase = f"declined by {abs(lowest_cagr):.1f}%"
     else:
@@ -1255,13 +1248,13 @@ def format_budget_increment_narrative(
         func_comparison = (
             f"The {highest_func} category {highest_phrase}, "
             f"while the {lowest_func} category {lowest_phrase}. "
-            "This suggests a policy shift towards prioritizing this functional category, if resource deployment is in line with public policy priorities."
+            f"This suggests a policy shift towards prioritizing the {highest_func} category, if resource deployment is in line with public policy priorities."
         )
     else:
         func_comparison = (
             f"The {lowest_func} category {lowest_phrase}, "
             f"outpacing the {highest_func} category, which {highest_phrase}. "
-            "This suggests a greater focus on this functional category, if resource deployment is in line with public policy priorities."
+            f"This suggests a greater focus on the {highest_func} category, if resource deployment is in line with public policy priorities."
         )
 
     if foreign_funding_isnull:
@@ -1274,16 +1267,12 @@ def format_budget_increment_narrative(
             "This analysis excludes external financing as it tends to be volatile."
         )
 
-    return html.Div(
-        [
-            html.P(
-                (
-                    f"Over the past {num_years} years, the national budget has grown at an average rate of {budget_cagr:.1f}% per year in real terms. "
-                    f"{func_comparison}"
-                )
-            ),
-            html.P(f"{external_financing_note}"),
-        ]
+    return (
+        (
+            f"Over the past {num_years} years, the national budget has grown at an average rate of {budget_cagr:.1f}% per year in real terms. "
+            f"{func_comparison} "
+            f"{external_financing_note}"
+        ),
     )
 
 
@@ -1306,10 +1295,21 @@ def render_budget_func_changes(data, country, num_years=5):
         (country_budget_changes_df["year"] >= start_year - 1)
         & (country_budget_changes_df["year"] <= end_year)
     ]
-    print(country_budget_changes_df.head(20))
-    avg_growth = country_budget_changes_df.groupby("func")["yoy_sector_growth"].mean()
-    highest_growth_func = avg_growth.idxmax()
-    lowest_growth_func = avg_growth.idxmin()
+
+    func_cagr_dict = {
+        func: calculate_cagr(
+            group[group["year"] == start_year]["real_expenditure"].sum(),
+            group[group["year"] == end_year]["real_expenditure"].sum(),
+            num_years,
+        )
+        for func, group in country_budget_changes_df.groupby("func")
+    }
+    highest_func = max(
+        (k for k in func_cagr_dict if k != "Overall Budget"), key=func_cagr_dict.get
+    )
+    lowest_func = min(
+        (k for k in func_cagr_dict if k != "Overall Budget"), key=func_cagr_dict.get
+    )
 
     TOP_GROWTH_COLOR = "rgba(30, 136, 229, 0.8)"
     BOTTOM_GROWTH_COLOR = "rgba(244, 67, 54, 0.8)"
@@ -1320,10 +1320,10 @@ def render_budget_func_changes(data, country, num_years=5):
         func: GENERAL_GROWTH_COLOR
         for func in country_budget_changes_df["func"].unique()
     }
-    color_mapping[highest_growth_func] = TOP_GROWTH_COLOR
-    color_mapping[lowest_growth_func] = BOTTOM_GROWTH_COLOR
+    color_mapping[highest_func] = TOP_GROWTH_COLOR
+    color_mapping[lowest_func] = BOTTOM_GROWTH_COLOR
     color_mapping["Overall Budget"] = OVERALL_BUDGET_COLOR
-
+    print(color_mapping)
     country_budget_changes_df = country_budget_changes_df.dropna(
         subset=["yoy_sector_growth"]
     )
@@ -1347,21 +1347,20 @@ def render_budget_func_changes(data, country, num_years=5):
 
     fig.update_layout(
         title="How do budgets for functional categories fluctuate over time?",
-        yaxis_title="Year-on-year functional category growth rate (%)",
+        yaxis_title="Year-on-year growth rate (%)",
         legend_title_text="",
         hovermode="closest",
         template="plotly_white",
     )
 
-    func_cagr_dict = {}
-
-    for func, group in country_budget_changes_df.groupby("func"):
-        start_budget = group[group["year"] == start_year]["real_expenditure"].sum()
-        end_budget = group[group["year"] == end_year]["real_expenditure"].sum()
-        func_cagr_dict[func] = calculate_cagr(start_budget, end_budget, num_years)
+    cagr_data = {
+        "Overall Budget": func_cagr_dict["Overall Budget"],
+        "highest": (highest_func, func_cagr_dict[highest_func]),
+        "lowest": (lowest_func, func_cagr_dict[lowest_func]),
+    }
 
     narrative = format_budget_increment_narrative(
-        func_cagr_dict, foreign_funding_isnull, num_years=num_years
+        cagr_data, foreign_funding_isnull, num_years=num_years
     )
 
     return fig, narrative

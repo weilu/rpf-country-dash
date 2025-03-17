@@ -198,6 +198,7 @@ def fetch_func_data_once(data):
         agg_dict = {
             "expenditure": "sum",
             "real_expenditure": "sum",
+            "domestic_funded_expenditure": "sum",
             "decentralized_expenditure": "sum",
             "central_expenditure": "sum",
             "per_capita_expenditure": "sum",
@@ -210,6 +211,9 @@ def fetch_func_data_once(data):
         func_df["expenditure_decentralization"] = (
             func_df["decentralized_expenditure"] / func_df["expenditure"]
         )
+        func_df["real_domestic_funded_expenditure"] = (
+            func_df["expenditure"] / func_df["real_expenditure"]
+        ) * func_df["domestic_funded_expenditure"]
 
         econ_df = func_econ_df.groupby(
             ["country_name", "year", "econ"], as_index=False
@@ -217,19 +221,12 @@ def fetch_func_data_once(data):
         econ_df["expenditure_decentralization"] = (
             econ_df["decentralized_expenditure"] / econ_df["expenditure"]
         )
-        budget_by_country_year_func_agg = (
-            db.get_budget_by_country_year_func_non_foreign_agg()
-        )
-
         prop_econ_by_func_df = prepare_prop_econ_by_func_df(func_econ_df, agg_dict)
 
         return {
             "expenditure_by_country_func_econ_year": func_econ_df.to_dict("records"),
             "expenditure_by_country_func_year": func_df.to_dict("records"),
             "expenditure_by_country_econ_year": econ_df.to_dict("records"),
-            "budget_by_country_year_func_agg": budget_by_country_year_func_agg.to_dict(
-                "records"
-            ),
             "econ_expenditure_prop_by_func_country_year": prop_econ_by_func_df.to_dict(
                 "records"
             ),

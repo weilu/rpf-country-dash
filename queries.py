@@ -6,8 +6,8 @@ SERVER_HOSTNAME = os.getenv("SERVER_HOSTNAME")
 HTTP_PATH = os.getenv("HTTP_PATH")
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 PUBLIC_ONLY = os.getenv("PUBLIC_ONLY", "False").lower() in ("true", "1", "yes")
-BOOST_SCHEMA = os.getenv('BOOST_SCHEMA', 'boost')
-INDICATOR_SCHEMA = os.getenv('INDICATOR_SCHEMA', 'indicator')
+BOOST_SCHEMA = os.getenv("BOOST_SCHEMA", "boost")
+INDICATOR_SCHEMA = os.getenv("INDICATOR_SCHEMA", "indicator")
 
 
 class QueryService:
@@ -159,11 +159,5 @@ class QueryService:
             SELECT * FROM prd_mega.{INDICATOR_SCHEMA}.pefa_by_pillar
             WHERE country_name IN ('{country_list}')
             ORDER BY country_name, year
-        """
-        return self.fetch_data(query)
-
-    def get_budget_by_country_year_func_non_foreign_agg(self):
-        query = """
-            SELECT * FROM prd_mega.boost.budget_by_country_year_func_non_foreign_agg
         """
         return self.fetch_data(query)

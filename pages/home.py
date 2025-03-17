@@ -5,7 +5,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
-
+import numpy as np
 from utils import (
     filter_country_sort_year,
     filter_geojson_by_country,
@@ -153,8 +153,38 @@ def render_overview_content(tab):
                 dbc.Row(style={"height": "40px"}),
                 dbc.Row(
                     [
+                        dbc.Col(width=4),
+                        dbc.Col(
+                            [
+                                dbc.RadioItems(
+                                    id="budget-increment-radio",
+                                    options=[
+                                        {
+                                            "label": "Expenditure",
+                                            "value": "domestic_funded_expenditure",
+                                        },
+                                        {
+                                            "label": "Real Expenditure",
+                                            "value": "real_domestic_funded_expenditure",
+                                        },
+                                    ],
+                                    value="domestic_funded_expenditure",
+                                    inline=True,
+                                    style={"padding": "10px"},
+                                    labelStyle={"margin-right": "20px"},
+                                )
+                            ],
+                            width=8,
+                        ),
+                    ]
+                ),
+                dbc.Row(
+                    [
                         dbc.Col(dcc.Markdown(id="func-growth-narrative"), width=4),
-                        dbc.Col(dcc.Graph(id="func-growth"), width=8),
+                        dbc.Col(
+                            dcc.Graph(id="func-growth"),
+                            width=8,
+                        ),
                     ]
                 ),
                 dbc.Row(style={"height": "20px"}),
@@ -1221,14 +1251,16 @@ def render_pefa_overall(data, pefa_data, country):
 
 
 def format_budget_increment_narrative(
-    data, foreign_funding_isnull, num_years=5, threshold=0.75
+    data, foreign_funding_isnull, exp_type, num_years=5, threshold=0.75
 ):
-    if not data or "Overall Budget" not in data:
-        return "Insufficient data to generate a meaningful budget growth narrative."
+    budget_cagr = data["Overall budget"]
+    highest_func_cat, highest_cagr = data["highest"]
+    lowest_func_cat, lowest_cagr = data["lowest"]
 
-    budget_cagr = data["Overall Budget"]
-    highest_func, highest_cagr = data["highest"]
-    lowest_func, lowest_cagr = data["lowest"]
+    real_terms_phrase = (
+        " in real terms. " if exp_type == "real_domestic_funded_expenditure" else ". "
+    )
+
     if lowest_cagr < 0:
         lowest_phrase = f"declined by {abs(lowest_cagr):.1f}%"
     else:
@@ -1241,20 +1273,20 @@ def format_budget_increment_narrative(
 
     if abs(highest_cagr - lowest_cagr) < threshold:
         func_comparison = (
-            f"Both the {highest_func} and {lowest_func} categories have grown at similar rates, "
-            f"with {highest_func} growing at {highest_cagr:.1f}% and {lowest_func} at {lowest_cagr:.1f}% per year."
+            f"Both the {highest_func_cat} and {lowest_func_cat} categories have grown at similar rates, "
+            f"with {highest_func_cat} growing at {highest_cagr:.1f}% and {lowest_func_cat} at {lowest_cagr:.1f}% per year."
         )
     elif highest_cagr > lowest_cagr:
         func_comparison = (
-            f"The {highest_func} category {highest_phrase}, "
-            f"while the {lowest_func} category {lowest_phrase}. "
-            f"This suggests a policy shift towards prioritizing the {highest_func} category, if resource deployment is in line with public policy priorities."
+            f"The {highest_func_cat} category {highest_phrase}, "
+            f"while the {lowest_func_cat} category {lowest_phrase}. "
+            f"This might suggest a policy shift towards prioritizing the {highest_func_cat} category, if resource deployment is in line with public policy priorities."
         )
     else:
         func_comparison = (
-            f"The {lowest_func} category {lowest_phrase}, "
-            f"outpacing the {highest_func} category, which {highest_phrase}. "
-            f"This suggests a greater focus on the {highest_func} category, if resource deployment is in line with public policy priorities."
+            f"The {lowest_func_cat} category {lowest_phrase}, "
+            f"outpacing the {highest_func_cat} category, which {highest_phrase}. "
+            f"This suggests a greater focus on the {highest_func_cat} category, if resource deployment is in line with public policy priorities."
         )
 
     if foreign_funding_isnull:
@@ -1269,7 +1301,7 @@ def format_budget_increment_narrative(
 
     return (
         (
-            f"Over the past {num_years} years, the national budget has grown at an average rate of {budget_cagr:.1f}% per year in real terms. "
+            f"Over the past {num_years} years, the national budget has grown at an average rate of {budget_cagr:.1f}% per year{real_terms_phrase}"
             f"{func_comparison} "
             f"{external_financing_note}"
         ),
@@ -1281,52 +1313,90 @@ def format_budget_increment_narrative(
     Output("func-growth-narrative", "children"),
     Input("stored-data-func-econ", "data"),
     Input("country-select", "value"),
+    Input("budget-increment-radio", "value"),
 )
-def render_budget_func_changes(data, country, num_years=5):
-    budget_changes_df = pd.DataFrame(data["budget_by_country_year_func_agg"]).dropna(
-        subset=["yoy_sector_growth"]
-    )
-    country_budget_changes_df = filter_country_sort_year(budget_changes_df, country)
-    foreign_funding_isnull = country_budget_changes_df["is_all_null"].iloc[0]
-    end_year = country_budget_changes_df["year"].max()
+def render_budget_func_changes(data, country, exp_type, num_years=5):
+    budget_changes_df = pd.DataFrame(data["expenditure_by_country_func_year"])
 
-    start_year = end_year - num_years
+    country_budget_changes_df = filter_country_sort_year(budget_changes_df, country)
+
+    overall_budget_df = country_budget_changes_df.groupby(
+        ["country_name", "year"], as_index=False
+    ).agg(
+        {
+            "expenditure": "sum",
+            "domestic_funded_expenditure": "sum",
+            "real_domestic_funded_expenditure": "sum",
+        }
+    )
+    overall_budget_df["func"] = "Overall budget"
+    country_budget_changes_df = pd.concat(
+        [country_budget_changes_df, overall_budget_df], ignore_index=True
+    )
+
+    country_budget_changes_df = country_budget_changes_df.sort_values(
+        ["country_name", "func", "year"]
+    )
+
+    for col in ["domestic_funded_expenditure", "real_domestic_funded_expenditure"]:
+        prev_col = f"prev_{col}"
+        yoy_col = f"yoy_{col}"
+        country_budget_changes_df[prev_col] = country_budget_changes_df.groupby(
+            ["country_name", "func"]
+        )[col].shift(1)
+        country_budget_changes_df[yoy_col] = (
+            (country_budget_changes_df[col] - country_budget_changes_df[prev_col])
+            / country_budget_changes_df[prev_col]
+        ) * 100
+
+    country_budget_changes_df.drop(
+        columns=[
+            "prev_domestic_funded_expenditure",
+            "prev_real_domestic_funded_expenditure",
+        ],
+        inplace=True,
+    )
+
+    end_year = country_budget_changes_df["year"].max()
+    start_year = end_year - num_years + 1
     country_budget_changes_df = country_budget_changes_df[
-        (country_budget_changes_df["year"] >= start_year - 1)
+        (country_budget_changes_df["year"] >= start_year)
         & (country_budget_changes_df["year"] <= end_year)
     ]
+    # recompute start_year and num_years to account for missing data (e.g., Burkina Faso missing 2016 data)
+    start_year = max(country_budget_changes_df.year.min(), end_year - num_years + 1)
+    num_years = end_year - start_year + 1
 
+    foreign_funding_isnull = (
+        overall_budget_df["domestic_funded_expenditure"]
+        == overall_budget_df["expenditure"]
+    ).all()
     func_cagr_dict = {
         func: calculate_cagr(
-            group[group["year"] == start_year]["real_expenditure"].sum(),
-            group[group["year"] == end_year]["real_expenditure"].sum(),
+            group.loc[group["year"] == start_year, exp_type].sum(),
+            group.loc[group["year"] == end_year, exp_type].sum(),
             num_years,
         )
         for func, group in country_budget_changes_df.groupby("func")
     }
-    highest_func = max(
-        (k for k in func_cagr_dict if k != "Overall Budget"), key=func_cagr_dict.get
-    )
-    lowest_func = min(
-        (k for k in func_cagr_dict if k != "Overall Budget"), key=func_cagr_dict.get
-    )
-
-    TOP_GROWTH_COLOR = "rgba(30, 136, 229, 0.8)"
-    BOTTOM_GROWTH_COLOR = "rgba(244, 67, 54, 0.8)"
-    GENERAL_GROWTH_COLOR = "rgba(150, 150, 150, 0.8)"
-    OVERALL_BUDGET_COLOR = "rgba(67, 160, 71, 0.8)"
+    valid_cagr_dict = {
+        k: v for k, v in func_cagr_dict.items() if v is not None and not np.isnan(v)
+    }
 
     color_mapping = {
-        func: GENERAL_GROWTH_COLOR
+        func: FUNC_COLORS.get(func, "gray")
         for func in country_budget_changes_df["func"].unique()
     }
-    color_mapping[highest_func] = TOP_GROWTH_COLOR
-    color_mapping[lowest_func] = BOTTOM_GROWTH_COLOR
-    color_mapping["Overall Budget"] = OVERALL_BUDGET_COLOR
-    print(color_mapping)
-    country_budget_changes_df = country_budget_changes_df.dropna(
-        subset=["yoy_sector_growth"]
-    )
+    color_mapping["Overall budget"] = "rgba(150, 150, 150, 0.8)"
+
+    country_budget_changes_df.dropna(subset=[f"yoy_{exp_type}"], inplace=True)
+
+    DEFAULT_VISIBLE_CATEGORIES = [
+        "Health",
+        "Education",
+        "General public services",
+        "Overall budget",
+    ]
 
     fig = go.Figure()
 
@@ -1334,14 +1404,23 @@ def render_budget_func_changes(data, country, num_years=5):
         fig.add_trace(
             go.Scatter(
                 x=group["year"],
-                y=group["yoy_sector_growth"],
+                y=group[f"yoy_{exp_type}"],
                 mode="lines+markers",
                 name=func,
-                line=dict(color=color_mapping.get(func, "gray"), width=2),
+                line=dict(
+                    color=color_mapping.get(func, "gray"),
+                    width=2,
+                    dash="dot" if func == "Overall budget" else "solid",
+                ),
                 marker=dict(size=4, opacity=0.8),
-                hovertemplate=f"<b>Functional Category:</b> {func}<br>"
-                "<b>Year:</b> %{x}<br>"
-                "<b>Growth Rate:</b> %{y:.1f}%",
+                hovertemplate=(
+                    "<b>Functional Category:</b> %{fullData.name}<br>"
+                    "<b>Year:</b> %{x}<br>"
+                    "<b>Growth Rate:</b> %{y:.1f}%<extra></extra>"
+                ),
+                visible="legendonly"
+                if func not in DEFAULT_VISIBLE_CATEGORIES
+                else True,
             )
         )
 
@@ -1351,16 +1430,43 @@ def render_budget_func_changes(data, country, num_years=5):
         legend_title_text="",
         hovermode="closest",
         template="plotly_white",
+        annotations=[
+            dict(
+                xref="paper",
+                yref="paper",
+                x=-0.14,
+                y=-0.2,
+                text="Source: BOOST, World Bank",
+                showarrow=False,
+                font=dict(size=12),
+            )
+        ],
     )
+    highest_func_cat = max(
+        (k for k in valid_cagr_dict if k != "Overall budget"), key=valid_cagr_dict.get
+    )
+    other_candidates = [
+        k for k in valid_cagr_dict if k != "Overall budget" and k != highest_func_cat
+    ]
+    # we select a different categoiry when all growth rates are some to ensure narrative reads well
+    if other_candidates:
+        lowest_func_cat = min(other_candidates, key=valid_cagr_dict.get)
+    else:
+        lowest_func_cat = highest_func_cat
 
     cagr_data = {
-        "Overall Budget": func_cagr_dict["Overall Budget"],
-        "highest": (highest_func, func_cagr_dict[highest_func]),
-        "lowest": (lowest_func, func_cagr_dict[lowest_func]),
+        "Overall budget": func_cagr_dict["Overall budget"],
+        "highest": (highest_func_cat, func_cagr_dict[highest_func_cat]),
+        "lowest": (lowest_func_cat, func_cagr_dict[lowest_func_cat]),
+    }
+    cagr_data = {
+        "Overall budget": func_cagr_dict["Overall budget"],
+        "highest": (highest_func_cat, func_cagr_dict[highest_func_cat]),
+        "lowest": (lowest_func_cat, func_cagr_dict[lowest_func_cat]),
     }
 
     narrative = format_budget_increment_narrative(
-        cagr_data, foreign_funding_isnull, num_years=num_years
+        cagr_data, foreign_funding_isnull, exp_type, num_years=num_years
     )
 
     return fig, narrative

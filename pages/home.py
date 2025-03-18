@@ -160,11 +160,11 @@ def render_overview_content(tab):
                                     id="budget-increment-radio",
                                     options=[
                                         {
-                                            "label": "Expenditure",
+                                            "label": "Budget",
                                             "value": "domestic_funded_expenditure",
                                         },
                                         {
-                                            "label": "Real Expenditure",
+                                            "label": "Inflation-adjusted Budget",
                                             "value": "real_domestic_funded_expenditure",
                                         },
                                     ],
@@ -1319,6 +1319,10 @@ def render_budget_func_changes(data, country, exp_type, num_years=5):
     budget_changes_df = pd.DataFrame(data["expenditure_by_country_func_year"])
 
     country_budget_changes_df = filter_country_sort_year(budget_changes_df, country)
+    country_budget_changes_df = country_budget_changes_df[
+        country_budget_changes_df["expenditure"].notna()
+        & (round(country_budget_changes_df["expenditure"]) != 0)
+    ]
 
     overall_budget_df = country_budget_changes_df.groupby(
         ["country_name", "year"], as_index=False
@@ -1399,7 +1403,6 @@ def render_budget_func_changes(data, country, exp_type, num_years=5):
     ]
 
     fig = go.Figure()
-
     for func, group in country_budget_changes_df.groupby("func"):
         fig.add_trace(
             go.Scatter(

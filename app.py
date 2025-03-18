@@ -198,7 +198,7 @@ def fetch_func_data_once(data):
         agg_dict = {
             "expenditure": "sum",
             "real_expenditure": "sum",
-            "domestic_funded_expenditure": "sum",
+            "domestic_funded_budget": "sum",
             "decentralized_expenditure": "sum",
             "central_expenditure": "sum",
             "per_capita_expenditure": "sum",
@@ -211,10 +211,9 @@ def fetch_func_data_once(data):
         func_df["expenditure_decentralization"] = (
             func_df["decentralized_expenditure"] / func_df["expenditure"]
         )
-        func_df["real_domestic_funded_expenditure"] = (
-            func_df["expenditure"] / func_df["real_expenditure"]
-        ) * func_df["domestic_funded_expenditure"]
-
+        func_df["real_domestic_funded_budget"] = (
+            func_df["real_expenditure"] / func_df["expenditure"]
+        ) * func_df["domestic_funded_budget"]
         econ_df = func_econ_df.groupby(
             ["country_name", "year", "econ"], as_index=False
         ).agg(agg_dict)

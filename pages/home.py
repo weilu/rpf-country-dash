@@ -162,14 +162,14 @@ def render_overview_content(tab):
                                     options=[
                                         {
                                             "label": "Budget",
-                                            "value": "domestic_funded_expenditure",
+                                            "value": "domestic_funded_budget",
                                         },
                                         {
                                             "label": "Inflation-adjusted Budget",
-                                            "value": "real_domestic_funded_expenditure",
+                                            "value": "real_domestic_funded_budget",
                                         },
                                     ],
-                                    value="domestic_funded_expenditure",
+                                    value="domestic_funded_budget",
                                     inline=True,
                                     style={"padding": "10px"},
                                     labelStyle={"margin-right": "20px"},
@@ -1259,7 +1259,7 @@ def format_budget_increment_narrative(
     lowest_func_cat, lowest_cagr = data["lowest"]
 
     real_terms_phrase = (
-        " in real terms. " if exp_type == "real_domestic_funded_expenditure" else ". "
+        " in real terms. " if exp_type == "real_domestic_funded_budget" else ". "
     )
 
     if lowest_cagr < 0:
@@ -1331,8 +1331,8 @@ def render_budget_func_changes(data, country, exp_type, num_years=5):
     ).agg(
         {
             "expenditure": "sum",
-            "domestic_funded_expenditure": "sum",
-            "real_domestic_funded_expenditure": "sum",
+            "domestic_funded_budget": "sum",
+            "real_domestic_funded_budget": "sum",
         }
     )
     overall_budget_df["func"] = "Overall budget"
@@ -1344,7 +1344,7 @@ def render_budget_func_changes(data, country, exp_type, num_years=5):
         ["country_name", "func", "year"]
     )
 
-    for col in ["domestic_funded_expenditure", "real_domestic_funded_expenditure"]:
+    for col in ["domestic_funded_budget", "real_domestic_funded_budget"]:
         prev_col = f"prev_{col}"
         yoy_col = f"yoy_{col}"
         country_budget_changes_df[prev_col] = country_budget_changes_df.groupby(
@@ -1357,8 +1357,8 @@ def render_budget_func_changes(data, country, exp_type, num_years=5):
 
     country_budget_changes_df.drop(
         columns=[
-            "prev_domestic_funded_expenditure",
-            "prev_real_domestic_funded_expenditure",
+            "prev_domestic_funded_budget",
+            "prev_real_domestic_funded_budget",
         ],
         inplace=True,
     )
@@ -1373,8 +1373,7 @@ def render_budget_func_changes(data, country, exp_type, num_years=5):
     num_years = end_year - start_year + 1
 
     foreign_funding_isnull = (
-        overall_budget_df["domestic_funded_expenditure"]
-        == overall_budget_df["expenditure"]
+        overall_budget_df["domestic_funded_budget"] == overall_budget_df["expenditure"]
     ).all()
 
     func_cagr_dict = {
@@ -1390,7 +1389,7 @@ def render_budget_func_changes(data, country, exp_type, num_years=5):
         k: v for k, v in func_cagr_dict.items() if v is not None and not np.isnan(v)
     }
 
-    if (not valid_cagr_dict) & (exp_type == "real_domestic_funded_expenditure"):
+    if (not valid_cagr_dict) & (exp_type == "real_domestic_funded_budget"):
         return (
             empty_plot("Inflation-adjusted budget data unavailable"),
             generate_error_prompt(

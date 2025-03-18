@@ -10,6 +10,7 @@ from utils import (
     filter_country_sort_year,
     filter_geojson_by_country,
     empty_plot,
+    generate_error_prompt,
     remove_accents,
     require_login,
     calculate_cagr,
@@ -1316,9 +1317,10 @@ def format_budget_increment_narrative(
     Input("budget-increment-radio", "value"),
 )
 def render_budget_func_changes(data, country, exp_type, num_years=5):
-    budget_changes_df = pd.DataFrame(data["expenditure_by_country_func_year"])
-
-    country_budget_changes_df = filter_country_sort_year(budget_changes_df, country)
+    country_budget_changes_df = pd.DataFrame(data["expenditure_by_country_func_year"])
+    country_budget_changes_df = filter_country_sort_year(
+        country_budget_changes_df, country
+    )
     country_budget_changes_df = country_budget_changes_df[
         country_budget_changes_df["expenditure"].notna()
         & (round(country_budget_changes_df["expenditure"]) != 0)
@@ -1367,7 +1369,6 @@ def render_budget_func_changes(data, country, exp_type, num_years=5):
         (country_budget_changes_df["year"] >= start_year)
         & (country_budget_changes_df["year"] <= end_year)
     ]
-    # recompute start_year and num_years to account for missing data (e.g., Burkina Faso missing 2016 data)
     start_year = max(country_budget_changes_df.year.min(), end_year - num_years + 1)
     num_years = end_year - start_year + 1
 
@@ -1375,6 +1376,7 @@ def render_budget_func_changes(data, country, exp_type, num_years=5):
         overall_budget_df["domestic_funded_expenditure"]
         == overall_budget_df["expenditure"]
     ).all()
+
     func_cagr_dict = {
         func: calculate_cagr(
             group.loc[group["year"] == start_year, exp_type].sum(),
@@ -1383,9 +1385,19 @@ def render_budget_func_changes(data, country, exp_type, num_years=5):
         )
         for func, group in country_budget_changes_df.groupby("func")
     }
+
     valid_cagr_dict = {
         k: v for k, v in func_cagr_dict.items() if v is not None and not np.isnan(v)
     }
+
+    if (not valid_cagr_dict) & (exp_type == "real_domestic_funded_expenditure"):
+        return (
+            empty_plot("Inflation-adjusted budget data unavailable"),
+            generate_error_prompt(
+                "DATA_UNAVAILABLE_DATASET_NAME",
+                dataset_name="Inflation adjusted domestic funded budget",
+            ),
+        )
 
     color_mapping = {
         func: FUNC_COLORS.get(func, "gray")
@@ -1445,13 +1457,14 @@ def render_budget_func_changes(data, country, exp_type, num_years=5):
             )
         ],
     )
+
     highest_func_cat = max(
         (k for k in valid_cagr_dict if k != "Overall budget"), key=valid_cagr_dict.get
     )
     other_candidates = [
         k for k in valid_cagr_dict if k != "Overall budget" and k != highest_func_cat
     ]
-    # we select a different categoiry when all growth rates are some to ensure narrative reads well
+
     if other_candidates:
         lowest_func_cat = min(other_candidates, key=valid_cagr_dict.get)
     else:
@@ -1462,12 +1475,6 @@ def render_budget_func_changes(data, country, exp_type, num_years=5):
         "highest": (highest_func_cat, func_cagr_dict[highest_func_cat]),
         "lowest": (lowest_func_cat, func_cagr_dict[lowest_func_cat]),
     }
-    cagr_data = {
-        "Overall budget": func_cagr_dict["Overall budget"],
-        "highest": (highest_func_cat, func_cagr_dict[highest_func_cat]),
-        "lowest": (lowest_func_cat, func_cagr_dict[lowest_func_cat]),
-    }
-
     narrative = format_budget_increment_narrative(
         cagr_data, foreign_funding_isnull, exp_type, num_years=num_years
     )

@@ -215,6 +215,7 @@ def update_func_expenditure_map(
         subnational_data['expenditure_and_outcome_by_country_geo1_func_year'],
         year, country, func
     )
+    df = df[df.adm1_name != 'Central Scope']
 
     if df.empty:
         return empty_plot("No data available for the selected year")
@@ -331,6 +332,7 @@ def update_hd_index_map(
         subnational_data["expenditure_and_outcome_by_country_geo1_func_year"],
         year, country, func
     )
+    df = df[df.adm1_name != 'Central Scope']
 
     if df.empty:
         return empty_plot("No data available for the selected year")

@@ -5,16 +5,26 @@ import math
 
 
 from auth import AUTH_ENABLED
+from collections import OrderedDict
 from constants import (
     NARRATIVE_ERROR_TEMPLATES,
     START_YEAR,
-    CORRELATION_THRESHOLDS,
     TREND_THRESHOLDS,
 )
 from dash import dcc, get_app
 from flask_login import current_user
 from math import isnan
 from shapely.geometry import shape, MultiPolygon, Polygon
+
+
+CORRELATION_THRESHOLDS = {
+    0: "no",
+    0.1: "no",
+    0.3: "weak",
+    0.7: "moderate",
+    0.9: "strong",
+    1: "very strong",
+}
 
 
 def filter_country_sort_year(df, country, start_year=START_YEAR):
@@ -131,18 +141,18 @@ def get_correlation_text(df, x_col, y_col):
     x_display_name = x_col["display"]
     y_display_name = y_col["display"]
 
-    if isnan(pcc):
+    if isnan(pcc) or df.shape[0] <= 2:
         return f"the correlation between {x_display_name} and {y_display_name} is unknown due to limited data availability or variability."
 
     if pcc > 0:
-        direction = "positive "
+        direction = "positive"
         association = "higher"
     else:
         direction = "inverse"
         association = "lower"
 
     intensity = None
-    for threshold, pcc_text in CORRELATION_THRESHOLDS.items():
+    for threshold, pcc_text in sorted(CORRELATION_THRESHOLDS.items()):
         if abs(pcc) <= float(threshold):
             intensity = pcc_text
             break
@@ -150,8 +160,7 @@ def get_correlation_text(df, x_col, y_col):
     if intensity == "no":
         return f"there is no correlation between {y_display_name} and {x_display_name}."
 
-    text = f"the correlation between {y_display_name} and {x_display_name} is {pcc:.1f},\
-                indicating a {intensity} {direction} relationship. Higher {y_display_name} is generally associated with {association} {x_display_name}."
+    text = f"the correlation between {y_display_name} and {x_display_name} is {pcc:.1f}, indicating a {intensity} {direction} relationship. Higher {y_display_name} is generally associated with {association} {x_display_name}."""
     return text
 
 

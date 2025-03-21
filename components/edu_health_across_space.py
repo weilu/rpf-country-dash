@@ -3,8 +3,10 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import re
 import traceback
 from dash import html
+from components.year_slider import get_slider_config
 from utils import (
     empty_plot,
     filter_country_sort_year,
@@ -16,32 +18,47 @@ from utils import (
 )
 
 
-def render_func_subnat_overview(func_data, sub_func_data, country, selected_year):
-    if not func_data or not sub_func_data or not country:
+def update_year_slider(data, country, func):
+    data = pd.DataFrame(data["expenditure_and_outcome_by_country_geo1_func_year"])
+    data = data.loc[(data.func == func)]
+
+    data = filter_country_sort_year(data, country)
+
+    if data.empty:
+        return {"display": "block"}, {}, 0, 0, 0, {}
+
+    expenditure_years = list(data.year.astype("int").unique())
+    data = data[data["outcome_index"].notna()]
+    outcome_years = list(data.year.astype("int").unique())
+    return get_slider_config(expenditure_years, outcome_years)
+
+
+def render_func_subnat_overview(func_econ_data, sub_func_data, country, selected_year, func):
+    if not func_econ_data or not sub_func_data or not country:
         return
 
-    func = "Education"
-
-    total_data = _subset_data(
-        func_data['edu_public_expenditure'], selected_year, country, func
+    data_by_func_admin0 = _subset_data(
+        func_econ_data['expenditure_by_country_func_year'], selected_year, country, func
     )
 
-    data = _subset_data(
+    data_by_func_sub_geo0 = _subset_data(
         sub_func_data["expenditure_by_country_sub_func_year"], 
         selected_year, country, func
     ).sort_values(by='func_sub')
 
-    if total_data.empty and data.empty:
+    if data_by_func_admin0.empty and data_by_func_sub_geo0.empty:
         return (
             empty_plot("No data available for this period"),
             empty_plot("No data available for this period"),
             generate_error_prompt("DATA_UNAVAILABLE"),
         )
 
-    fig1 = _central_vs_regional_fig(data)
-    fig2 = _sub_func_fig(data)
+    fig1 = _central_vs_regional_fig(data_by_func_sub_geo0, func)
+    fig2 = _sub_func_fig(data_by_func_sub_geo0, func)
 
-    narrative = _education_sub_func_narrative(total_data, data, country, selected_year)
+    narrative = _sub_func_narrative(
+        data_by_func_admin0, data_by_func_sub_geo0, country, selected_year, func
+    )
     return fig1, fig2, narrative
 
 def _subset_data(stored_data, year, country, func):
@@ -49,8 +66,8 @@ def _subset_data(stored_data, year, country, func):
     data = filter_country_sort_year(data, country)
     return data.loc[(data.func == func) & (data.year == year)]
 
-def _central_vs_regional_fig(data):
-    fig_title = "Where was education spending directed?"
+def _central_vs_regional_fig(data, func):
+    fig_title = f"Where was {func.lower()} spending directed?"
     central_vs_regional = (
         data.groupby("geo0").sum(numeric_only=True).reset_index()
     )
@@ -80,8 +97,8 @@ def _central_vs_regional_fig(data):
     )
     return fig
 
-def _sub_func_fig(data):
-    fig_title = "How much did the gov spend on different levels of education?"
+def _sub_func_fig(data, func):
+    fig_title = f"How much did the gov spend on different levels of {func.lower()}?"
     education_values = data.groupby("func_sub", sort=False).sum(numeric_only=True).reset_index()
  
     if education_values.empty:
@@ -142,20 +159,24 @@ def _sub_func_fig(data):
 
     return fig
 
-def _education_sub_func_narrative(total_data, data, country, selected_year):
+def _sub_func_narrative(data_by_func_admin0, data_by_func_sub_geo0, country, selected_year, func):
     try:
-        total_spending = data["real_expenditure"].sum()
-        regional_spending = data[data.geo0 == 'Regional'].real_expenditure.sum()
+        total_spending = data_by_func_sub_geo0["real_expenditure"].sum()
+        regional_spending = data_by_func_sub_geo0[
+            data_by_func_sub_geo0.geo0 == 'Regional'
+        ].real_expenditure.sum()
         geo_tagged = regional_spending / total_spending * 100
-        decentralization = total_data.expenditure_decentralization.values[0] * 100
+        decentralization = data_by_func_admin0.expenditure_decentralization.values[0] * 100
+
+        func_name = func.lower()
 
         text = f"In {country}, as of {selected_year}, "
 
-        subnat_exp_available_text = f"{decentralization:.1f}% of education spending is executed by regional or local governments (decentralized spending)"
-        subnat_exp_not_available_text = "we do not have data on education spending executed by regional or local governments (decentralized spending)"
+        subnat_exp_available_text = f"{decentralization:.1f}% of {func_name} spending is executed by regional or local governments (decentralized spending)"
+        subnat_exp_not_available_text = f"we do not have data on {func_name} spending executed by regional or local governments (decentralized spending)"
 
-        geo_exp_available_text = f", while {geo_tagged:.1f}% of education spending is geographically allocated, meaning it may be funded either centrally or regionally but is directed toward specific regions. To explore disparities in spending and education outcomes across subnational regions, we will focus on geographically allocated spending, as it provides a more complete picture of resources benefiting each region."
-        geo_exp_not_available_text = ". However, data on geographically allocated spending—which would capture both central and regional spending benefiting specific locations—is not available. Ideally, we would use geographically allocated spending to analyze subnational disparities, but due to data limitations, we will use decentralized spending as a proxy."
+        geo_exp_available_text = f", while {geo_tagged:.1f}% of {func_name} spending is geographically allocated, meaning it may be funded either centrally or regionally but is directed toward specific regions. To explore disparities in spending and {func_name} outcomes across subnational regions, we will focus on geographically allocated spending, as it provides a more complete picture of resources benefiting each region."
+        geo_exp_not_available_text = ". However, data on geographically allocated spending – which would capture both central and regional spending benefiting specific locations — is not available. Ideally, we would use geographically allocated spending to analyze subnational disparities, but due to data limitations, we will use decentralized spending as a proxy."
 
         subnat_exp_available = not math.isnan(decentralization) and not math.isclose(decentralization, 0)
         geo_exp_available =  not math.isnan(geo_tagged) and not math.isclose(geo_tagged, decentralization)
@@ -166,7 +187,7 @@ def _education_sub_func_narrative(total_data, data, country, selected_year):
         elif not subnat_exp_available and geo_exp_available:
             text += subnat_exp_not_available_text + geo_exp_available_text
         else:
-            text += "we do not have education spending at subnational level."
+            text += f"we do not have {func_name} spending at subnational level."
     except:
         traceback.print_exc()
         return generate_error_prompt("GENERIC_ERROR")
@@ -175,16 +196,15 @@ def _education_sub_func_narrative(total_data, data, country, selected_year):
 
 
 def update_func_expenditure_map(
-    edu_subnational_data,
     subnational_data,
     country_data,
     country,
     year,
     expenditure_type,
+    func,
 ):
     if (
-        not edu_subnational_data
-        or not subnational_data
+        not subnational_data
         or not country_data
         or not country
         or year is None
@@ -192,8 +212,10 @@ def update_func_expenditure_map(
         return empty_plot("Data not available")
 
     df = _subset_data(
-        edu_subnational_data['edu_subnational_expenditure'], year, country, 'Education'
+        subnational_data['expenditure_and_outcome_by_country_geo1_func_year'],
+        year, country, func
     )
+    df = df[df.adm1_name != 'Central Scope']
 
     if df.empty:
         return empty_plot("No data available for the selected year")
@@ -229,16 +251,17 @@ def update_func_expenditure_map(
         mapbox_style="carto-positron",
     )
 
-    fig.add_trace(
-        px.choropleth_mapbox(
-            df_no_data,
-            geojson=filtered_geojson,
-            color_discrete_sequence=["rgba(211, 211, 211, 0.3)"],
-            locations="region_name",
-            featureidkey="properties.region",
-            zoom=zoom,
-        ).data[0]
-    )
+    no_data_trace = px.choropleth_mapbox(
+        df_no_data,
+        geojson=filtered_geojson,
+        color_discrete_sequence=["rgba(211, 211, 211, 0.3)"],
+        locations="region_name",
+        featureidkey="properties.region",
+        zoom=zoom,
+    ).data[0]
+    no_data_trace.legendgroup = "no-data"
+    no_data_trace.showlegend = False 
+    fig.add_trace(no_data_trace)
 
     hover_template_str = (
         "<b>Region:</b> %{location}<br>"
@@ -249,7 +272,7 @@ def update_func_expenditure_map(
     fig.update_traces(hovertemplate=hover_template_str)
 
     fig.update_layout(
-        title="Subnational Education Spending",
+        title=f"Subnational {func} Spending",
         plot_bgcolor="white",
         coloraxis_colorbar=dict(
             title="",
@@ -282,27 +305,40 @@ def update_func_expenditure_map(
 
     return fig
 
+FUNC_OUTCOME_MAP = {
+    'Education': [
+        'School Attendance for Age 6-17',
+        lambda value: value * 100,
+        lambda value: f"{value:.1f}%",
+    ],
+    'Health': [
+        'UHC Index',
+        lambda value: value,
+        lambda value: f"{value:.2f}",
+    ],
+}
 def update_hd_index_map(
-    edu_outcome_data, subnational_data, country_data, country, year
+    subnational_data, country_data, country, year, func,
 ):
     if (
-        not edu_outcome_data
-        or not subnational_data
+        not subnational_data
         or not country_data
         or not country
         or year is None
     ):
         return empty_plot("Data not available")
 
-    print(
-        f"[DEBUG]: {pd.DataFrame(edu_outcome_data['edu_subnational_expenditure']).columns}"
+    df = _subset_data(
+        subnational_data["expenditure_and_outcome_by_country_geo1_func_year"],
+        year, country, func
     )
-
-    df = pd.DataFrame(edu_outcome_data["edu_subnational_expenditure"])
-    df = df[(df["country_name"] == country) & (df["year"] == year)]
+    df = df[df.adm1_name != 'Central Scope']
 
     if df.empty:
         return empty_plot("No data available for the selected year")
+
+    outcome_name, transform_fn, format_fn = FUNC_OUTCOME_MAP[func]
+    df['outcome_index'] = df['outcome_index'].map(transform_fn)
 
     geojson = subnational_data["boundaries"]
     filtered_geojson = filter_geojson_by_country(geojson, country)
@@ -321,7 +357,7 @@ def update_hd_index_map(
     df_no_data = pd.DataFrame({"region_name": regions_without_data})
     df_no_data["adm1_name"] = None
 
-    # Create the choropleth for education index
+    # Create the choropleth for outcome index
     fig = px.choropleth_mapbox(
         df,
         geojson=filtered_geojson,
@@ -333,25 +369,28 @@ def update_hd_index_map(
         mapbox_style="carto-positron",
     )
 
-    fig.add_trace(
-        px.choropleth_mapbox(
-            df_no_data,
-            geojson=filtered_geojson,
-            color_discrete_sequence=["rgba(211, 211, 211, 0.3)"],
-            locations="region_name",
-            featureidkey="properties.region",
-            zoom=zoom,
-        ).data[0]
-    )
+    no_data_trace = px.choropleth_mapbox(
+        df_no_data,
+        geojson=filtered_geojson,
+        color_discrete_sequence=["rgba(211, 211, 211, 0.3)"],
+        locations="region_name",
+        featureidkey="properties.region",
+        zoom=zoom,
+    ).data[0]
+    no_data_trace.legendgroup = "no-data"
+    no_data_trace.showlegend = False 
+    fig.add_trace(no_data_trace)
 
+    formatted_outcome_index = df['outcome_index'].map(format_fn).values
     fig.update_traces(
+        customdata=formatted_outcome_index,
         hovertemplate="<b>Region:</b> %{location}<br>"
-        + "<b>Attendance:</b> %{z}<br>"
-        + "<extra></extra>"
+            + f"<b>{outcome_name}:</b> " + "%{customdata}<br>"
+            + "<extra></extra>",
     )
 
     fig.update_layout(
-        title="Subnational School Attendance",
+        title=f"Subnational {outcome_name}",
         plot_bgcolor="white",
         coloraxis_colorbar=dict(
             title="",
@@ -385,27 +424,30 @@ def update_hd_index_map(
     return fig
 
 
-def render_func_subnat_rank(subnational_outcome_data, country, base_year):
-    if not subnational_outcome_data or not country:
+def render_func_subnat_rank(subnational_data, country, base_year, func):
+    if not subnational_data or not country:
         return
 
-    data = pd.DataFrame(subnational_outcome_data["edu_subnational_expenditure"])
+    data = _subset_data(
+        subnational_data["expenditure_and_outcome_by_country_geo1_func_year"], 
+        base_year, country, func
+    )
+    data = data[data["outcome_index"].notna() & data["per_capita_expenditure"].notna()]
     data = filter_country_sort_year(data, country)
-    data = data[data["outcome_index"].notna()]
-    data = data.loc[(data.func == "Education") & (data.year == base_year)]
     if data.empty:
         return empty_plot(
-            "No attendance data available for this period"
+            "No outcome data available for this period"
         ), generate_error_prompt("DATA_UNAVAILABLE")
 
-    data['attendance'] = data.outcome_index * 100
+    outcome_name, transform_fn, format_fn = FUNC_OUTCOME_MAP[func]
+    data['outcome_index'] = data['outcome_index'].map(transform_fn)
 
     n = data.shape[0]
     data_expenditure_sorted = data[["adm1_name", "per_capita_expenditure"]].sort_values(
         "per_capita_expenditure", ascending=False
     )
-    data_outcome_sorted = data[["attendance", "adm1_name"]].sort_values(
-        "attendance", ascending=False
+    data_outcome_sorted = data[["outcome_index", "adm1_name"]].sort_values(
+        "outcome_index", ascending=False
     )
     source = list(data_expenditure_sorted.adm1_name)
     dest = list(data_outcome_sorted.adm1_name)
@@ -418,7 +460,7 @@ def render_func_subnat_rank(subnational_outcome_data, country, base_year):
     ]
     node_custom_data += [
         (
-            f"{'{:.2f}'.format(data_outcome_sorted.iloc[i]['attendance'])}%",
+            format_fn(data_outcome_sorted.iloc[i]['outcome_index']),
             data_outcome_sorted.iloc[i]["adm1_name"],
         )
         for i in range(n)
@@ -453,7 +495,9 @@ def render_func_subnat_rank(subnational_outcome_data, country, base_year):
                 target=[data.shape[0] + dest.index(source[i]) for i in range(n)],
                 color=node_colors_opaque,
                 value=[1 for i in range(n)],
-                hovertemplate="Expenditure: %{source.customdata[0]} <br /> Attendance: %{target.customdata[0]}<extra></extra>",
+                hovertemplate="<b>Expenditure:</b> %{source.customdata[0]}<br>"
+                + f"<b>{outcome_name}:</b> " + "%{target.customdata[0]}<br>"
+                + "<extra></extra>",
             ),
         )
     )
@@ -462,13 +506,13 @@ def render_func_subnat_rank(subnational_outcome_data, country, base_year):
         x=0.1,
         y=1,
         arrowcolor="rgba(0, 0, 0, 0)",
-        text=f"<b>Per Capita Expenditure on Education</b><br> <b>{base_year}</b>",
+        text=f"<b>Per Capita Expenditure on {func}</b><br> <b>{base_year}</b>",
     )
     fig.add_annotation(
         x=0.9,
         y=1,
         arrowcolor="rgba(0, 0, 0, 0)",
-        text=f"<b>Attendance</b> <br> <b>{base_year}</b>",
+        text=f"<b>{outcome_name}</b> <br> <b>{base_year}</b>",
     )
 
     rank_mapping = {0: "1st", 10: "10th", 20: "20th", 30: "30th", 40: "40th"}
@@ -481,20 +525,25 @@ def render_func_subnat_rank(subnational_outcome_data, country, base_year):
             showarrow=False,
         )
 
-    narrative = _func_subnat_rank_narrative(base_year, data)
+    narrative = _func_subnat_rank_narrative(base_year, func, data)
     return fig, narrative
 
 
-def _func_subnat_rank_narrative(year, data):
+def _func_subnat_rank_narrative(year, func, data):
+    func_lower = func.lower()
+
+    outcome_name, _, _ = FUNC_OUTCOME_MAP[func]
+    outcome_name = re.sub(r'\buhc\b', 'UHC', outcome_name.lower(), flags=re.IGNORECASE)
+
     PCC = get_correlation_text(
         data,
         {
             "col_name": "outcome_index",
-            "display": "6-17yo school attendance"
+            "display": outcome_name,
         },
         {
             "col_name": "per_capita_expenditure",
-            "display": "per capita expenditure on education",
+            "display": f"per capita expenditure on {func_lower}",
         },
     )
 
@@ -503,7 +552,7 @@ def _func_subnat_rank_narrative(year, data):
     best_ROI = data[data["ROI"] == data.ROI.max()].adm1_name.values[0]
     worst_ROI = data[data["ROI"] == data.ROI.min()].adm1_name.values[0]
 
-    narrative += f" Among the subnational regions, in terms of return on public spending on education measured by attendance, {best_ROI} had the highest return on investment (ROI) while {worst_ROI} had the lowest."
+    narrative += f" Among the subnational regions, in terms of return on public spending on {func_lower} measured by {outcome_name}, {best_ROI} had the highest return on investment (ROI) while {worst_ROI} had the lowest."
     return narrative
 
 

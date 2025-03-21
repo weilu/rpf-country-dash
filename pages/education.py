@@ -20,6 +20,7 @@ import traceback
 from components.year_slider import slider, get_slider_config
 from components.func_operational_vs_capital_spending import render_econ_breakdown
 from components.edu_health_across_space import (
+    update_year_slider,
     render_func_subnat_overview,
     update_func_expenditure_map,
     update_hd_index_map,
@@ -54,8 +55,6 @@ def layout():
             dcc.Store(id="stored-data-education-total"),
             dcc.Store(id="stored-data-education-outcome"),
             dcc.Store(id="stored-data-education-private"),
-            dcc.Store(id="stored-data-education-sub-func"),
-            dcc.Store(id="stored-data-education-subnational"),
         ]
     )
 
@@ -104,33 +103,6 @@ def fetch_edu_private_data_once(edu_data):
         priv_exp = db.get_edu_private_expenditure()
         return {
             "edu_private_expenditure": priv_exp.to_dict("records"),
-        }
-    return dash.no_update
-
-
-@callback(
-    Output("stored-data-education-sub-func", "data"),
-    Input("stored-data-education-sub-func", "data"),
-)
-def fetch_edu_sub_func_data_once(edu_data):
-    if edu_data is None:
-        exp_by_sub_func = db.get_expenditure_by_country_sub_func_year()
-        return {
-            "expenditure_by_country_sub_func_year": exp_by_sub_func.to_dict("records"),
-        }
-    return dash.no_update
-
-
-@callback(
-    Output("stored-data-education-subnational", "data"),
-    Input("stored-data-education-subnational", "data"),
-)
-def fetch_edu_subnational_data_once(edu_data):
-    if edu_data is None:
-        subnational_data = db.expenditure_and_outcome_by_country_geo1_func_year()
-
-        return {
-            "edu_subnational_expenditure": subnational_data.to_dict("records"),
         }
     return dash.no_update
 
@@ -273,7 +245,7 @@ def render_education_content(tab):
                             id="year_slider_edu_container",
                             children=[
                                 dcc.Slider(
-                                    id="year_slider_edu",
+                                    id="year-slider-edu",
                                     min=0,
                                     max=0,
                                     value=None,
@@ -836,86 +808,6 @@ def render_education_outcome(outcome_data, total_data, country):
 
 
 @callback(
-    Output("education-central-vs-regional", "figure"),
-    Output("education-sub-func", "figure"),
-    Output("education-sub-func-narrative", "children"),
-    Input("stored-data-education-total", "data"),
-    Input("stored-data-education-sub-func", "data"),
-    Input("country-select", "value"),
-    Input("year_slider_edu", "value"),
-)
-def render_education_subnat_overview(func_data, sub_func_data, country, selected_year):
-    return render_func_subnat_overview(func_data, sub_func_data, country, selected_year)
-
-
-@callback(
-    Output("education-subnational", "figure"),
-    Output("education-subnational-narrative", "children"),
-    Input("stored-data-education-subnational", "data"),
-    Input("country-select", "value"),
-    Input("year_slider_edu", "value"),
-)
-def render_education_subnat_rank(subnational_outcome_data, country, base_year):
-    return render_func_subnat_rank(subnational_outcome_data, country, base_year)
-
-
-@callback(
-    Output("year_slider_edu_container", "style"),
-    Output("year_slider_edu", "marks"),
-    Output("year_slider_edu", "value"),
-    Output("year_slider_edu", "min"),
-    Output("year_slider_edu", "max"),
-    Output("year_slider_edu", "tooltip"),
-    Input("stored-data-education-subnational", "data"),
-    Input("country-select", "value"),
-)
-def update_education_year_range(data, country):
-    data = pd.DataFrame(data["edu_subnational_expenditure"])
-    data = data.loc[(data.func == "Education")]
-
-    data = filter_country_sort_year(data, country)
-
-    if data.empty:
-        return {"display": "block"}, {}, 0, 0, 0, {}
-
-    expenditure_years = list(data.year.astype("int").unique())
-    data = data[data["outcome_index"].notna()]
-    outcome_years = list(data.year.astype("int").unique())
-    return get_slider_config(expenditure_years, outcome_years)
-
-
-@callback(
-    Output("education-expenditure-map", "figure"),
-    Input("stored-data-education-subnational", "data"),
-    Input("stored-data-subnational", "data"),
-    Input("stored-basic-country-data", "data"),
-    Input("country-select", "value"),
-    Input("year_slider_edu", "value"),
-    Input("education-expenditure-type", "value"),
-)
-def update_education_expenditure_map(
-    edu_subnational_data, subnational_data, country_data, country, year, expenditure_type,
-):
-    return update_func_expenditure_map(
-        edu_subnational_data, subnational_data, country_data, country, year, expenditure_type,
-    )
-
-
-@callback(
-    Output("education-outcome-map", "figure"),
-    Input("stored-data-education-subnational", "data"),
-    Input("stored-data-subnational", "data"),
-    Input("stored-basic-country-data", "data"),
-    Input("country-select", "value"),
-    Input("year_slider_edu", "value"),
-)
-def update_education_index_map(
-    edu_outcome_data, subnational_data, country_data, country, year
-):
-    return update_hd_index_map(edu_outcome_data, subnational_data, country_data, country, year)
-
-
-@callback(
     [
         Output("econ-breakdown-func-edu", "figure"),
         Output("econ-breakdown-func-narrative-edu", "children"),
@@ -927,11 +819,81 @@ def update_education_index_map(
 def render_operational_vs_capital_breakdown(data, country_name, page_func):
     return render_econ_breakdown(data, country_name, page_func)
 
+
+@callback(
+    Output("year_slider_edu_container", "style"),
+    Output("year-slider-edu", "marks"),
+    Output("year-slider-edu", "value"),
+    Output("year-slider-edu", "min"),
+    Output("year-slider-edu", "max"),
+    Output("year-slider-edu", "tooltip"),
+    Input("stored-data-subnational", "data"),
+    Input("country-select", "value"),
+)
+def update_education_year_range(data, country):
+    return update_year_slider(data, country, 'Education')
+
+
+@callback(
+    Output("education-central-vs-regional", "figure"),
+    Output("education-sub-func", "figure"),
+    Output("education-sub-func-narrative", "children"),
+    Input("stored-data-func-econ", "data"),
+    Input("stored-data-subnational", "data"),
+    Input("country-select", "value"),
+    Input("year-slider-edu", "value"),
+)
+def render_education_subnat_overview(func_econ_data, sub_func_data, country, selected_year):
+    return render_func_subnat_overview(
+        func_econ_data, sub_func_data, country, selected_year, 'Education'
+    )
+
+
 @callback(
     Output("education-subnational-motivation", "children"),
     Input("country-select", "value"),
-    Input("year_slider_edu", "value"),
+    Input("year-slider-edu", "value"),
 )
 def update_education_subnational_motivation_narrative(country_name, year):
     narrative = f'To examine this for {country_name}, we analyze per capita public spending on education in {year} as a measure of financial resource allocation at the subnational level and use the school attendance rate of 6-17-year-old children to approximate access to education.'
     return narrative
+
+
+@callback(
+    Output("education-expenditure-map", "figure"),
+    Input("stored-data-subnational", "data"),
+    Input("stored-basic-country-data", "data"),
+    Input("country-select", "value"),
+    Input("year-slider-edu", "value"),
+    Input("education-expenditure-type", "value"),
+)
+def update_education_expenditure_map(
+    subnational_data, country_data, country, year, expenditure_type,
+):
+    return update_func_expenditure_map(
+        subnational_data, country_data, country, year, expenditure_type, 'Education'
+    )
+
+
+@callback(
+    Output("education-outcome-map", "figure"),
+    Input("stored-data-subnational", "data"),
+    Input("stored-basic-country-data", "data"),
+    Input("country-select", "value"),
+    Input("year-slider-edu", "value"),
+)
+def update_education_index_map(
+    subnational_data, country_data, country, year
+):
+    return update_hd_index_map(subnational_data, country_data, country, year, 'Education')
+
+
+@callback(
+    Output("education-subnational", "figure"),
+    Output("education-subnational-narrative", "children"),
+    Input("stored-data-subnational", "data"),
+    Input("country-select", "value"),
+    Input("year-slider-edu", "value"),
+)
+def render_education_subnat_rank(subnational_data, country, base_year):
+    return render_func_subnat_rank(subnational_data, country, base_year, 'Education')

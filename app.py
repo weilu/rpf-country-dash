@@ -254,12 +254,17 @@ def fetch_subnational_data_once(data, country_data):
             ],
         }
 
-        subnational_poverty_df = db.get_subnational_poverty_index(countries)
-        geo1_year_df = db.get_expenditure_by_country_geo1_year()
+        poverty_df = db.get_subnational_poverty_index(countries)
+        geo1_df = db.get_expenditure_by_country_geo1_year()
+        geo1_func_df = db.expenditure_and_outcome_by_country_geo1_func_year()
+        geo0_sub_func_df = db.get_expenditure_by_country_sub_func_year()
+
         return {
-            "subnational_poverty_index": subnational_poverty_df.to_dict("records"),
+            "subnational_poverty_index": poverty_df.to_dict("records"),
             "boundaries": boundaries_geojson,
-            "expenditure_by_country_geo1_year": geo1_year_df.to_dict("records"),
+            "expenditure_by_country_geo1_year": geo1_df.to_dict("records"),
+            "expenditure_and_outcome_by_country_geo1_func_year": geo1_func_df.to_dict("records"),
+            "expenditure_by_country_sub_func_year": geo0_sub_func_df.to_dict("records"),
         }
     return no_update
 

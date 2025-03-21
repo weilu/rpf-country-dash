@@ -250,16 +250,17 @@ def update_func_expenditure_map(
         mapbox_style="carto-positron",
     )
 
-    fig.add_trace(
-        px.choropleth_mapbox(
-            df_no_data,
-            geojson=filtered_geojson,
-            color_discrete_sequence=["rgba(211, 211, 211, 0.3)"],
-            locations="region_name",
-            featureidkey="properties.region",
-            zoom=zoom,
-        ).data[0]
-    )
+    no_data_trace = px.choropleth_mapbox(
+        df_no_data,
+        geojson=filtered_geojson,
+        color_discrete_sequence=["rgba(211, 211, 211, 0.3)"],
+        locations="region_name",
+        featureidkey="properties.region",
+        zoom=zoom,
+    ).data[0]
+    no_data_trace.legendgroup = "no-data"
+    no_data_trace.showlegend = False 
+    fig.add_trace(no_data_trace)
 
     hover_template_str = (
         "<b>Region:</b> %{location}<br>"
@@ -354,7 +355,7 @@ def update_hd_index_map(
     df_no_data = pd.DataFrame({"region_name": regions_without_data})
     df_no_data["adm1_name"] = None
 
-    # Create the choropleth for education index
+    # Create the choropleth for outcome index
     fig = px.choropleth_mapbox(
         df,
         geojson=filtered_geojson,
@@ -366,16 +367,17 @@ def update_hd_index_map(
         mapbox_style="carto-positron",
     )
 
-    fig.add_trace(
-        px.choropleth_mapbox(
-            df_no_data,
-            geojson=filtered_geojson,
-            color_discrete_sequence=["rgba(211, 211, 211, 0.3)"],
-            locations="region_name",
-            featureidkey="properties.region",
-            zoom=zoom,
-        ).data[0]
-    )
+    no_data_trace = px.choropleth_mapbox(
+        df_no_data,
+        geojson=filtered_geojson,
+        color_discrete_sequence=["rgba(211, 211, 211, 0.3)"],
+        locations="region_name",
+        featureidkey="properties.region",
+        zoom=zoom,
+    ).data[0]
+    no_data_trace.legendgroup = "no-data"
+    no_data_trace.showlegend = False 
+    fig.add_trace(no_data_trace)
 
     formatted_outcome_index = df['outcome_index'].map(format_fn).values
     fig.update_traces(

@@ -16,6 +16,7 @@ from dash import (
     page_registry,
     no_update,
 )
+
 from components.func_operational_vs_capital_spending import prepare_prop_econ_by_func_df
 from dash.long_callback import DiskcacheLongCallbackManager
 from flask_login import logout_user, current_user
@@ -197,6 +198,7 @@ def fetch_func_data_once(data):
         agg_dict = {
             "expenditure": "sum",
             "real_expenditure": "sum",
+            "domestic_funded_budget": "sum",
             "decentralized_expenditure": "sum",
             "central_expenditure": "sum",
             "per_capita_expenditure": "sum",
@@ -209,14 +211,15 @@ def fetch_func_data_once(data):
         func_df["expenditure_decentralization"] = (
             func_df["decentralized_expenditure"] / func_df["expenditure"]
         )
-
+        func_df["real_domestic_funded_budget"] = (
+            func_df["real_expenditure"] / func_df["expenditure"]
+        ) * func_df["domestic_funded_budget"]
         econ_df = func_econ_df.groupby(
             ["country_name", "year", "econ"], as_index=False
         ).agg(agg_dict)
         econ_df["expenditure_decentralization"] = (
             econ_df["decentralized_expenditure"] / econ_df["expenditure"]
         )
-
         prop_econ_by_func_df = prepare_prop_econ_by_func_df(func_econ_df, agg_dict)
 
         return {

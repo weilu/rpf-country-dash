@@ -16,7 +16,9 @@ DEFAULT_VISIBLE_CATEGORIES = [
     "Overall budget",
 ]
 
-def render_fig_and_narrative(data, country, exp_type, num_years):
+NUM_YEARS = 5
+
+def render_fig_and_narrative(data, country, exp_type):
     country_budget_changes_df = pd.DataFrame(data["expenditure_by_country_func_year"])
     country_budget_changes_df = filter_country_sort_year(
         country_budget_changes_df, country
@@ -63,15 +65,24 @@ def render_fig_and_narrative(data, country, exp_type, num_years):
         inplace=True,
     )
 
-    end_year = country_budget_changes_df["year"].max()
-    start_year = end_year - num_years + 1
-    country_budget_changes_df = country_budget_changes_df[
-        (country_budget_changes_df["year"] >= start_year)
-        & (country_budget_changes_df["year"] <= end_year)
-    ]
-    start_year = max(country_budget_changes_df.year.min(), end_year - num_years + 1)
-    num_years = end_year - start_year + 1
+    available_years = sorted(country_budget_changes_df["year"].unique())
+    end_year = available_years[-1]
+    if len(available_years) > NUM_YEARS:
+        selected_years = available_years[-NUM_YEARS:]
+    else:
+        selected_years = available_years
+    start_year = selected_years[0]
 
+    country_budget_changes_df = country_budget_changes_df[
+        country_budget_changes_df["year"].isin(selected_years)
+    ]
+
+    num_years = len(selected_years)
+
+    # TODO Sandeep: remove after gap years are handled
+    print(f'===================> end_year: {end_year}, start_year: {start_year}, selected_years: {selected_years}')
+
+    # TODO Sandeep: use budget instead of expenditure
     foreign_funding_isnull = (
         overall_budget_df["domestic_funded_budget"] == overall_budget_df["expenditure"]
     ).all()

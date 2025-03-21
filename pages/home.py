@@ -1240,5 +1240,5 @@ def render_pefa_overall(data, pefa_data, country):
     Input("country-select", "value"),
     Input("budget-increment-radio", "value"),
 )
-def render_budget_func_changes(data, country, exp_type, num_years=5):
-    return budget_increment_analysis.render_fig_and_narrative(data, country, exp_type, num_years)
+def render_budget_func_changes(data, country, exp_type):
+    return budget_increment_analysis.render_fig_and_narrative(data, country, exp_type)

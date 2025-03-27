@@ -1,7 +1,7 @@
 import unittest
 import pandas as pd
 from pandas.testing import assert_frame_equal
-from utils import filter_country_sort_year, get_correlation_text
+from utils import filter_country_sort_year, get_correlation_text, calculate_cagr
 
 class TestUtils(unittest.TestCase):
 
@@ -76,7 +76,18 @@ class TestUtils(unittest.TestCase):
         df = pd.DataFrame({"x": [1, 2], "y": [2, 4]})
         result = get_correlation_text(df, self.x_col, self.y_col)
         self.assertIn("unknown due to limited data", result)
+        
+    def test_cagr_invalid_years(self):
+        self.assertIsNone(calculate_cagr(100, 200, None))
+        self.assertIsNone(calculate_cagr(100, 200, 0))
+        self.assertIsNone(calculate_cagr(100, 200, -2))
 
+    def test_cagr_invalid_data(self):
+        self.assertIsNone(calculate_cagr(None, 200, 5))
+        self.assertIsNone(calculate_cagr(100, None, 5))
+        self.assertIsNone(calculate_cagr(float('nan'), 200, 5))
+        self.assertIsNone(calculate_cagr(0, 200, 5))
+        self.assertIsNone(calculate_cagr(-100, 200, 5))
 
 if __name__ == '__main__':
     unittest.main()

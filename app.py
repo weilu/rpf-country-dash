@@ -197,6 +197,7 @@ def fetch_func_data_once(data):
 
         agg_dict = {
             "expenditure": "sum",
+            "budget": "sum",
             "real_expenditure": "sum",
             "domestic_funded_budget": "sum",
             "decentralized_expenditure": "sum",

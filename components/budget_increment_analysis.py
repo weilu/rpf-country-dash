@@ -18,26 +18,29 @@ DEFAULT_VISIBLE_CATEGORIES = [
 
 NUM_YEARS = 5
 
+
 def render_fig_and_narrative(data, country, exp_type):
     country_budget_changes_df = pd.DataFrame(data["expenditure_by_country_func_year"])
     country_budget_changes_df = filter_country_sort_year(
         country_budget_changes_df, country
     )
     country_budget_changes_df = country_budget_changes_df[
-        country_budget_changes_df["expenditure"].notna()
-        & (round(country_budget_changes_df["expenditure"]) != 0)
+        country_budget_changes_df["domestic_funded_budget"].notna()
+        & (round(country_budget_changes_df["domestic_funded_budget"]) != 0)
     ]
 
     overall_budget_df = country_budget_changes_df.groupby(
         ["country_name", "year"], as_index=False
     ).agg(
         {
-            "expenditure": "sum",
-            "domestic_funded_budget": "sum",
-            "real_domestic_funded_budget": "sum",
+            "budget": lambda x: x.sum(min_count=1),
+            "domestic_funded_budget": lambda x: x.sum(min_count=1),
+            "real_domestic_funded_budget": lambda x: x.sum(min_count=1),
         }
     )
     overall_budget_df["func"] = "Overall budget"
+
+    # Now merge back into the dataframe
     country_budget_changes_df = pd.concat(
         [country_budget_changes_df, overall_budget_df], ignore_index=True
     )
@@ -46,56 +49,61 @@ def render_fig_and_narrative(data, country, exp_type):
         ["country_name", "func", "year"]
     )
 
-    for col in ["domestic_funded_budget", "real_domestic_funded_budget"]:
-        prev_col = f"prev_{col}"
-        yoy_col = f"yoy_{col}"
-        country_budget_changes_df[prev_col] = country_budget_changes_df.groupby(
-            ["country_name", "func"]
-        )[col].shift(1)
-        country_budget_changes_df[yoy_col] = (
-            (country_budget_changes_df[col] - country_budget_changes_df[prev_col])
-            / country_budget_changes_df[prev_col]
-        ) * 100
+    end_year = country_budget_changes_df["year"].max()
+    start_year = end_year - NUM_YEARS + 1
+    # Take data from one year earlier to eb able to compute the YoY change for start_year as well
+    full_years = list(range(start_year - 1, end_year + 1))
+    all_funcs = country_budget_changes_df["func"].unique()
+    # 'Fill' the full dataframe so that missing years will get Null values. This simplifies the calculation for YoY changes
+    full_index = pd.MultiIndex.from_product(
+        [all_funcs, full_years], names=["func", "year"]
+    )
+    full_df = pd.DataFrame(index=full_index).reset_index()
 
-    country_budget_changes_df.drop(
-        columns=[
-            "prev_domestic_funded_budget",
-            "prev_real_domestic_funded_budget",
-        ],
-        inplace=True,
+    country_budget_changes_df = full_df.merge(
+        country_budget_changes_df, on=["func", "year"], how="left"
     )
 
-    available_years = sorted(country_budget_changes_df["year"].unique())
-    end_year = available_years[-1]
-    if len(available_years) > NUM_YEARS:
-        selected_years = available_years[-NUM_YEARS:]
-    else:
-        selected_years = available_years
-    start_year = selected_years[0]
+    for col in ["domestic_funded_budget", "real_domestic_funded_budget"]:
+        yoy_col = f"yoy_{col}"
+        country_budget_changes_df.sort_values(["func", "year"], inplace=True)
+        country_budget_changes_df[yoy_col] = (
+            (
+                country_budget_changes_df[col]
+                - country_budget_changes_df.groupby("func")[col].shift(1)
+            )
+            / country_budget_changes_df.groupby("func")[col].shift(1)
+        ) * 100
+    # Restrict to data starting from start_year, and update the start_year value if that year has no data
+    country_budget_changes_df = country_budget_changes_df[
+        country_budget_changes_df.year >= start_year
+    ]
+    updated_start_year = country_budget_changes_df.loc[
+        (country_budget_changes_df["func"] == "Overall budget")
+        & country_budget_changes_df["domestic_funded_budget"].notna(),
+        "year",
+    ].min()
+    selected_years = list(range(updated_start_year, end_year + 1))
+    updated_num_years = end_year - updated_start_year + 1
 
     country_budget_changes_df = country_budget_changes_df[
-        country_budget_changes_df["year"].isin(selected_years)
+        country_budget_changes_df.year.isin(selected_years)
     ]
 
-    num_years = len(selected_years)
-
-    # TODO Sandeep: remove after gap years are handled
-    print(f'===================> end_year: {end_year}, start_year: {start_year}, selected_years: {selected_years}')
-
-    # TODO Sandeep: use budget instead of expenditure
     foreign_funding_isnull = (
-        overall_budget_df["domestic_funded_budget"] == overall_budget_df["expenditure"]
+        overall_budget_df["domestic_funded_budget"] == overall_budget_df["budget"]
     ).all()
-
+    print(
+        f"YEARS: {start_year}, {updated_start_year}, {NUM_YEARS}, {updated_num_years}"
+    )
     func_cagr_dict = {
         func: calculate_cagr(
-            group.loc[group["year"] == start_year, exp_type].sum(),
+            group.loc[group["year"] == updated_start_year, exp_type].sum(),
             group.loc[group["year"] == end_year, exp_type].sum(),
-            num_years,
+            updated_num_years,
         )
         for func, group in country_budget_changes_df.groupby("func")
     }
-
     valid_cagr_dict = {
         k: v for k, v in func_cagr_dict.items() if v is not None and not np.isnan(v)
     }
@@ -108,8 +116,7 @@ def render_fig_and_narrative(data, country, exp_type):
                 dataset_name="Inflation adjusted domestic funded budget",
             ),
         )
-
-    fig = create_func_growth_figure(country_budget_changes_df, exp_type, num_years)
+    fig = create_func_growth_figure(country_budget_changes_df, exp_type)
 
     highest_func_cat = max(
         (k for k in valid_cagr_dict if k != "Overall budget"), key=valid_cagr_dict.get
@@ -129,22 +136,21 @@ def render_fig_and_narrative(data, country, exp_type):
         "lowest": (lowest_func_cat, func_cagr_dict[lowest_func_cat]),
     }
     narrative = format_budget_increment_narrative(
-        cagr_data, foreign_funding_isnull, exp_type, num_years=num_years
+        cagr_data, foreign_funding_isnull, exp_type, num_years=updated_num_years
     )
 
     return fig, narrative
 
-def create_func_growth_figure(df, exp_type, num_years):
+
+def create_func_growth_figure(df, exp_type):
     color_mapping = {
-        func: FUNC_COLORS.get(func, "gray")
-        for func in df["func"].unique()
+        func: FUNC_COLORS.get(func, "gray") for func in df["func"].unique()
     }
     color_mapping["Overall budget"] = "rgba(150, 150, 150, 0.8)"
 
-    df.dropna(subset=[f"yoy_{exp_type}"], inplace=True)
-
     fig = go.Figure()
     for func, group in df.groupby("func"):
+        group = group.sort_values("year")
         fig.add_trace(
             go.Scatter(
                 x=group["year"],
@@ -162,6 +168,7 @@ def create_func_growth_figure(df, exp_type, num_years):
                     "<b>Year:</b> %{x}<br>"
                     "<b>Growth Rate:</b> %{y:.1f}%<extra></extra>"
                 ),
+                connectgaps=False,
                 visible="legendonly"
                 if func not in DEFAULT_VISIBLE_CATEGORIES
                 else True,
@@ -191,7 +198,7 @@ def create_func_growth_figure(df, exp_type, num_years):
 
 
 def format_budget_increment_narrative(
-    data, foreign_funding_isnull, exp_type, num_years=5, threshold=0.75
+    data, foreign_funding_isnull, exp_type, num_years, threshold=0.75
 ):
     budget_cagr = data["Overall budget"]
     highest_func_cat, highest_cagr = data["highest"]
@@ -246,4 +253,3 @@ def format_budget_increment_narrative(
             f"{external_financing_note}"
         ),
     )
-

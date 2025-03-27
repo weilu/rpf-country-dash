@@ -2,6 +2,8 @@ import plotly.graph_objects as go
 import unicodedata
 import textwrap
 import math
+import pandas as pd
+import numpy as np
 
 
 from auth import AUTH_ENABLED
@@ -241,7 +243,21 @@ def require_login(layout_func):
     return wrapper
 
 
-def calculate_cagr(start_value, end_value, num_years):
-    if start_value > 0 and num_years > 0:
-        return ((end_value / start_value) ** (1 / num_years) - 1) * 100
-    return None
+def calculate_cagr(start_value, end_value, time_period):
+    if isinstance(time_period, (np.integer, np.floating)):
+        time_period = int(time_period)
+    if (
+        start_value is None
+        or end_value is None
+        or pd.isna(start_value)
+        or pd.isna(end_value)
+    ):
+        return None
+    if not isinstance(time_period, (int, float)) or time_period <= 0:
+        return None
+    if start_value <= 0:
+        return None
+    if start_value == end_value:
+        return 0.0
+    cagr = ((end_value / start_value) ** (1 / time_period) - 1) * 100
+    return cagr

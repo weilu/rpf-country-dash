@@ -206,13 +206,16 @@ def format_budget_increment_narrative(
     highest_func_cat, highest_cagr = data["highest"]
     lowest_func_cat, lowest_cagr = data["lowest"]
 
-    real_terms_phrase = (
-        " in real terms. " if exp_type == "real_domestic_funded_budget" else ". "
-    )
     if budget_cagr < 0:
         budget_growth_phrase = f"declined at an average rate of {abs(budget_cagr):.1f}% per year"
     else:
         budget_growth_phrase = f"grown at an average rate of {budget_cagr:.1f}% per year"
+
+    budget_growth_phrase += ', calculated using the compound annual growth rate (CAGR)'
+    if exp_type == "real_domestic_funded_budget":
+        budget_growth_phrase += ' after accounting for inflation. '
+    else:
+        budget_growth_phrase += '. '
 
     if lowest_cagr < 0:
         lowest_phrase = f"declined by {abs(lowest_cagr):.1f}%"
@@ -254,7 +257,7 @@ def format_budget_increment_narrative(
 
     return (
         (
-            f"Over the past {num_years} years, the national budget has {budget_growth_phrase}{real_terms_phrase}"
+            f"Over the past {num_years} years, the national budget has {budget_growth_phrase}"
             f"{func_comparison} "
             f"{external_financing_note}"
         ),

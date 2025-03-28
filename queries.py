@@ -6,8 +6,8 @@ SERVER_HOSTNAME = os.getenv("SERVER_HOSTNAME")
 HTTP_PATH = os.getenv("HTTP_PATH")
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 PUBLIC_ONLY = os.getenv("PUBLIC_ONLY", "False").lower() in ("true", "1", "yes")
-BOOST_SCHEMA = os.getenv('BOOST_SCHEMA', 'boost')
-INDICATOR_SCHEMA = os.getenv('INDICATOR_SCHEMA', 'indicator')
+BOOST_SCHEMA = os.getenv("BOOST_SCHEMA", "boost")
+INDICATOR_SCHEMA = os.getenv("INDICATOR_SCHEMA", "indicator")
 
 
 class QueryService:

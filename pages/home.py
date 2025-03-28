@@ -5,7 +5,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
-
+import numpy as np
 from utils import (
     filter_country_sort_year,
     filter_geojson_by_country,
@@ -14,13 +14,15 @@ from utils import (
     require_login,
 )
 
-from components import slider, get_slider_config, pefa
+from components import slider, get_slider_config, pefa, budget_increment_analysis
+from constants import COFOG_CATS, FUNC_COLORS
 from queries import QueryService
 
 
 db = QueryService.get_instance()
 
 dash.register_page(__name__)
+
 
 @require_login
 def layout():
@@ -34,7 +36,9 @@ def layout():
                             active_tab="overview-tab-time",
                             children=[
                                 dbc.Tab(label="Over Time", tab_id="overview-tab-time"),
-                                dbc.Tab(label="Across Space", tab_id="overview-tab-space"),
+                                dbc.Tab(
+                                    label="Across Space", tab_id="overview-tab-space"
+                                ),
                             ],
                             style={"marginBottom": "2rem"},
                         ),
@@ -45,6 +49,7 @@ def layout():
             dcc.Store(id="stored-data-pefa"),
         ]
     )
+
 
 @callback(
     Output("stored-data-pefa", "data"),
@@ -58,6 +63,7 @@ def fetch_pefa_data_once(pefa_data, shared_data):
             "pefa": pefa.to_dict("records"),
         }
     return dash.no_update
+
 
 @callback(
     Output("overview-content", "children"),
@@ -115,7 +121,7 @@ def render_overview_content(tab):
                 dbc.Row(
                     dbc.Col(
                         html.H3(
-                            children="Functional Spending",
+                            children="Spending by Functional Categories",
                         )
                     )
                 ),
@@ -144,6 +150,53 @@ def render_overview_content(tab):
                         ),
                     ],
                 ),
+                dbc.Row(style={"height": "40px"}),
+                dbc.Row(
+                    [
+                        dbc.Col(width=4),
+                        dbc.Col(
+                            [
+                                dbc.RadioItems(
+                                    id="budget-increment-radio",
+                                    options=[
+                                        {
+                                            "label": "Budget",
+                                            "value": "domestic_funded_budget",
+                                        },
+                                        {
+                                            "label": "Inflation-adjusted Budget",
+                                            "value": "real_domestic_funded_budget",
+                                        },
+                                    ],
+                                    value="domestic_funded_budget",
+                                    inline=True,
+                                    style={"padding": "10px"},
+                                    labelStyle={"margin-right": "20px"},
+                                )
+                            ],
+                            width=8,
+                        ),
+                    ]
+                ),
+                dbc.Row(
+                    [
+                        dbc.Col([
+                            html.P(
+                                id="func-growth-narrative",
+                                children="loading...",
+                            ),
+                            html.P(
+                                id="func-growth-instruction",
+                                children=html.Small(html.Em("By default, only Overall Budget, Health, Education, and General Public Services are shown in the chart. Click on the legend to view the year-on-year budget growth rate for other functional categories.")),
+                            )
+                        ], width=4),
+                        dbc.Col(
+                            dcc.Graph(id="func-growth"),
+                            width=8,
+                        ),
+                    ]
+                ),
+                dbc.Row(style={"height": "20px"}),
                 dbc.Row(
                     dbc.Col(
                         html.Hr(),
@@ -160,16 +213,6 @@ def render_overview_content(tab):
                     [
                         # How much was spent on each economic category?
                         dbc.Col(
-                            html.P(
-                                id="economic-narrative",
-                                children="loading...",
-                            ),
-                            xs={"size": 12, "offset": 0},
-                            sm={"size": 12, "offset": 0},
-                            md={"size": 12, "offset": 0},
-                            lg={"size": 4, "offset": 0},
-                        ),
-                        dbc.Col(
                             dcc.Graph(
                                 id="economic-breakdown",
                                 config={"displayModeBar": False},
@@ -178,6 +221,16 @@ def render_overview_content(tab):
                             sm={"size": 12, "offset": 0},
                             md={"size": 12, "offset": 0},
                             lg={"size": 8, "offset": 0},
+                        ),
+                        dbc.Col(
+                            html.P(
+                                id="economic-narrative",
+                                children="loading...",
+                            ),
+                            xs={"size": 12, "offset": 0},
+                            sm={"size": 12, "offset": 0},
+                            md={"size": 12, "offset": 0},
+                            lg={"size": 4, "offset": 0},
                         ),
                     ],
                 ),
@@ -470,24 +523,6 @@ def overview_narrative(df):
     return text
 
 
-COFOG_CATS = [
-    "Social protection",
-    "Recreation, culture and religion",
-    "Public order and safety",
-    "Housing and community amenities",
-    "Health",
-    "General public services",
-    "Environmental protection",
-    "Education",
-    "Economic affairs",
-    "Defence",
-]
-FUNC_PALETTE = px.colors.qualitative.T10
-FUNC_COLORS = {
-    cat: FUNC_PALETTE[i % len(FUNC_PALETTE)] for i, cat in enumerate(COFOG_CATS)
-}
-
-
 def functional_figure(df):
     categories = sorted(df.func.unique(), reverse=True)
 
@@ -542,7 +577,7 @@ def functional_narrative(df):
         if len(missing_cats) == 1:
             text += f"The cartegory we do not have data on is {list(missing_cats)[0]}. "
         else:
-            text += f'The cartegories we do not have data on include {", ".join(missing_cats)}. '
+            text += f"The cartegories we do not have data on include {', '.join(missing_cats)}. "
 
     mean_percentage = df.groupby("func")["percentage"].mean().reset_index()
     n = 3
@@ -570,8 +605,10 @@ def functional_narrative(df):
 
     return text
 
+
 def format_func_cats_with_numbers(df, format_number_func):
     return format_cats_with_numbers(df, format_func_cat, format_number_func)
+
 
 def format_cats_with_numbers(df, format_cat_func, format_number_func):
     items = [
@@ -588,14 +625,17 @@ def format_cats_with_numbers(df, format_cat_func, format_number_func):
     else:
         return ""
 
+
 def format_percentage(num):
-    return f'{num:.1f}%'
+    return f"{num:.1f}%"
+
 
 def format_std(num):
-    return f'std={num:.1f}'
+    return f"std={num:.1f}"
+
 
 def format_func_cat(row):
-    return row['func']
+    return row["func"]
 
 
 def subnational_spending_narrative(
@@ -768,7 +808,6 @@ def regional_percapita_spending_choropleth(geojson, df, zmin, zmax, lat, lon, zo
 
 
 def subnational_poverty_choropleth(geojson, df, zmin, zmax, lat, lon, zoom):
-
     if df[df.region_name != "National"].empty:
         return empty_plot("Sub-national poverty data not available")
     # TODO align accents across all datasets
@@ -826,7 +865,7 @@ def subnational_poverty_choropleth(geojson, df, zmin, zmax, lat, lon, zoom):
                 x=0,
                 y=-0.2,
                 xanchor="left",
-                text=f"Poverty rate at $2.15 (2017 PPP). Source: SPID and GSAP, World Bank",
+                text="Poverty rate at $2.15 (2017 PPP). Source: SPID and GSAP, World Bank",
                 showarrow=False,
                 font=dict(size=12),
             ),
@@ -880,6 +919,7 @@ def render_overview_func_figure(data, country):
 
     return functional_figure(func_df), functional_narrative(func_df)
 
+
 @callback(
     Output("economic-breakdown", "figure"),
     Output("economic-narrative", "children"),
@@ -910,8 +950,11 @@ ECON_CAT_MAP = {
 }
 ECON_PALETTE = px.colors.qualitative.Dark2
 ECON_COLORS = {
-    cat: FUNC_PALETTE[i % len(FUNC_PALETTE)] for i, cat in enumerate(ECON_CAT_MAP.keys())
+    cat: ECON_PALETTE[i % len(ECON_PALETTE)]
+    for i, cat in enumerate(ECON_CAT_MAP.keys())
 }
+
+
 def economic_figure(df):
     categories = sorted(df.econ.unique(), reverse=True)
 
@@ -955,6 +998,7 @@ def economic_figure(df):
 
     return fig
 
+
 def economic_narrative(df):
     country = df.country_name.iloc[0]
     categories = df.econ.unique().tolist()
@@ -966,7 +1010,7 @@ def economic_narrative(df):
         if len(missing_cats) == 1:
             text += f"The cartegory we do not have data on is {missing_cats[0]}. "
         else:
-            text += f'The cartegories we do not have data on include {", ".join(missing_cats)}. '
+            text += f"The cartegories we do not have data on include {', '.join(missing_cats)}. "
 
     mean_percentage = df.groupby("econ")["percentage"].mean().reset_index()
     n = 3
@@ -994,11 +1038,13 @@ def economic_narrative(df):
 
     return text
 
+
 def format_econ_cats_with_numbers(df, format_number_func):
     return format_cats_with_numbers(df, format_econ_cat, format_number_func)
 
+
 def format_econ_cat(row):
-    return ECON_CAT_MAP[row['econ']]
+    return ECON_CAT_MAP[row["econ"]]
 
 
 @callback(
@@ -1041,7 +1087,7 @@ def render_subnational_spending_figures(data, country_data, country, plot_type, 
             country_data["basic_country_info"][country].get(k)
             for k in ["display_lat", "display_lon"]
         ]
-        zoom = country_data["basic_country_info"][country]['zoom']
+        zoom = country_data["basic_country_info"][country]["zoom"]
 
         filtered_geojson = filter_geojson_by_country(geojson, country)
         df = pd.DataFrame(data["expenditure_by_country_geo1_year"])
@@ -1068,7 +1114,7 @@ def render_subnational_spending_figures(data, country_data, country, plot_type, 
                 legend_percapita_max,
                 lat,
                 lon,
-                zoom
+                zoom,
             )
         else:
             return regional_spending_choropleth(
@@ -1078,7 +1124,7 @@ def render_subnational_spending_figures(data, country_data, country, plot_type, 
                 legend_expenditure_max,
                 lat,
                 lon,
-                zoom
+                zoom,
             )
     except:
         return empty_plot("An error was encountered when producing this figure")
@@ -1093,7 +1139,6 @@ def render_subnational_spending_figures(data, country_data, country, plot_type, 
 )
 def render_subnational_poverty_figure(subnational_data, country_data, country, year):
     try:
-
         if year is None or not subnational_data or not country_data or not country:
             return empty_plot("Data not available")
 
@@ -1109,7 +1154,7 @@ def render_subnational_poverty_figure(subnational_data, country_data, country, y
             country_data["basic_country_info"][country].get(k)
             for k in ["display_lat", "display_lon"]
         ]
-        zoom = country_data["basic_country_info"][country]['zoom']
+        zoom = country_data["basic_country_info"][country]["zoom"]
 
         available_years = country_data["basic_country_info"][country].get(
             "poverty_years", []
@@ -1126,7 +1171,7 @@ def render_subnational_poverty_figure(subnational_data, country_data, country, y
             legend_max,
             lat,
             lon,
-            zoom
+            zoom,
         )
     except:
         return empty_plot("An error was encountered when producing this figure")
@@ -1194,3 +1239,15 @@ def render_pefa_overall(data, pefa_data, country):
         pefa.pefa_overall_figure(country_pefa_df, country_pov_df),
         pefa.pefa_pillar_heatmap(country_pefa_df),
     )
+
+
+
+@callback(
+    Output("func-growth", "figure"),
+    Output("func-growth-narrative", "children"),
+    Input("stored-data-func-econ", "data"),
+    Input("country-select", "value"),
+    Input("budget-increment-radio", "value"),
+)
+def render_budget_func_changes(data, country, exp_type):
+    return budget_increment_analysis.render_fig_and_narrative(data, country, exp_type)

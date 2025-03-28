@@ -192,6 +192,11 @@ def create_func_growth_figure(df, exp_type):
                 font=dict(size=12),
             )
         ],
+        xaxis=dict(
+            tickmode="linear",
+            tickformat=".0f",
+            dtick=1,
+        ),
     )
 
     return fig
@@ -207,6 +212,10 @@ def format_budget_increment_narrative(
     real_terms_phrase = (
         " in real terms. " if exp_type == "real_domestic_funded_budget" else ". "
     )
+    if budget_cagr < 0:
+        budget_growth_phrase = f"declined at an average rate of {abs(budget_cagr):.1f}% per year"
+    else:
+        budget_growth_phrase = f"grown at an average rate of {budget_cagr:.1f}% per year"
 
     if lowest_cagr < 0:
         lowest_phrase = f"declined by {abs(lowest_cagr):.1f}%"
@@ -248,7 +257,7 @@ def format_budget_increment_narrative(
 
     return (
         (
-            f"Over the past {num_years} years, the national budget has grown at an average rate of {budget_cagr:.1f}% per year{real_terms_phrase}"
+            f"Over the past {num_years} years, the national budget has {budget_growth_phrase}{real_terms_phrase}"
             f"{func_comparison} "
             f"{external_financing_note}"
         ),

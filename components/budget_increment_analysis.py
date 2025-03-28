@@ -93,9 +93,6 @@ def render_fig_and_narrative(data, country, exp_type):
     foreign_funding_isnull = (
         overall_budget_df["domestic_funded_budget"] == overall_budget_df["budget"]
     ).all()
-    print(
-        f"YEARS: {start_year}, {updated_start_year}, {NUM_YEARS}, {updated_num_years}"
-    )
     func_cagr_dict = {
         func: calculate_cagr(
             group.loc[group["year"] == updated_start_year, exp_type].sum(),

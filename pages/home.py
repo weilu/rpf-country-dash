@@ -180,7 +180,16 @@ def render_overview_content(tab):
                 ),
                 dbc.Row(
                     [
-                        dbc.Col(dcc.Markdown(id="func-growth-narrative"), width=4),
+                        dbc.Col([
+                            html.P(
+                                id="func-growth-narrative",
+                                children="loading...",
+                            ),
+                            html.P(
+                                id="func-growth-instruction",
+                                children=html.Small(html.Em("By default, only Overall Budget, Health, Education, and General Public Services are shown in the chart. Click on the legend to view the year-on-year budget growth rate for other functional categories.")),
+                            )
+                        ], width=4),
                         dbc.Col(
                             dcc.Graph(id="func-growth"),
                             width=8,

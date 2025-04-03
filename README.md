@@ -50,3 +50,13 @@ cp .env.example .env
 docker build . --tag dash
 docker run -p 8080:8080 -v ./:/dash-app  --env-file .env dash
 ```
+
+## Deployment
+
+To deploy a version of the app with authentication enabled, post deployment set the following env vars:
+```
+AUTH_ENABLED=1
+SECRET_KEY=yoursecretkey
+```
+
+The app will read usernames and salted passwords from the database, so be sure to configure them there: see `QueryService.get_user_credentials`. You may use [scripts/hash_password.py](scripts/hash_password.py) to hash passwords.

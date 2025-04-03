@@ -1,31 +1,28 @@
 import bcrypt
 import os
 from flask_login import login_user, UserMixin, current_user
+from queries import QueryService
 
 AUTH_ENABLED = os.getenv("AUTH_ENABLED", "False").lower() in ("true", "1", "yes")
-
-USER_NAME = os.getenv("USER_NAME")
-SALTED_PASSWORD = os.getenv("SALTED_PASSWORD")
-CREDENTIAL_STORE = {
-    USER_NAME: SALTED_PASSWORD
-}
 
 class User(UserMixin):
     def __init__(self, username):
         self.id = username
 
 def authenticate(username, password):
-        if not USER_NAME:
-            login_user(User(username))
-            return True
+    if not AUTH_ENABLED:
+        login_user(User(username))
+        return True
 
-        if CREDENTIAL_STORE.get(username) is None:
-            return False
+    credential_store = QueryService.get_instance().get_user_credentials()
 
-        salted_password = CREDENTIAL_STORE[username]
-        if bcrypt.checkpw(password.encode("utf-8"), salted_password.encode("utf-8")):
-            login_user(User(username))
-            return True
-
+    salted_password = credential_store.get(username)
+    if not salted_password:
         return False
+
+    if bcrypt.checkpw(password.encode("utf-8"), salted_password.encode("utf-8")):
+        login_user(User(username))
+        return True
+
+    return False
 

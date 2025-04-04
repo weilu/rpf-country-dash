@@ -161,3 +161,11 @@ class QueryService:
             ORDER BY country_name, year
         """
         return self.fetch_data(query)
+
+    def get_user_credentials(self):
+        query = f"""
+            SELECT username, salted_password
+            FROM prd_mega.sboost4.dashboard_user_credentials
+        """
+        df = self.execute_query(query)
+        return dict(zip(df["username"], df["salted_password"]))

@@ -483,8 +483,8 @@ def per_capita_figure(df):
 
 def overview_narrative(df):
     country = df.country_name.iloc[0]
-    earliest = df[df.year == df.earliest_year].iloc[0].to_dict()
-    latest = df[df.year == df.latest_year].iloc[0].to_dict()
+    earliest = df[df.year == df.year.min()].iloc[0].to_dict()
+    latest = df[df.year == df.year.max()].iloc[0].to_dict()
     start_year = earliest["year"]
     end_year = latest["year"]
     latest_year_with_real_exp = df[df.real_expenditure.notnull()].year.max()

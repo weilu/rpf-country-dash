@@ -15,7 +15,7 @@ from utils import (
 )
 
 from components import slider, get_slider_config, pefa, budget_increment_analysis
-from constants import COFOG_CATS, FUNC_COLORS
+from constants import COFOG_CATS, FUNC_COLORS, MAP_DISCLAIMER
 from queries import QueryService
 
 
@@ -307,25 +307,40 @@ def render_overview_content(tab):
                 dbc.Row(style={"height": "20px"}),
                 dbc.Row(
                     [
-                        dbc.RadioItems(
-                            id="expenditure-plot-radio",
-                            options=[
-                                {
-                                    "label": "  Per capita expenditure",
-                                    "value": "percapita",
-                                },
-                                {
-                                    "label": "  Total expenditure",
-                                    "value": "total",
-                                },
-                            ],
-                            value="percapita",
-                            inline=True,
-                            style={"padding": "10px"},
-                            labelStyle={
-                                "margin-right": "20px",
-                            },
-                        ),
+                        html.Div([
+                            html.Div(
+                                dbc.RadioItems(
+                                    id="expenditure-plot-radio",
+                                    options=[
+                                        {
+                                            "label": "  Per capita expenditure",
+                                            "value": "percapita",
+                                        },
+                                        {
+                                            "label": "  Total expenditure",
+                                            "value": "total",
+                                        },
+                                    ],
+                                    value="percapita",
+                                    inline=True,
+                                    style={"padding": "10px"},
+                                    labelStyle={
+                                        "margin-right": "20px",
+                                    },
+                                ),
+                                style={"flex": "1"}
+                            ),
+                            html.Div(
+                                [
+                                html.Span('disclaimer', id='warning-sign', style={'color': '"CCCCCC"', 'fontSize': '12px', 'textDecoration': 'underline dotted', 'cursor': 'pointer'}),
+                                dbc.Tooltip(
+                                    MAP_DISCLAIMER,
+                                    target="warning-sign",
+                                    placement="top",
+                                    style={'fontSize': '14px'},
+                                ),
+                            ], style={"display": "flex", "alignItems": "center"}),
+                        ], style={"display": "flex", "alignItems": "center", "justifyContent": "space-between", "width": "100%"}, className='disclaimer-div'),
                         # How much was spent in each region?
                         dbc.Col(
                             dcc.Graph(
@@ -1239,7 +1254,6 @@ def render_pefa_overall(data, pefa_data, country):
         pefa.pefa_overall_figure(country_pefa_df, country_pov_df),
         pefa.pefa_pillar_heatmap(country_pefa_df),
     )
-
 
 
 @callback(

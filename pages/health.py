@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
 import traceback
+from constants import MAP_DISCLAIMER
 from queries import QueryService
 from utils import (
     empty_plot,
@@ -313,25 +314,50 @@ def render_health_content(tab):
                 ),
                 dbc.Row(
                     dbc.Col(
-                        dbc.RadioItems(
-                            id="health-expenditure-type",
-                            options=[
-                                {
-                                    "label": "Per capita health expenditure",
-                                    "value": "per_capita_expenditure",
-                                },
-                                {
-                                    "label": "Total health expenditure",
-                                    "value": "expenditure",
-                                },
-                            ],
-                            value="per_capita_expenditure",
-                            inline=True,
-                            style={"padding": "10px"},
-                            labelStyle={
-                                "margin-right": "20px",
-                            },
-                        ),
+                        html.Div([
+                            html.Div(
+                                dbc.RadioItems(
+                                    id="health-expenditure-type",
+                                    options=[
+                                        {
+                                            "label": "Per capita health expenditure",
+                                            "value": "per_capita_expenditure",
+                                        },
+                                        {
+                                            "label": "Total health expenditure",
+                                            "value": "expenditure",
+                                        },
+                                    ],
+                                    value="per_capita_expenditure",
+                                    inline=True,
+                                    style={"padding": "10px"},
+                                    labelStyle={
+                                        "margin-right": "20px",
+                                    },
+                                ),
+                                style={"flex": "1"}
+                            ),
+                            html.Div([
+                                html.Span(
+                                    "disclaimer",
+                                    id="health-expenditure-warning",
+                                    style={
+                                        "color": "CCCCCC",
+                                        "fontSize": "12px",
+                                        "textDecoration": "underline dotted",
+                                        "cursor": "pointer",
+                                        "fontWeight": "bold",
+                                        "marginLeft": "8px",
+                                    },
+                                ),
+                                dbc.Tooltip(
+                                    MAP_DISCLAIMER,
+                                    target="health-expenditure-warning",
+                                    placement="top",
+                                    style={"fontSize": "14px"},
+                                ),
+                            ], style={"display": "flex", "alignItems": "center"}),
+                        ], className="disclaimer-div", style={"display": "flex", "alignItems": "center", "justifyContent": "space-between", "width": "100%"})
                     ),
                 ),
                 dbc.Row(

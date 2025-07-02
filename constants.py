@@ -29,4 +29,6 @@ FUNC_COLORS = {
     cat: FUNC_PALETTE[i % len(FUNC_PALETTE)] for i, cat in enumerate(COFOG_CATS)
 }
 
-
+MAP_DISCLAIMER = "Country borders or names do not necessarily reflect the World Bank Group's official position." \
+"This map is for illustrative purposes and does not imply the expression of any opinion on the part of the World Bank," \
+"concerning the legal status of any country or territory or concerning the delimitation of frontiers or boundaries."

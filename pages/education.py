@@ -5,6 +5,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
+from constants import MAP_DISCLAIMER
 from queries import QueryService
 from utils import (
     empty_plot,
@@ -26,6 +27,7 @@ from components.edu_health_across_space import (
     update_hd_index_map,
     render_func_subnat_rank,
 )
+from components.disclaimer_div import disclaimer_tooltip
 
 db = QueryService.get_instance()
 
@@ -307,26 +309,36 @@ def render_education_content(tab):
                     )
                 ),
                 dbc.Row(
-                    dbc.Col(
-                        dbc.RadioItems(
-                            id="education-expenditure-type",
-                            options=[
-                                {
-                                    "label": "Per capita education expenditure",
-                                    "value": "per_capita_expenditure",
+                    html.Div(
+                        [
+                            dbc.RadioItems(
+                                id="education-expenditure-type",
+                                options=[
+                                    {
+                                        "label": "Per capita education expenditure",
+                                        "value": "per_capita_expenditure",
+                                    },
+                                    {
+                                        "label": "Total education expenditure",
+                                        "value": "expenditure",
+                                    },
+                                ],
+                                value="per_capita_expenditure",
+                                inline=True,
+                                style={"padding": "10px"},
+                                labelStyle={
+                                    "margin-right": "20px",
                                 },
-                                {
-                                    "label": "Total education expenditure",
-                                    "value": "expenditure",
-                                },
-                            ],
-                            value="per_capita_expenditure",
-                            inline=True,
-                            style={"padding": "10px"},
-                            labelStyle={
-                                "margin-right": "20px",
-                            },
-                        ),
+                            ),
+                            disclaimer_tooltip("education-expenditure-warning", MAP_DISCLAIMER),
+                        ],
+                        className="disclaimer-div",
+                        style={
+                            "display": "flex",
+                            "alignItems": "center",
+                            "justifyContent": "space-between",
+                            "width": "100%",
+                        },
                     ),
                 ),
                 dbc.Row(

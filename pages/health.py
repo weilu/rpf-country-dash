@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
 import traceback
+from constants import MAP_DISCLAIMER
 from queries import QueryService
 from utils import (
     empty_plot,
@@ -24,6 +25,7 @@ from components.edu_health_across_space import (
     update_hd_index_map,
     render_func_subnat_rank,
 )
+from components.disclaimer_div import disclaimer_tooltip
 
 db = QueryService.get_instance()
 
@@ -313,23 +315,35 @@ def render_health_content(tab):
                 ),
                 dbc.Row(
                     dbc.Col(
-                        dbc.RadioItems(
-                            id="health-expenditure-type",
-                            options=[
-                                {
-                                    "label": "Per capita health expenditure",
-                                    "value": "per_capita_expenditure",
-                                },
-                                {
-                                    "label": "Total health expenditure",
-                                    "value": "expenditure",
-                                },
+                        html.Div(
+                            [
+                                dbc.RadioItems(
+                                    id="health-expenditure-type",
+                                    options=[
+                                        {
+                                            "label": "Per capita health expenditure",
+                                            "value": "per_capita_expenditure",
+                                        },
+                                        {
+                                            "label": "Total health expenditure",
+                                            "value": "expenditure",
+                                        },
+                                    ],
+                                    value="per_capita_expenditure",
+                                    inline=True,
+                                    style={"padding": "10px"},
+                                    labelStyle={
+                                        "margin-right": "20px",
+                                    },
+                                ),
+                                disclaimer_tooltip("health-expenditure-warning", MAP_DISCLAIMER),
                             ],
-                            value="per_capita_expenditure",
-                            inline=True,
-                            style={"padding": "10px"},
-                            labelStyle={
-                                "margin-right": "20px",
+                            className="disclaimer-div",
+                            style={
+                                "display": "flex",
+                                "alignItems": "center",
+                                "justifyContent": "space-between",
+                                "width": "100%",
                             },
                         ),
                     ),

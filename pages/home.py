@@ -15,7 +15,8 @@ from utils import (
 )
 
 from components import slider, get_slider_config, pefa, budget_increment_analysis
-from constants import COFOG_CATS, FUNC_COLORS
+from components.disclaimer_div import disclaimer_tooltip
+from constants import COFOG_CATS, FUNC_COLORS, MAP_DISCLAIMER
 from queries import QueryService
 
 
@@ -156,23 +157,25 @@ def render_overview_content(tab):
                         dbc.Col(width=4),
                         dbc.Col(
                             [
-                                dbc.RadioItems(
-                                    id="budget-increment-radio",
-                                    options=[
-                                        {
-                                            "label": "Budget",
-                                            "value": "domestic_funded_budget",
-                                        },
-                                        {
-                                            "label": "Inflation-adjusted Budget",
-                                            "value": "real_domestic_funded_budget",
-                                        },
-                                    ],
-                                    value="domestic_funded_budget",
-                                    inline=True,
-                                    style={"padding": "10px"},
-                                    labelStyle={"margin-right": "20px"},
-                                )
+                                html.Div([
+                                    dbc.RadioItems(
+                                        id="budget-increment-radio",
+                                        options=[
+                                            {
+                                                "label": "Budget",
+                                                "value": "domestic_funded_budget",
+                                            },
+                                            {
+                                                "label": "Inflation-adjusted Budget",
+                                                "value": "real_domestic_funded_budget",
+                                            },
+                                        ],
+                                        value="domestic_funded_budget",
+                                        inline=True,
+                                        style={"padding": "10px"},
+                                        labelStyle={"margin-right": "20px"},
+                                    )
+                                ], className='disclaimer-div'),
                             ],
                             width=8,
                         ),
@@ -307,23 +310,35 @@ def render_overview_content(tab):
                 dbc.Row(style={"height": "20px"}),
                 dbc.Row(
                     [
-                        dbc.RadioItems(
-                            id="expenditure-plot-radio",
-                            options=[
-                                {
-                                    "label": "  Per capita expenditure",
-                                    "value": "percapita",
-                                },
-                                {
-                                    "label": "  Total expenditure",
-                                    "value": "total",
-                                },
+                        html.Div(
+                            [
+                                dbc.RadioItems(
+                                    id="expenditure-plot-radio",
+                                    options=[
+                                        {
+                                            "label": "  Per capita expenditure",
+                                            "value": "percapita",
+                                        },
+                                        {
+                                            "label": "  Total expenditure",
+                                            "value": "total",
+                                        },
+                                    ],
+                                    value="percapita",
+                                    inline=True,
+                                    style={"padding": "10px"},
+                                    labelStyle={
+                                        "margin-right": "20px",
+                                    },
+                                ),
+                                disclaimer_tooltip("warning-sign", MAP_DISCLAIMER),
                             ],
-                            value="percapita",
-                            inline=True,
-                            style={"padding": "10px"},
-                            labelStyle={
-                                "margin-right": "20px",
+                            className="disclaimer-div",
+                            style={
+                                "display": "flex",
+                                "alignItems": "center",
+                                "justifyContent": "space-between",
+                                "width": "100%",
                             },
                         ),
                         # How much was spent in each region?
@@ -1239,7 +1254,6 @@ def render_pefa_overall(data, pefa_data, country):
         pefa.pefa_overall_figure(country_pefa_df, country_pov_df),
         pefa.pefa_pillar_heatmap(country_pefa_df),
     )
-
 
 
 @callback(

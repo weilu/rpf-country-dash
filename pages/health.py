@@ -25,6 +25,7 @@ from components.edu_health_across_space import (
     update_hd_index_map,
     render_func_subnat_rank,
 )
+from components.disclaimer_div import disclaimer_tooltip
 
 db = QueryService.get_instance()
 
@@ -314,8 +315,8 @@ def render_health_content(tab):
                 ),
                 dbc.Row(
                     dbc.Col(
-                        html.Div([
-                            html.Div(
+                        html.Div(
+                            [
                                 dbc.RadioItems(
                                     id="health-expenditure-type",
                                     options=[
@@ -335,29 +336,16 @@ def render_health_content(tab):
                                         "margin-right": "20px",
                                     },
                                 ),
-                                style={"flex": "1"}
-                            ),
-                            html.Div([
-                                html.Span(
-                                    "disclaimer",
-                                    id="health-expenditure-warning",
-                                    style={
-                                        "color": "CCCCCC",
-                                        "fontSize": "12px",
-                                        "textDecoration": "underline dotted",
-                                        "cursor": "pointer",
-                                        "fontWeight": "bold",
-                                        "marginLeft": "8px",
-                                    },
-                                ),
-                                dbc.Tooltip(
-                                    MAP_DISCLAIMER,
-                                    target="health-expenditure-warning",
-                                    placement="top",
-                                    style={"fontSize": "14px"},
-                                ),
-                            ], style={"display": "flex", "alignItems": "center"}),
-                        ], className="disclaimer-div", style={"display": "flex", "alignItems": "center", "justifyContent": "space-between", "width": "100%"})
+                                disclaimer_tooltip("health-expenditure-warning", MAP_DISCLAIMER),
+                            ],
+                            className="disclaimer-div",
+                            style={
+                                "display": "flex",
+                                "alignItems": "center",
+                                "justifyContent": "space-between",
+                                "width": "100%",
+                            },
+                        ),
                     ),
                 ),
                 dbc.Row(

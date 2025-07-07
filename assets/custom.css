@@ -1,4 +1,4 @@
-.disclaimer-div .tooltip-inner {
+.disclaimer-tooltip.tooltip .tooltip-inner {
     max-width: 500px !important;
     white-space: normal !important;
     color: white !important;

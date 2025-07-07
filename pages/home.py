@@ -15,6 +15,7 @@ from utils import (
 )
 
 from components import slider, get_slider_config, pefa, budget_increment_analysis
+from components.disclaimer_div import disclaimer_tooltip
 from constants import COFOG_CATS, FUNC_COLORS, MAP_DISCLAIMER
 from queries import QueryService
 
@@ -156,23 +157,25 @@ def render_overview_content(tab):
                         dbc.Col(width=4),
                         dbc.Col(
                             [
-                                dbc.RadioItems(
-                                    id="budget-increment-radio",
-                                    options=[
-                                        {
-                                            "label": "Budget",
-                                            "value": "domestic_funded_budget",
-                                        },
-                                        {
-                                            "label": "Inflation-adjusted Budget",
-                                            "value": "real_domestic_funded_budget",
-                                        },
-                                    ],
-                                    value="domestic_funded_budget",
-                                    inline=True,
-                                    style={"padding": "10px"},
-                                    labelStyle={"margin-right": "20px"},
-                                )
+                                html.Div([
+                                    dbc.RadioItems(
+                                        id="budget-increment-radio",
+                                        options=[
+                                            {
+                                                "label": "Budget",
+                                                "value": "domestic_funded_budget",
+                                            },
+                                            {
+                                                "label": "Inflation-adjusted Budget",
+                                                "value": "real_domestic_funded_budget",
+                                            },
+                                        ],
+                                        value="domestic_funded_budget",
+                                        inline=True,
+                                        style={"padding": "10px"},
+                                        labelStyle={"margin-right": "20px"},
+                                    )
+                                ], className='disclaimer-div'),
                             ],
                             width=8,
                         ),
@@ -307,8 +310,8 @@ def render_overview_content(tab):
                 dbc.Row(style={"height": "20px"}),
                 dbc.Row(
                     [
-                        html.Div([
-                            html.Div(
+                        html.Div(
+                            [
                                 dbc.RadioItems(
                                     id="expenditure-plot-radio",
                                     options=[
@@ -328,19 +331,16 @@ def render_overview_content(tab):
                                         "margin-right": "20px",
                                     },
                                 ),
-                                style={"flex": "1"}
-                            ),
-                            html.Div(
-                                [
-                                html.Span('disclaimer', id='warning-sign', style={'color': '"CCCCCC"', 'fontSize': '12px', 'textDecoration': 'underline dotted', 'cursor': 'pointer'}),
-                                dbc.Tooltip(
-                                    MAP_DISCLAIMER,
-                                    target="warning-sign",
-                                    placement="top",
-                                    style={'fontSize': '14px'},
-                                ),
-                            ], style={"display": "flex", "alignItems": "center"}),
-                        ], style={"display": "flex", "alignItems": "center", "justifyContent": "space-between", "width": "100%"}, className='disclaimer-div'),
+                                disclaimer_tooltip("warning-sign", MAP_DISCLAIMER),
+                            ],
+                            className="disclaimer-div",
+                            style={
+                                "display": "flex",
+                                "alignItems": "center",
+                                "justifyContent": "space-between",
+                                "width": "100%",
+                            },
+                        ),
                         # How much was spent in each region?
                         dbc.Col(
                             dcc.Graph(

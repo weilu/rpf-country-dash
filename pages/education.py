@@ -27,6 +27,7 @@ from components.edu_health_across_space import (
     update_hd_index_map,
     render_func_subnat_rank,
 )
+from components.disclaimer_div import disclaimer_tooltip
 
 db = QueryService.get_instance()
 
@@ -310,51 +311,26 @@ def render_education_content(tab):
                 dbc.Row(
                     html.Div(
                         [
-                            html.Div(
-                                dbc.RadioItems(
-                                    id="education-expenditure-type",
-                                    options=[
-                                        {
-                                            "label": "Per capita education expenditure",
-                                            "value": "per_capita_expenditure",
-                                        },
-                                        {
-                                            "label": "Total education expenditure",
-                                            "value": "expenditure",
-                                        },
-                                    ],
-                                    value="per_capita_expenditure",
-                                    inline=True,
-                                    style={"padding": "10px"},
-                                    labelStyle={
-                                        "margin-right": "20px",
+                            dbc.RadioItems(
+                                id="education-expenditure-type",
+                                options=[
+                                    {
+                                        "label": "Per capita education expenditure",
+                                        "value": "per_capita_expenditure",
                                     },
-                                ),
-                                style={"flex": "1"},
-                            ),
-                            html.Div(
-                                [
-                                    html.Span(
-                                        "disclaimer",
-                                        id="education-expenditure-warning",
-                                        style={
-                                            "color": "CCCCCC",
-                                            "fontSize": "12px",
-                                            "textDecoration": "underline dotted",
-                                            "cursor": "pointer",
-                                            "fontWeight": "bold",
-                                            "marginLeft": "8px",
-                                        },
-                                    ),
-                                    dbc.Tooltip(
-                                        MAP_DISCLAIMER,
-                                        target="education-expenditure-warning",
-                                        placement="top",
-                                        style={"fontSize": "14px"},
-                                    ),
+                                    {
+                                        "label": "Total education expenditure",
+                                        "value": "expenditure",
+                                    },
                                 ],
-                                style={"display": "flex", "alignItems": "center"},
+                                value="per_capita_expenditure",
+                                inline=True,
+                                style={"padding": "10px"},
+                                labelStyle={
+                                    "margin-right": "20px",
+                                },
                             ),
+                            disclaimer_tooltip("education-expenditure-warning", MAP_DISCLAIMER),
                         ],
                         className="disclaimer-div",
                         style={

@@ -2,8 +2,7 @@ dash
 dash-bootstrap-components
 pandas>=2.0
 rsconnect-python
-databricks-sql-connector
-dash[diskcache]
+databricks-sql-connector[pyarrow]
 gunicorn
 shapely
 flask_login

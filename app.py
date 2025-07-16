@@ -1,5 +1,4 @@
 import dash_bootstrap_components as dbc
-import diskcache
 import pandas as pd
 import json
 import os
@@ -18,22 +17,17 @@ from dash import (
 )
 
 from components.func_operational_vs_capital_spending import prepare_prop_econ_by_func_df
-from dash.long_callback import DiskcacheLongCallbackManager
 from flask_login import logout_user, current_user
 from auth import AUTH_ENABLED
 from queries import QueryService
 from server import server
 from utils import get_login_path, get_prefixed_path
 
-cache = diskcache.Cache("./cache")
-long_callback_manager = DiskcacheLongCallbackManager(cache)
-
 dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
 app = Dash(
     __name__,
     server=server,
     external_stylesheets=[dbc.themes.QUARTZ, dbc_css],
-    long_callback_manager=long_callback_manager,
     suppress_callback_exceptions=True,
     use_pages=True,
 )

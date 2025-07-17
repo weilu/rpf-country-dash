@@ -338,4 +338,4 @@ def fetch_country_data_once(countries, subnational_data, country_data):
 
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    app.run(debug=True)

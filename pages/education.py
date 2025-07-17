@@ -43,7 +43,7 @@ def layout():
                     [
                         dbc.Tabs(
                             id="education-tabs",
-                            active_tab="edu-tab-time",
+                            active_tab="edu-tab-space",
                             children=[
                                 dbc.Tab(label="Over Time", tab_id="edu-tab-time"),
                                 dbc.Tab(label="Across Space", tab_id="edu-tab-space"),

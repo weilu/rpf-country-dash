@@ -237,8 +237,9 @@ def require_login(layout_func):
         if not AUTH_ENABLED or current_user.is_authenticated:
             return layout_func(*args, **kwargs)
         else:
-            base_path = get_app().config.requests_pathname_prefix
-            return dcc.Location(pathname=get_login_path(), id="redirect-to-login")
+            return html.Div([
+                dcc.Location(pathname=get_login_path(), id="redirect-to-login")
+            ])
 
     return wrapper
 

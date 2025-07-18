@@ -33,15 +33,15 @@ def layout():
                 dbc.CardBody(
                     [
                         dbc.Tabs(
-                            [
-                                dbc.Tab(label="Over Time", tab_id="overview-tab-time", className="tab-text"),
-                                dbc.Tab(
-                                    label="Across Space", tab_id="overview-tab-space", className="tab-text"),
-                            ],
                             id="overview-tabs",
-                            active_tab="overview-tab-time",
+                            active_tab="overview-tab-space",
+                            children=[
+                                dbc.Tab(label="Over Time", tab_id="overview-tab-time"),
+                                dbc.Tab(
+                                    label="Across Space", tab_id="overview-tab-space"
+                                ),
+                            ],
                             style={"marginBottom": "2rem"},
-                            className="tabs-container",
                         ),
                         html.Div(id="overview-content"),
                     ]

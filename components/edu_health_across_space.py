@@ -8,6 +8,7 @@ import traceback
 from dash import html
 from components.year_slider import get_slider_config
 from utils import (
+    add_disputed_overlay,
     empty_plot,
     filter_country_sort_year,
     filter_geojson_by_country,
@@ -224,6 +225,7 @@ def update_func_expenditure_map(
         return empty_plot(f"{expenditure_type} data not available")
 
     geojson = subnational_data["boundaries"]
+    disputed_geojson = subnational_data['disputed_boundaries']
     filtered_geojson = filter_geojson_by_country(geojson, country)
 
     lat, lon = [
@@ -259,6 +261,8 @@ def update_func_expenditure_map(
         featureidkey="properties.region",
         zoom=zoom,
     ).data[0]
+
+    add_disputed_overlay(fig, disputed_geojson, zoom)
     no_data_trace.legendgroup = "no-data"
     no_data_trace.showlegend = False 
     fig.add_trace(no_data_trace)
@@ -343,6 +347,8 @@ def update_hd_index_map(
     geojson = subnational_data["boundaries"]
     filtered_geojson = filter_geojson_by_country(geojson, country)
 
+    disputed_geojson = subnational_data['disputed_boundaries']
+
     lat, lon = [
         country_data["basic_country_info"][country].get(k)
         for k in ["display_lat", "display_lon"]
@@ -388,6 +394,7 @@ def update_hd_index_map(
             + f"<b>{outcome_name}:</b> " + "%{customdata}<br>"
             + "<extra></extra>",
     )
+    add_disputed_overlay(fig, disputed_geojson, zoom)
 
     fig.update_layout(
         title=f"Subnational {outcome_name}",

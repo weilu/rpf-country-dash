@@ -8,7 +8,6 @@ ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 PUBLIC_ONLY = os.getenv("PUBLIC_ONLY", "False").lower() in ("true", "1", "yes")
 BOOST_SCHEMA = os.getenv("BOOST_SCHEMA", "boost")
 INDICATOR_SCHEMA = os.getenv("INDICATOR_SCHEMA", "indicator")
-INDICATOR_SCHEMA_TEST = 'indicator_intermediate'
 
 class QueryService:
     _instance = None
@@ -130,7 +129,7 @@ class QueryService:
         country_list = "', '".join(countries)
         query = f"""
             SELECT country_name, boundary, region_name
-            FROM prd_mega.{INDICATOR_SCHEMA_TEST}.admin0_disputed_boundaries_gold
+            FROM prd_mega.{INDICATOR_SCHEMA}.admin0_disputed_boundaries_gold
             WHERE country_name IN ('{country_list}')
         """
         return self.fetch_data(query)

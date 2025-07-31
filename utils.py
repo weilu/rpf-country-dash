@@ -277,13 +277,7 @@ def add_disputed_overlay(fig, disputed_geojson, zoom, color="rgba(211, 211, 211,
     """
     if disputed_geojson and "features" in disputed_geojson and len(disputed_geojson["features"]):
         disputed_names = []
-        first_props = disputed_geojson["features"][0]["properties"]
-        if "region" in first_props:
-            key = "region"
-        elif "country" in first_props:
-            key = "country"
-        else:
-            key = None
+        key = "region"
         for f in disputed_geojson["features"]:
             if key and key in f["properties"]:
                 disputed_names.append(f["properties"][key])

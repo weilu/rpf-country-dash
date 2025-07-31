@@ -1,3 +1,39 @@
+import pandas as pd
+import plotly.express as px
+
+def add_disputed_overlay(fig, disputed_geojson, zoom, color="rgba(211, 211, 211, 0.3)"):
+    """
+    Adds disputed region overlay to a choropleth mapbox figure.
+    Args:
+        fig: plotly figure to add the overlay to
+        disputed_geojson: geojson for disputed regions
+        zoom: map zoom level
+        color: overlay color (default: light gray)
+    """
+    if disputed_geojson and "features" in disputed_geojson and len(disputed_geojson["features"]):
+        disputed_names = []
+        first_props = disputed_geojson["features"][0]["properties"]
+        if "region" in first_props:
+            key = "region"
+        elif "country" in first_props:
+            key = "country"
+        else:
+            key = None
+        for f in disputed_geojson["features"]:
+            if key and key in f["properties"]:
+                disputed_names.append(f["properties"][key])
+        df_disputed = pd.DataFrame({"region_name": disputed_names})
+        fig.add_trace(
+            px.choropleth_mapbox(
+                df_disputed,
+                geojson=disputed_geojson,
+                color_discrete_sequence=[color],
+                locations="region_name",
+                featureidkey=f"properties.{key}" if key else "properties.region",
+                zoom=zoom,
+            ).data[0]
+        )
+    return fig
 import plotly.graph_objects as go
 import unicodedata
 import textwrap

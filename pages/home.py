@@ -737,7 +737,6 @@ def regional_spending_choropleth(geojson, disputed_geojson, df, zmin, zmax, lat,
             zoom=zoom,
         ).data[0]
     )
-    fig = add_disputed_overlay(fig, disputed_geojson, zoom, color="rgba(211, 211, 211, 0.3)")
     fig.update_layout(
         title="How much was spent in each region?",
         plot_bgcolor="white",
@@ -762,6 +761,7 @@ def regional_spending_choropleth(geojson, disputed_geojson, df, zmin, zmax, lat,
     fig.update_traces(
         hovertemplate="<b>Region:</b> %{location}<br>" + "<b>Expenditure:</b> %{z}<br>"
     )
+    fig = add_disputed_overlay(fig, disputed_geojson, zoom)
     return fig
 
 
@@ -774,6 +774,11 @@ def regional_percapita_spending_choropleth(geojson,disputed_geojson, df, zmin, z
         return empty_plot("Sub-national population data not available ")
     country_name = df.country_name.iloc[0]
     df = df[df.adm1_name != "Central Scope"]
+
+    # Dynamically calculate zmin and zmax based on the data range
+    zmin = df["per_capita_expenditure"].min() if not df.empty else 0
+    zmax = df["per_capita_expenditure"].max() if not df.empty else 1
+
     fig = px.choropleth_mapbox(
         df,
         geojson=geojson,
@@ -795,7 +800,6 @@ def regional_percapita_spending_choropleth(geojson,disputed_geojson, df, zmin, z
             zoom=zoom,
         ).data[0]
     )
-    fig = add_disputed_overlay(fig, disputed_geojson, zoom, color="rgba(211, 211, 211, 0.3)")
     fig.update_layout(
         title="How much was spent per person in each region?",
         plot_bgcolor="white",
@@ -821,6 +825,7 @@ def regional_percapita_spending_choropleth(geojson,disputed_geojson, df, zmin, z
         + "<b>Per capita expenditure:</b> %{z}<br>"
         + "<extra></extra>"
     )
+    fig = add_disputed_overlay(fig, disputed_geojson, zoom)
 
     return fig
 

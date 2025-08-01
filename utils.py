@@ -1,98 +1,90 @@
 def _blend_region_and_gray(fig, country_name, color):
     """
-    If country_name is in DISPUTED_REGION_COLOR_SAMPLE, sample the color from the main map for the specified region,
-    blend it with the given gray color, and return the rgba string. Otherwise, return the gray color.
+    Sample the color from the main map for the specified region and blend it with the given gray color in CMYK space.
+    If the region is not found, return the gray color.
     """
     region_color_map = DISPUTED_REGION_COLOR_SAMPLE
     if country_name is None or country_name not in region_color_map:
         return color
+
     region = region_color_map[country_name]
     region_col = None
+
     # Find the first choropleth trace with color assignments
-    for tr in fig.data:
-        # For choropleth_mapbox, color is determined by z, colorscale, zmin, zmax, or coloraxis
-        if hasattr(tr, "locations") and hasattr(tr, "z"):
-            if region in tr.locations:
-                idx = list(tr.locations).index(region)
-                z_val = tr.z[idx] if isinstance(tr.z, (list, tuple, np.ndarray)) else tr.z
-                # Try to get colorscale, cmin, cmax from coloraxis if present
-                coloraxis = None
-                if hasattr(tr, "coloraxis") and tr.coloraxis:
-                    # coloraxis is like 'coloraxis', 'coloraxis1', etc.
-                    axis_name = tr.coloraxis if tr.coloraxis.startswith('coloraxis') else f'coloraxis{tr.coloraxis}'
-                    coloraxis = getattr(fig.layout, axis_name, None)
-                elif hasattr(tr, "marker") and hasattr(tr.marker, "coloraxis") and tr.marker.coloraxis:
-                    axis_name = tr.marker.coloraxis if tr.marker.coloraxis.startswith('coloraxis') else f'coloraxis{tr.marker.coloraxis}'
-                    coloraxis = getattr(fig.layout, axis_name, None)
-                if coloraxis is not None:
-                    colorscale = getattr(coloraxis, "colorscale", None)
-                    cmin = getattr(coloraxis, "cmin", None)
-                    cmax = getattr(coloraxis, "cmax", None)
+    tr = fig.data[0] if fig.data else None
+    if tr and hasattr(tr, "locations") and hasattr(tr, "z"):
+        if region in tr.locations:
+            idx = list(tr.locations).index(region)
+            z_val = tr.z[idx] if isinstance(tr.z, (list, tuple, np.ndarray)) else tr.z
+
+            # Extract colorscale and normalize z value
+            coloraxis = getattr(fig.layout, tr.coloraxis, None) if hasattr(tr, "coloraxis") else None
+            colorscale = getattr(coloraxis, "colorscale", None)
+            cmin =  min(tr.z)
+            cmax = max(tr.z)
+
+            if pd.isna(cmin):
+                return color
+            if colorscale:
+                # Ensure norm is a valid float between 0 and 1
+                norm = max(0.0, min(1.0, float((z_val - cmin) / (cmax - cmin)))) if cmax != cmin else 0.5
+                colors = [c[1] for c in colorscale]
+                # Validate colorscale structure and ensure keys are numeric and within [0, 1]
+                if isinstance(colorscale, (list, tuple)):
+                    # Use plotly.colors.sample_colorscale to sample color
+                    region_col = px.colors.sample_colorscale(colors, norm, colortype='tuple')[0]
                 else:
-                    colorscale = getattr(tr, "colorscale", None)
-                    cmin = getattr(tr, "zmin", None)
-                    cmax = getattr(tr, "zmax", None)
-                if colorscale is None:
-                    return color
-                # cmin/cmax fallback
-                if cmin is None:
-                    cmin = min(tr.z)
-                if cmax is None:
-                    cmax = max(tr.z)
-                # Normalize z to [0,1]
-                if cmax == cmin:
-                    norm = 0.5
-                else:
-                    norm = (z_val - cmin) / (cmax - cmin)
-                # colorscale is a list of (float, color) tuples
-                def parse_rgba_str(s):
-                    s = s.strip()
-                    if s.startswith('#'):
-                        h = s.lstrip('#')
-                        r, g, b = tuple(int(h[j:j+2], 16) for j in (0, 2, 4))
-                        return [r, g, b, 1.0]
-                    if s.startswith('rgb'):
-                        vals = s.replace('rgba(', '').replace('rgb(', '').replace(')', '').split(',')
-                        vals = [float(v) for v in vals]
-                        if len(vals) == 3:
-                            vals.append(1.0)
-                        return vals
-                    return [211, 211, 211, 0.3]  # fallback
-                # Find the two colorscale stops surrounding norm
-                for i in range(1, len(colorscale)):
-                    if norm <= colorscale[i][0]:
-                        left, right = colorscale[i-1], colorscale[i]
-                        # Linear interpolate between left and right
-                        t = (norm - left[0]) / (right[0] - left[0]) if right[0] > left[0] else 0
-                        left_rgba = parse_rgba_str(left[1])
-                        right_rgba = parse_rgba_str(right[1])
-                        region_col = [left_rgba[j] + t * (right_rgba[j] - left_rgba[j]) for j in range(4)]
-                        break
-                else:
-                    # If norm is above last stop, use last color
-                    region_col = parse_rgba_str(colorscale[-1][1])
-                break
+                    raise ValueError("Invalid colorscale format: Keys must be numeric and within [0, 1]")
+            else:
+                raise ValueError("Colorscale not found or invalid")
+
     if region_col is None:
         return color
-    def parse_rgba(rgba):
-        rgba = str(rgba).strip()
-        if rgba.startswith("#"):
-            h = rgba.lstrip("#")
-            r, g, b = tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
-            return [r, g, b, 1.0]
-        vals = rgba.replace('rgba(', '').replace(')', '').split(',')
-        return [float(v) for v in vals]
+
+    # Blend the sampled color with the gray color in CMYK space
     def to_rgba_str(vals):
-        return f"rgba({int(vals[0])}, {int(vals[1])}, {int(vals[2])}, {vals[3]:.2f})"
-    try:
-        t_col = region_col if isinstance(region_col, list) else parse_rgba(region_col)
-        g_col = parse_rgba("211,211,211,0.3" if color == "rgba(211, 211, 211, 0.3)" else color)
-        if len(g_col) == 3:
-            g_col.append(0.3)
-        blend = [(t_col[i] + g_col[i]) / 2 for i in range(4)]
-        return to_rgba_str(blend)
-    except Exception:
-        return color
+        return f"rgba({int(vals[0])}, {int(vals[1])}, {int(vals[2])}, 0.5)"
+
+    t_rgb = sRGBColor(region_col[0], region_col[1], region_col[2])
+    g_rgb = sRGBColor(211 / 255.0, 211 / 255.0, 211 / 255.0)  # Default gray color
+
+    t_cmyk = convert_color(t_rgb, CMYKColor)
+    g_cmyk = convert_color(g_rgb, CMYKColor)
+
+    blended_cmyk = CMYKColor(
+        (t_cmyk.cmyk_c + g_cmyk.cmyk_c) / 2,
+        (t_cmyk.cmyk_m + g_cmyk.cmyk_m) / 2,
+        (t_cmyk.cmyk_y + g_cmyk.cmyk_y) / 2,
+        (t_cmyk.cmyk_k + g_cmyk.cmyk_k) / 2,
+    )
+
+    blended_rgb = convert_color(blended_cmyk, sRGBColor)
+
+    # Clamp and scale to 0-255
+    r = min(max(int(round(blended_rgb.clamped_rgb_r * 255)), 0), 255)
+    g = min(max(int(round(blended_rgb.clamped_rgb_g * 255)), 0), 255)
+    b = min(max(int(round(blended_rgb.clamped_rgb_b * 255)), 0), 255)
+
+    # Average alpha
+    return to_rgba_str([r, g, b])
+
+
+def parse_rgba_str(s):
+    """Parse an RGBA or hex color string into a list of [r, g, b, a]."""
+    s = s.strip()
+    if s.startswith("#"):
+        h = s.lstrip("#")
+        r, g, b = tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+        return [r, g, b, 1.0]
+    if s.startswith("rgb"):
+        vals = s.replace("rgba(", "").replace("rgb(", "").replace(")", "").split(",")
+        vals = [float(v) for v in vals]
+        if len(vals) == 3:
+            vals.append(1.0)
+        return vals
+    return [211, 211, 211, 0.3]  # Default fallback color
+
+
 # Constant for which region to sample for disputed overlay color
 DISPUTED_REGION_COLOR_SAMPLE = {
     "Kenya": "Turkana"
@@ -105,6 +97,8 @@ import textwrap
 import math
 import pandas as pd
 import numpy as np
+from colormath.color_objects import sRGBColor, CMYKColor
+from colormath.color_conversions import convert_color
 
 
 from auth import AUTH_ENABLED
@@ -114,7 +108,7 @@ from constants import (
     START_YEAR,
     TREND_THRESHOLDS,
 )
-from dash import dcc, get_app
+from dash import dcc, get_app, html
 from flask_login import current_user
 from math import isnan
 from shapely.geometry import shape, MultiPolygon, Polygon

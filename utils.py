@@ -1,3 +1,102 @@
+def _blend_region_and_gray(fig, country_name, color):
+    """
+    If country_name is in DISPUTED_REGION_COLOR_SAMPLE, sample the color from the main map for the specified region,
+    blend it with the given gray color, and return the rgba string. Otherwise, return the gray color.
+    """
+    region_color_map = DISPUTED_REGION_COLOR_SAMPLE
+    if country_name is None or country_name not in region_color_map:
+        return color
+    region = region_color_map[country_name]
+    region_col = None
+    # Find the first choropleth trace with color assignments
+    for tr in fig.data:
+        # For choropleth_mapbox, color is determined by z, colorscale, zmin, zmax, or coloraxis
+        if hasattr(tr, "locations") and hasattr(tr, "z"):
+            if region in tr.locations:
+                idx = list(tr.locations).index(region)
+                z_val = tr.z[idx] if isinstance(tr.z, (list, tuple, np.ndarray)) else tr.z
+                # Try to get colorscale, cmin, cmax from coloraxis if present
+                coloraxis = None
+                if hasattr(tr, "coloraxis") and tr.coloraxis:
+                    # coloraxis is like 'coloraxis', 'coloraxis1', etc.
+                    axis_name = tr.coloraxis if tr.coloraxis.startswith('coloraxis') else f'coloraxis{tr.coloraxis}'
+                    coloraxis = getattr(fig.layout, axis_name, None)
+                elif hasattr(tr, "marker") and hasattr(tr.marker, "coloraxis") and tr.marker.coloraxis:
+                    axis_name = tr.marker.coloraxis if tr.marker.coloraxis.startswith('coloraxis') else f'coloraxis{tr.marker.coloraxis}'
+                    coloraxis = getattr(fig.layout, axis_name, None)
+                if coloraxis is not None:
+                    colorscale = getattr(coloraxis, "colorscale", None)
+                    cmin = getattr(coloraxis, "cmin", None)
+                    cmax = getattr(coloraxis, "cmax", None)
+                else:
+                    colorscale = getattr(tr, "colorscale", None)
+                    cmin = getattr(tr, "zmin", None)
+                    cmax = getattr(tr, "zmax", None)
+                if colorscale is None:
+                    return color
+                # cmin/cmax fallback
+                if cmin is None:
+                    cmin = min(tr.z)
+                if cmax is None:
+                    cmax = max(tr.z)
+                # Normalize z to [0,1]
+                if cmax == cmin:
+                    norm = 0.5
+                else:
+                    norm = (z_val - cmin) / (cmax - cmin)
+                # colorscale is a list of (float, color) tuples
+                def parse_rgba_str(s):
+                    s = s.strip()
+                    if s.startswith('#'):
+                        h = s.lstrip('#')
+                        r, g, b = tuple(int(h[j:j+2], 16) for j in (0, 2, 4))
+                        return [r, g, b, 1.0]
+                    if s.startswith('rgb'):
+                        vals = s.replace('rgba(', '').replace('rgb(', '').replace(')', '').split(',')
+                        vals = [float(v) for v in vals]
+                        if len(vals) == 3:
+                            vals.append(1.0)
+                        return vals
+                    return [211, 211, 211, 0.3]  # fallback
+                # Find the two colorscale stops surrounding norm
+                for i in range(1, len(colorscale)):
+                    if norm <= colorscale[i][0]:
+                        left, right = colorscale[i-1], colorscale[i]
+                        # Linear interpolate between left and right
+                        t = (norm - left[0]) / (right[0] - left[0]) if right[0] > left[0] else 0
+                        left_rgba = parse_rgba_str(left[1])
+                        right_rgba = parse_rgba_str(right[1])
+                        region_col = [left_rgba[j] + t * (right_rgba[j] - left_rgba[j]) for j in range(4)]
+                        break
+                else:
+                    # If norm is above last stop, use last color
+                    region_col = parse_rgba_str(colorscale[-1][1])
+                break
+    if region_col is None:
+        return color
+    def parse_rgba(rgba):
+        rgba = str(rgba).strip()
+        if rgba.startswith("#"):
+            h = rgba.lstrip("#")
+            r, g, b = tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+            return [r, g, b, 1.0]
+        vals = rgba.replace('rgba(', '').replace(')', '').split(',')
+        return [float(v) for v in vals]
+    def to_rgba_str(vals):
+        return f"rgba({int(vals[0])}, {int(vals[1])}, {int(vals[2])}, {vals[3]:.2f})"
+    try:
+        t_col = region_col if isinstance(region_col, list) else parse_rgba(region_col)
+        g_col = parse_rgba("211,211,211,0.3" if color == "rgba(211, 211, 211, 0.3)" else color)
+        if len(g_col) == 3:
+            g_col.append(0.3)
+        blend = [(t_col[i] + g_col[i]) / 2 for i in range(4)]
+        return to_rgba_str(blend)
+    except Exception:
+        return color
+# Constant for which region to sample for disputed overlay color
+DISPUTED_REGION_COLOR_SAMPLE = {
+    "Kenya": "Turkana"
+}
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -266,7 +365,7 @@ def calculate_cagr(start_value, end_value, time_period):
     return cagr
 
 
-def add_disputed_overlay(fig, disputed_geojson, zoom, color="rgba(211, 211, 211, 0.3)"):
+def add_disputed_overlay(fig, disputed_geojson, zoom, color="rgba(211, 211, 211, 0.3)", country_name="Kenya"):
     """
     Adds disputed region overlay to a choropleth mapbox figure.
     Args:
@@ -282,11 +381,15 @@ def add_disputed_overlay(fig, disputed_geojson, zoom, color="rgba(211, 211, 211,
             if key and key in f["properties"]:
                 disputed_names.append(f["properties"][key])
         df_disputed = pd.DataFrame({"region_name": disputed_names})
-        # Add filled overlay
+
+
+        # Determine fill color
+        fill_color = _blend_region_and_gray(fig, country_name, color)
+
         trace = px.choropleth_mapbox(
             df_disputed,
             geojson=disputed_geojson,
-            color_discrete_sequence=[color],
+            color_discrete_sequence=[fill_color],
             locations="region_name",
             featureidkey=f"properties.{key}" if key else "properties.region",
             zoom=zoom,

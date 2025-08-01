@@ -29,12 +29,7 @@ def _blend_region_and_gray(fig, country_name, color):
                 # Ensure norm is a valid float between 0 and 1
                 norm = max(0.0, min(1.0, float((z_val - cmin) / (cmax - cmin)))) if cmax != cmin else 0.5
                 colors = [c[1] for c in colorscale]
-                # Validate colorscale structure and ensure keys are numeric and within [0, 1]
-                if isinstance(colorscale, (list, tuple)):
-                    # Use plotly.colors.sample_colorscale to sample color
-                    region_col = px.colors.sample_colorscale(colors, norm, colortype='tuple')[0]
-                else:
-                    raise ValueError("Invalid colorscale format: Keys must be numeric and within [0, 1]")
+                region_col = px.colors.sample_colorscale(colors, norm, colortype='tuple')[0]
             else:
                 raise ValueError("Colorscale not found or invalid")
 
@@ -58,15 +53,10 @@ def _blend_region_and_gray(fig, country_name, color):
         (t_cmyk.cmyk_k + g_cmyk.cmyk_k) / 2,
     )
 
-    blended_rgb = convert_color(blended_cmyk, sRGBColor)
-
-    # Clamp and scale to 0-255
-    r = min(max(int(round(blended_rgb.clamped_rgb_r * 255)), 0), 255)
-    g = min(max(int(round(blended_rgb.clamped_rgb_g * 255)), 0), 255)
-    b = min(max(int(round(blended_rgb.clamped_rgb_b * 255)), 0), 255)
+    blended_rgb = convert_color(blended_cmyk, sRGBColor).get_upscaled_value_tuple()
 
     # Average alpha
-    return to_rgba_str([r, g, b])
+    return to_rgba_str(blended_rgb)
 
 
 def parse_rgba_str(s):

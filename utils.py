@@ -294,6 +294,7 @@ def add_disputed_overlay(fig, disputed_geojson, zoom, color="rgba(211, 211, 211,
         # Remove border by setting marker.line.width to 0
         if hasattr(trace, "marker") and hasattr(trace.marker, "line"):
             trace.marker.line.width = 0
+        trace.hovertemplate = "Region: %{location}<extra></extra>"
         fig.add_trace(trace)
 
         # Simulate dashed border overlay

@@ -262,7 +262,6 @@ def update_func_expenditure_map(
         zoom=zoom,
     ).data[0]
 
-    add_disputed_overlay(fig, disputed_geojson, zoom)
     no_data_trace.legendgroup = "no-data"
     no_data_trace.showlegend = False 
     fig.add_trace(no_data_trace)
@@ -274,6 +273,7 @@ def update_func_expenditure_map(
     )
 
     fig.update_traces(hovertemplate=hover_template_str)
+    add_disputed_overlay(fig, disputed_geojson, zoom)
 
     fig.update_layout(
         title=f"Subnational {func} Spending",

@@ -282,14 +282,51 @@ def add_disputed_overlay(fig, disputed_geojson, zoom, color="rgba(211, 211, 211,
             if key and key in f["properties"]:
                 disputed_names.append(f["properties"][key])
         df_disputed = pd.DataFrame({"region_name": disputed_names})
-        fig.add_trace(
-            px.choropleth_mapbox(
-                df_disputed,
-                geojson=disputed_geojson,
-                color_discrete_sequence=[color],
-                locations="region_name",
-                featureidkey=f"properties.{key}" if key else "properties.region",
-                zoom=zoom,
-            ).data[0]
-        )
+        # Add filled overlay
+        trace = px.choropleth_mapbox(
+            df_disputed,
+            geojson=disputed_geojson,
+            color_discrete_sequence=[color],
+            locations="region_name",
+            featureidkey=f"properties.{key}" if key else "properties.region",
+            zoom=zoom,
+        ).data[0]
+        # Remove border by setting marker.line.width to 0
+        if hasattr(trace, "marker") and hasattr(trace.marker, "line"):
+            trace.marker.line.width = 0
+        fig.add_trace(trace)
+
+        # Simulate dashed border overlay
+        import plotly.graph_objects as go
+        def add_dashed_line(lons, lats, dash_length=1, gap_length=1):
+            # dash_length and gap_length are in number of points, not meters
+            n = len(lons)
+            i = 0
+            while i < n - 1:
+                # Draw dash
+                dash_end = min(i + dash_length, n - 1)
+                fig.add_trace(go.Scattermapbox(
+                    lon=list(lons[i:dash_end+1]),
+                    lat=list(lats[i:dash_end+1]),
+                    mode="lines",
+                    line=dict(color="black", width=2),
+                    fill=None,
+                    showlegend=False,
+                    hoverinfo="skip",
+                ))
+                i = dash_end + gap_length
+
+        for feature in disputed_geojson["features"]:
+            geometry = feature["geometry"]
+            polygons = geometry["coordinates"]
+
+            for poly in polygons:
+                # poly is a list of linear rings, first is exterior
+                if not poly or not poly[0]:
+                    continue
+                exterior = poly[0]
+                if len(exterior) < 2:
+                    continue
+                lons, lats = zip(*exterior)
+                add_dashed_line(lons, lats, dash_length=3, gap_length=3)
     return fig

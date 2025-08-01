@@ -4,6 +4,7 @@ import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
+from utils import add_disputed_overlay
 from plotly.subplots import make_subplots
 import numpy as np
 from utils import (
@@ -706,7 +707,8 @@ def subnational_spending_narrative(
     return f"{exp_narrative} {per_capita_narrative} {corr_narrative}"
 
 
-def regional_spending_choropleth(geojson, df, zmin, zmax, lat, lon, zoom):
+
+def regional_spending_choropleth(geojson, disputed_geojson, df, zmin, zmax, lat, lon, zoom):
     all_regions = [feature["properties"]["region"] for feature in geojson["features"]]
     regions_without_data = [r for r in all_regions if r not in df.adm1_name.values]
     df_no_data = pd.DataFrame({"region_name": regions_without_data})
@@ -759,11 +761,11 @@ def regional_spending_choropleth(geojson, df, zmin, zmax, lat, lon, zoom):
     fig.update_traces(
         hovertemplate="<b>Region:</b> %{location}<br>" + "<b>Expenditure:</b> %{z}<br>"
     )
-
+    fig = add_disputed_overlay(fig, disputed_geojson, zoom)
     return fig
 
 
-def regional_percapita_spending_choropleth(geojson, df, zmin, zmax, lat, lon, zoom):
+def regional_percapita_spending_choropleth(geojson,disputed_geojson, df, zmin, zmax, lat, lon, zoom):
     all_regions = [feature["properties"]["region"] for feature in geojson["features"]]
     regions_without_data = [r for r in all_regions if r not in df.adm1_name.values]
     df_no_data = pd.DataFrame({"region_name": regions_without_data})
@@ -772,6 +774,11 @@ def regional_percapita_spending_choropleth(geojson, df, zmin, zmax, lat, lon, zo
         return empty_plot("Sub-national population data not available ")
     country_name = df.country_name.iloc[0]
     df = df[df.adm1_name != "Central Scope"]
+
+    # Dynamically calculate zmin and zmax based on the data range
+    zmin = df["per_capita_expenditure"].min() if not df.empty else 0
+    zmax = df["per_capita_expenditure"].max() if not df.empty else 1
+
     fig = px.choropleth_mapbox(
         df,
         geojson=geojson,
@@ -818,11 +825,12 @@ def regional_percapita_spending_choropleth(geojson, df, zmin, zmax, lat, lon, zo
         + "<b>Per capita expenditure:</b> %{z}<br>"
         + "<extra></extra>"
     )
+    fig = add_disputed_overlay(fig, disputed_geojson, zoom)
 
     return fig
 
 
-def subnational_poverty_choropleth(geojson, df, zmin, zmax, lat, lon, zoom):
+def subnational_poverty_choropleth(geojson, disputed_geojson, df, zmin, zmax, lat, lon, zoom):
     if df[df.region_name != "National"].empty:
         return empty_plot("Sub-national poverty data not available")
     # TODO align accents across all datasets
@@ -855,6 +863,7 @@ def subnational_poverty_choropleth(geojson, df, zmin, zmax, lat, lon, zoom):
             zoom=zoom,
         ).data[0]
     )
+    fig = add_disputed_overlay(fig, disputed_geojson, zoom, color="rgba(211, 211, 211, 0.3)")
     fig.update_layout(
         title="What percent of the population is living in poverty?",
         plot_bgcolor="white",
@@ -1098,6 +1107,7 @@ def render_subnational_spending_figures(data, country_data, country, plot_type, 
             return empty_plot("Data not available")
 
         geojson = data["boundaries"]
+        disputed_geojson = filter_geojson_by_country(data["disputed_boundaries"], country)
         lat, lon = [
             country_data["basic_country_info"][country].get(k)
             for k in ["display_lat", "display_lon"]
@@ -1124,6 +1134,7 @@ def render_subnational_spending_figures(data, country_data, country, plot_type, 
         if plot_type == "percapita":
             return regional_percapita_spending_choropleth(
                 filtered_geojson,
+                disputed_geojson,
                 df[df.year == year],
                 legend_percapita_min,
                 legend_percapita_max,
@@ -1134,6 +1145,7 @@ def render_subnational_spending_figures(data, country_data, country, plot_type, 
         else:
             return regional_spending_choropleth(
                 filtered_geojson,
+                disputed_geojson,
                 df[df.year == year],
                 legend_expenditure_min,
                 legend_expenditure_max,
@@ -1158,6 +1170,9 @@ def render_subnational_poverty_figure(subnational_data, country_data, country, y
             return empty_plot("Data not available")
 
         geojson = subnational_data["boundaries"]
+        disputed_geojson = filter_geojson_by_country(
+            subnational_data["disputed_boundaries"], country
+        )
         filtered_geojson = filter_geojson_by_country(geojson, country)
         df = pd.DataFrame(subnational_data["subnational_poverty_index"])
         df = filter_country_sort_year(df, country)
@@ -1181,6 +1196,7 @@ def render_subnational_poverty_figure(subnational_data, country_data, country, y
 
         return subnational_poverty_choropleth(
             filtered_geojson,
+            disputed_geojson,
             df[df.year == relevant_years[-1]],
             legend_min,
             legend_max,

@@ -1,9 +1,94 @@
+def _blend_region_and_gray(fig, country_name, color):
+    """
+    Sample the color from the main map for the specified region and blend it with the given gray color in CMYK space.
+    If the region is not found, return the gray color.
+    """
+    region_color_map = DISPUTED_REGION_COLOR_SAMPLE
+    if country_name is None or country_name not in region_color_map:
+        return color
+
+    region = region_color_map[country_name]
+    region_col = None
+
+    # Find the first choropleth trace with color assignments
+    tr = fig.data[0] if fig.data else None
+    if tr and hasattr(tr, "locations") and hasattr(tr, "z"):
+        if region in tr.locations:
+            idx = list(tr.locations).index(region)
+            z_val = tr.z[idx] if isinstance(tr.z, (list, tuple, np.ndarray)) else tr.z
+
+            # Extract colorscale and normalize z value
+            coloraxis = getattr(fig.layout, tr.coloraxis, None) if hasattr(tr, "coloraxis") else None
+            colorscale = getattr(coloraxis, "colorscale", None)
+            cmin =  min(tr.z)
+            cmax = max(tr.z)
+
+            if pd.isna(cmin):
+                return color
+            if colorscale:
+                # Ensure norm is a valid float between 0 and 1
+                norm = max(0.0, min(1.0, float((z_val - cmin) / (cmax - cmin)))) if cmax != cmin else 0.5
+                colors = [c[1] for c in colorscale]
+                region_col = px.colors.sample_colorscale(colors, norm, colortype='tuple')[0]
+            else:
+                raise ValueError("Colorscale not found or invalid")
+
+    if region_col is None:
+        return color
+
+    # Blend the sampled color with the gray color in CMYK space
+    def to_rgba_str(vals):
+        return f"rgba({int(vals[0])}, {int(vals[1])}, {int(vals[2])}, 0.5)"
+
+    t_rgb = sRGBColor(region_col[0], region_col[1], region_col[2])
+    g_rgb = sRGBColor(211 / 255.0, 211 / 255.0, 211 / 255.0)  # Default gray color
+
+    t_cmyk = convert_color(t_rgb, CMYKColor)
+    g_cmyk = convert_color(g_rgb, CMYKColor)
+
+    blended_cmyk = CMYKColor(
+        (t_cmyk.cmyk_c + g_cmyk.cmyk_c) / 2,
+        (t_cmyk.cmyk_m + g_cmyk.cmyk_m) / 2,
+        (t_cmyk.cmyk_y + g_cmyk.cmyk_y) / 2,
+        (t_cmyk.cmyk_k + g_cmyk.cmyk_k) / 2,
+    )
+
+    blended_rgb = convert_color(blended_cmyk, sRGBColor).get_upscaled_value_tuple()
+
+    # Average alpha
+    return to_rgba_str(blended_rgb)
+
+
+def parse_rgba_str(s):
+    """Parse an RGBA or hex color string into a list of [r, g, b, a]."""
+    s = s.strip()
+    if s.startswith("#"):
+        h = s.lstrip("#")
+        r, g, b = tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+        return [r, g, b, 1.0]
+    if s.startswith("rgb"):
+        vals = s.replace("rgba(", "").replace("rgb(", "").replace(")", "").split(",")
+        vals = [float(v) for v in vals]
+        if len(vals) == 3:
+            vals.append(1.0)
+        return vals
+    return [211, 211, 211, 0.3]  # Default fallback color
+
+
+# Constant for which region to sample for disputed overlay color
+DISPUTED_REGION_COLOR_SAMPLE = {
+    "Kenya": "Turkana"
+}
+import pandas as pd
+import plotly.express as px
 import plotly.graph_objects as go
 import unicodedata
 import textwrap
 import math
 import pandas as pd
 import numpy as np
+from colormath.color_objects import sRGBColor, CMYKColor
+from colormath.color_conversions import convert_color
 
 
 from auth import AUTH_ENABLED
@@ -13,7 +98,7 @@ from constants import (
     START_YEAR,
     TREND_THRESHOLDS,
 )
-from dash import dcc, get_app
+from dash import dcc, get_app, html
 from flask_login import current_user
 from math import isnan
 from shapely.geometry import shape, MultiPolygon, Polygon
@@ -262,3 +347,74 @@ def calculate_cagr(start_value, end_value, time_period):
         return 0.0
     cagr = ((end_value / start_value) ** (1 / time_period) - 1) * 100
     return cagr
+
+
+def add_disputed_overlay(fig, disputed_geojson, zoom, color="rgba(211, 211, 211, 0.3)", country_name="Kenya"):
+    """
+    Adds disputed region overlay to a choropleth mapbox figure.
+    Args:
+        fig: plotly figure to add the overlay to
+        disputed_geojson: geojson for disputed regions
+        zoom: map zoom level
+        color: overlay color (default: light gray)
+    """
+    if disputed_geojson and "features" in disputed_geojson and len(disputed_geojson["features"]):
+        disputed_names = []
+        key = "region"
+        for f in disputed_geojson["features"]:
+            if key and key in f["properties"]:
+                disputed_names.append(f["properties"][key])
+        df_disputed = pd.DataFrame({"region_name": disputed_names})
+
+
+        # Determine fill color
+        fill_color = _blend_region_and_gray(fig, country_name, color)
+
+        trace = px.choropleth_mapbox(
+            df_disputed,
+            geojson=disputed_geojson,
+            color_discrete_sequence=[fill_color],
+            locations="region_name",
+            featureidkey=f"properties.{key}" if key else "properties.region",
+            zoom=zoom,
+        ).data[0]
+        # Remove border by setting marker.line.width to 0
+        if hasattr(trace, "marker") and hasattr(trace.marker, "line"):
+            trace.marker.line.width = 0
+        trace.hovertemplate = "Region: %{location}<extra></extra>"
+        fig.add_trace(trace)
+
+        # Simulate dashed border overlay
+        import plotly.graph_objects as go
+        def add_dashed_line(lons, lats, dash_length=1, gap_length=1):
+            # dash_length and gap_length are in number of points, not meters
+            n = len(lons)
+            i = 0
+            while i < n - 1:
+                # Draw dash
+                dash_end = min(i + dash_length, n - 1)
+                fig.add_trace(go.Scattermapbox(
+                    lon=list(lons[i:dash_end+1]),
+                    lat=list(lats[i:dash_end+1]),
+                    mode="lines",
+                    line=dict(color="black", width=2),
+                    fill=None,
+                    showlegend=False,
+                    hoverinfo="skip",
+                ))
+                i = dash_end + gap_length
+
+        for feature in disputed_geojson["features"]:
+            geometry = feature["geometry"]
+            polygons = geometry["coordinates"]
+
+            for poly in polygons:
+                # poly is a list of linear rings, first is exterior
+                if not poly or not poly[0]:
+                    continue
+                exterior = poly[0]
+                if len(exterior) < 2:
+                    continue
+                lons, lats = zip(*exterior)
+                add_dashed_line(lons, lats, dash_length=3, gap_length=3)
+    return fig

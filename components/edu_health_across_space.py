@@ -202,6 +202,7 @@ def update_func_expenditure_map(
     country,
     year,
     expenditure_type,
+    subnat_boundaries,
     func,
 ):
     if (
@@ -224,7 +225,7 @@ def update_func_expenditure_map(
     if expenditure_type not in df.columns:
         return empty_plot(f"{expenditure_type} data not available")
 
-    geojson = subnational_data["boundaries"]
+    geojson = subnat_boundaries[country]
     disputed_geojson = subnational_data['disputed_boundaries']
     filtered_geojson = filter_geojson_by_country(geojson, country)
 
@@ -322,7 +323,7 @@ FUNC_OUTCOME_MAP = {
     ],
 }
 def update_hd_index_map(
-    subnational_data, country_data, country, year, func,
+    subnational_data, country_data, country, year, subnat_boundaries, func,
 ):
     if (
         not subnational_data
@@ -344,7 +345,7 @@ def update_hd_index_map(
     outcome_name, transform_fn, format_fn = FUNC_OUTCOME_MAP[func]
     df['outcome_index'] = df['outcome_index'].map(transform_fn)
 
-    geojson = subnational_data["boundaries"]
+    geojson = subnat_boundaries[country]
     filtered_geojson = filter_geojson_by_country(geojson, country)
 
     disputed_geojson = subnational_data['disputed_boundaries']

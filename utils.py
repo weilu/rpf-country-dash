@@ -21,11 +21,6 @@ from math import isnan
 from shapely.geometry import shape, MultiPolygon, Polygon
 
 
-# Constant for which region to sample for disputed overlay color
-DISPUTED_REGION_COLOR_SAMPLE = {
-    "Kenya": "Turkana"
-}
-
 CORRELATION_THRESHOLDS = {
     0: "no",
     0.1: "no",
@@ -35,16 +30,21 @@ CORRELATION_THRESHOLDS = {
     1: "very strong",
 }
 
-def _blend_region_and_gray(fig, country_name, color):
+# Constant for which region to sample for disputed overlay color
+DISPUTED_REGION_COLOR_SAMPLE = {
+    "Ilemi Triangle": "Turkana"
+}
+DISPUTED_REGION_DEFAULT_COLOR = "rgba(211, 211, 211, 0.3)" # gray
+
+def _blend_region_and_gray(fig, region):
     """
     Sample the color from the main map for the specified region and blend it with the given gray color in CMYK space.
     If the region is not found, return the gray color.
     """
-    region_color_map = DISPUTED_REGION_COLOR_SAMPLE
-    if country_name is None or country_name not in region_color_map:
-        return color
+    region = DISPUTED_REGION_COLOR_SAMPLE.get(region)
+    if region is None:
+        return DISPUTED_REGION_DEFAULT_COLOR
 
-    region = region_color_map[country_name]
     region_col = None
 
     # Find the first choropleth trace with color assignments
@@ -61,7 +61,7 @@ def _blend_region_and_gray(fig, country_name, color):
             cmax = max(tr.z)
 
             if pd.isna(cmin):
-                return color
+                return DISPUTED_REGION_DEFAULT_COLOR
             if colorscale:
                 # Ensure norm is a valid float between 0 and 1
                 norm = max(0.0, min(1.0, float((z_val - cmin) / (cmax - cmin)))) if cmax != cmin else 0.5
@@ -71,7 +71,7 @@ def _blend_region_and_gray(fig, country_name, color):
                 raise ValueError("Colorscale not found or invalid")
 
     if region_col is None:
-        return color
+        return DISPUTED_REGION_DEFAULT_COLOR
 
     # Blend the sampled color with the gray color in CMYK space
     def to_rgba_str(vals):
@@ -347,7 +347,7 @@ def calculate_cagr(start_value, end_value, time_period):
     return cagr
 
 
-def add_disputed_overlay(fig, disputed_geojson, zoom, color="rgba(211, 211, 211, 0.3)", country_name="Kenya"):
+def add_disputed_overlay(fig, disputed_geojson, zoom):
     """
     Adds disputed region overlay to a choropleth mapbox figure.
     Args:
@@ -356,62 +356,68 @@ def add_disputed_overlay(fig, disputed_geojson, zoom, color="rgba(211, 211, 211,
         zoom: map zoom level
         color: overlay color (default: light gray)
     """
-    if disputed_geojson and "features" in disputed_geojson and len(disputed_geojson["features"]):
-        disputed_names = []
-        key = "region"
-        for f in disputed_geojson["features"]:
-            if key and key in f["properties"]:
-                disputed_names.append(f["properties"][key])
-        df_disputed = pd.DataFrame({"region_name": disputed_names})
+    if not disputed_geojson:
+        return fig
 
+    disputed_regions = []
+    color_map = {}
+    for f in disputed_geojson.get("features", []):
+        region_name = f["properties"]["region"]
+        disputed_regions.append(region_name)
+        color_map[region_name] = _blend_region_and_gray(fig, region_name)
 
-        # Determine fill color
-        fill_color = _blend_region_and_gray(fig, country_name, color)
+    if not disputed_regions:
+        return fig
 
-        trace = px.choropleth_mapbox(
-            df_disputed,
-            geojson=disputed_geojson,
-            color_discrete_sequence=[fill_color],
-            locations="region_name",
-            featureidkey=f"properties.{key}" if key else "properties.region",
-            zoom=zoom,
-        ).data[0]
-        # Remove border by setting marker.line.width to 0
-        if hasattr(trace, "marker") and hasattr(trace.marker, "line"):
-            trace.marker.line.width = 0
-        trace.hovertemplate = "Region: %{location}<extra></extra>"
-        fig.add_trace(trace)
+    df_disputed = pd.DataFrame({"region_name": disputed_regions})
 
-        # Simulate dashed border overlay
-        def add_dashed_line(lons, lats, dash_length=1, gap_length=1):
-            # dash_length and gap_length are in number of points, not meters
-            n = len(lons)
-            i = 0
-            while i < n - 1:
-                # Draw dash
-                dash_end = min(i + dash_length, n - 1)
-                fig.add_trace(go.Scattermapbox(
-                    lon=list(lons[i:dash_end+1]),
-                    lat=list(lats[i:dash_end+1]),
-                    mode="lines",
-                    line=dict(color="black", width=2),
-                    fill=None,
-                    showlegend=False,
-                    hoverinfo="skip",
-                ))
-                i = dash_end + gap_length
+    trace = px.choropleth_mapbox(
+        df_disputed,
+        geojson=disputed_geojson,
+        locations="region_name",
+        featureidkey="properties.region",
+        color="region_name",
+        color_discrete_map=color_map,
+        zoom=zoom,
+    ).data[0]
+    # Remove border by setting marker.line.width to 0
+    if hasattr(trace, "marker") and hasattr(trace.marker, "line"):
+        trace.marker.line.width = 0
+    trace.hovertemplate = "Region: %{location}<extra></extra>"
+    trace.showscale = False
+    trace.showlegend = False
+    fig.add_trace(trace)
 
-        for feature in disputed_geojson["features"]:
-            geometry = feature["geometry"]
-            polygons = geometry["coordinates"]
+    # Simulate dashed border overlay
+    def add_dashed_line(lons, lats, dash_length=1, gap_length=1):
+        # dash_length and gap_length are in number of points, not meters
+        n = len(lons)
+        i = 0
+        while i < n - 1:
+            # Draw dash
+            dash_end = min(i + dash_length, n - 1)
+            fig.add_trace(go.Scattermapbox(
+                lon=list(lons[i:dash_end+1]),
+                lat=list(lats[i:dash_end+1]),
+                mode="lines",
+                line=dict(color="black", width=2),
+                fill=None,
+                showlegend=False,
+                hoverinfo="skip",
+            ))
+            i = dash_end + gap_length
 
-            for poly in polygons:
-                # poly is a list of linear rings, first is exterior
-                if not poly or not poly[0]:
-                    continue
-                exterior = poly[0]
-                if len(exterior) < 2:
-                    continue
-                lons, lats = zip(*exterior)
-                add_dashed_line(lons, lats)
+    for feature in disputed_geojson["features"]:
+        geometry = feature["geometry"]
+        polygons = geometry["coordinates"]
+
+        for poly in polygons:
+            # poly is a list of linear rings, first is exterior
+            if not poly or not poly[0]:
+                continue
+            exterior = poly[0]
+            if len(exterior) < 2:
+                continue
+            lons, lats = zip(*exterior)
+            add_dashed_line(lons, lats)
     return fig

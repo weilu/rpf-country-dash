@@ -1,3 +1,40 @@
+import pandas as pd
+import plotly.express as px
+import unicodedata
+import textwrap
+import math
+import pandas as pd
+import numpy as np
+import plotly.graph_objects as go
+from colormath.color_objects import sRGBColor, CMYKColor
+from colormath.color_conversions import convert_color
+from auth import AUTH_ENABLED
+from collections import OrderedDict
+from constants import (
+    NARRATIVE_ERROR_TEMPLATES,
+    START_YEAR,
+    TREND_THRESHOLDS,
+)
+from dash import dcc, get_app, html
+from flask_login import current_user
+from math import isnan
+from shapely.geometry import shape, MultiPolygon, Polygon
+
+
+# Constant for which region to sample for disputed overlay color
+DISPUTED_REGION_COLOR_SAMPLE = {
+    "Kenya": "Turkana"
+}
+
+CORRELATION_THRESHOLDS = {
+    0: "no",
+    0.1: "no",
+    0.3: "weak",
+    0.7: "moderate",
+    0.9: "strong",
+    1: "very strong",
+}
+
 def _blend_region_and_gray(fig, country_name, color):
     """
     Sample the color from the main map for the specified region and blend it with the given gray color in CMYK space.
@@ -73,45 +110,6 @@ def parse_rgba_str(s):
             vals.append(1.0)
         return vals
     return [211, 211, 211, 0.3]  # Default fallback color
-
-
-# Constant for which region to sample for disputed overlay color
-DISPUTED_REGION_COLOR_SAMPLE = {
-    "Kenya": "Turkana"
-}
-import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-import unicodedata
-import textwrap
-import math
-import pandas as pd
-import numpy as np
-from colormath.color_objects import sRGBColor, CMYKColor
-from colormath.color_conversions import convert_color
-
-
-from auth import AUTH_ENABLED
-from collections import OrderedDict
-from constants import (
-    NARRATIVE_ERROR_TEMPLATES,
-    START_YEAR,
-    TREND_THRESHOLDS,
-)
-from dash import dcc, get_app, html
-from flask_login import current_user
-from math import isnan
-from shapely.geometry import shape, MultiPolygon, Polygon
-
-
-CORRELATION_THRESHOLDS = {
-    0: "no",
-    0.1: "no",
-    0.3: "weak",
-    0.7: "moderate",
-    0.9: "strong",
-    1: "very strong",
-}
 
 
 def filter_country_sort_year(df, country, start_year=START_YEAR):
@@ -385,7 +383,6 @@ def add_disputed_overlay(fig, disputed_geojson, zoom, color="rgba(211, 211, 211,
         fig.add_trace(trace)
 
         # Simulate dashed border overlay
-        import plotly.graph_objects as go
         def add_dashed_line(lons, lats, dash_length=1, gap_length=1):
             # dash_length and gap_length are in number of points, not meters
             n = len(lons)
@@ -416,5 +413,5 @@ def add_disputed_overlay(fig, disputed_geojson, zoom, color="rgba(211, 211, 211,
                 if len(exterior) < 2:
                     continue
                 lons, lats = zip(*exterior)
-                add_dashed_line(lons, lats, dash_length=3, gap_length=3)
+                add_dashed_line(lons, lats)
     return fig
